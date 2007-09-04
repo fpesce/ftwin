@@ -1,0 +1,7 @@
+cli options:
+
+c case-unsensitive applied to -i
+i ignore-list (comma-separated list of files)
+  Apply to -i, switch from hash to array+strcasecmp.
+
+p prioritized-path : file in this path are displayed first when duplicates are reported
