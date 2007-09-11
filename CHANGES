@@ -1,2 +1,6 @@
+0.2.0:
+    - copyrights added.
+    - output reordered by size, add an option to display them.
+
 0.1.0:
     - Initial version of ftwin, with basic command line options.

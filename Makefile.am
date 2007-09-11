@@ -12,7 +12,7 @@ endif
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 
-EXTRA_DIST =
+EXTRA_DIST = TODO
 
 ## For doxygen building
 dox: Doxyfile

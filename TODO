@@ -1,4 +1,7 @@
-cli options:
+TODO:
+handle big files > 1Go differently from small ones.
+
+implement cli options:
 
 c case-unsensitive applied to -i
 i ignore-list (comma-separated list of files)
