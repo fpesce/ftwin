@@ -317,7 +317,7 @@ napr_hash_index_t *napr_hash_next(napr_hash_index_t *hash_index)
     return NULL;
 }
 
-void apr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val)
+void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val)
 {
     if (key)
 	*key = hi->hash->get_key(hi->hash->table[hi->bucket][hi->element]);

@@ -69,7 +69,7 @@ apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
 
 /**
  * Start iterating over the entries in a hash table.
- * @param p The pool to allocate the apr_hash_index_t iterator. If this
+ * @param p The pool to allocate the napr_hash_index_t iterator. If this
  *          pool is NULL, then an internal, non-thread-safe iterator is used.
  * @param ht The hash table
  * @remark  There is no restriction on adding or deleting hash entries during
@@ -81,13 +81,13 @@ apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
 /**
  * <PRE>
  * 
- * int sum_values(apr_pool_t *p, apr_hash_t *ht)
+ * int sum_values(apr_pool_t *p, napr_hash_t *ht)
  * {
- *     apr_hash_index_t *hi;
+ *     napr_hash_index_t *hi;
  *     void *val;
  *     int sum = 0;
- *     for (hi = apr_hash_first(p, ht); hi; hi = apr_hash_next(hi)) {
- *         apr_hash_this(hi, NULL, NULL, &val);
+ *     for (hi = napr_hash_first(p, ht); hi; hi = napr_hash_next(hi)) {
+ *         napr_hash_this(hi, NULL, NULL, &val);
  *         sum += *(int *)val;
  *     }
  *     return sum;
@@ -113,6 +113,6 @@ napr_hash_index_t *napr_hash_next(napr_hash_index_t *index);
  * @remark The return pointers should point to a variable that will be set to the
  *         corresponding data, or they may be NULL if the data isn't interesting.
  */
-void apr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val);
+void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val);
 
 #endif /* NAPR_HASH_H */
