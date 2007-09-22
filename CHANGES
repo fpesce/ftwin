@@ -1,6 +1,19 @@
+0.3.0:
+    - bugfix: - if a file did not have correct permissions (read bit for
+		user/group/world) to be read/checksumed, it should have crashed
+		ftwin, now it silently (unless verbose mode) skip the file
+		instead.
+    - feature: - add the -p implementation, files in a path preppended
+		 by its (-p) param will be displayed first (example :
+		 -p /home/joke/ will display /home/joke/dup before /etc/dup),
+		 this may be useful to script a deletion for example.
+    - bugfix: - big file may overuse memory when using mmap syscall where it is
+		implemented, so for files whose size > excess (defined by
+		parameter -x, default 50Mo), use a standard chunk read method.
+
 0.2.0:
-    - copyrights added.
-    - output reordered by size, add an option to display them.
+    - legal: - copyrights added.
+    - feature: - output reordered by size, add an option to display them.
 
 0.1.0:
-    - Initial version of ftwin, with basic command line options.
+    - import: Initial version of ftwin, with basic command line options.

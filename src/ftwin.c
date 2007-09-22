@@ -1,4 +1,5 @@
 /*
+ *
  * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,26 +15,18 @@
  * limitations under the License.
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-
 #include <pcre.h>
 
 #include <apr_file_info.h>
-#include <apr_file_io.h>
 #include <apr_getopt.h>
 #include <napr_hash.h>
-#include <apr_mmap.h>
 #include <apr_strings.h>
+#include <apr_user.h>
 
 #include "config.h"
 #include "checksum.h"
 #include "debug.h"
+#include "ft_file.h"
 #include "napr_heap.h"
 
 #define is_option_set(mask, option)  ((mask & option) == option)
@@ -59,6 +52,7 @@ typedef struct ft_file_t
 {
     apr_off_t size;
     char *path;
+    int prioritized:1;
 } ft_file_t;
 
 typedef struct ft_chksum_t
@@ -78,12 +72,16 @@ typedef struct ft_fsize_t
 typedef struct ft_conf_t
 {
     apr_off_t minsize;
+    apr_off_t excess_size;	/* Switch off mmap behavior */
     apr_pool_t *pool;		/* Always needed somewhere ;) */
     napr_heap_t *heap;		/* Will holds the files */
     napr_hash_t *sizes;		/* will holds the sizes hashed with http://www.burtleburtle.net/bob/hash/integer.html */
     napr_hash_t *ig_files;
     pcre *ig_regex;
     char *p_path;		/* priority path */
+    apr_size_t p_path_len;
+    apr_uid_t userid;
+    apr_gid_t groupid;
     unsigned char mask;
     char sep;
 } ft_conf_t;
@@ -174,7 +172,8 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     char errbuf[128];
     apr_finfo_t finfo;
     apr_dir_t *dir;
-    apr_int32_t statmask = APR_FINFO_SIZE | APR_FINFO_TYPE;
+    apr_int32_t statmask =
+	APR_FINFO_SIZE | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
     apr_size_t fname_len;
     apr_status_t status;
     int rc;
@@ -186,6 +185,17 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     if (APR_SUCCESS != (status = apr_stat(&finfo, filename, statmask, gc_pool))) {
 	DEBUG_ERR("error calling apr_stat: %s", apr_strerror(status, errbuf, 128));
 	return status;
+    }
+
+    /* Step 1-bis, if we don't own the right to read it, skip it */
+    if (!((finfo.user == conf->userid) && (APR_UREAD & finfo.protection))) {
+	if (!((finfo.group == conf->groupid) && (APR_GREAD & finfo.protection))) {
+	    if (!(APR_WREAD & finfo.protection)) {
+		if (is_option_set(conf->mask, OPTION_VERBO))
+		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		return APR_SUCCESS;
+	    }
+	}
     }
 
     /* Step 2: If it is, browse it */
@@ -240,6 +250,15 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    file->path = apr_pstrdup(conf->pool, filename);
 	    file->size = finfo.size;
 
+	    if ((conf->p_path) && (fname_len >= conf->p_path_len)
+		&& ((is_option_set(conf->mask, OPTION_ICASE) && !strncasecmp(filename, conf->p_path, conf->p_path_len))
+		    || (!is_option_set(conf->mask, OPTION_ICASE) && !memcmp(filename, conf->p_path, conf->p_path_len)))) {
+		file->prioritized |= 0x1;
+	    }
+	    else {
+		file->prioritized &= 0x0;
+	    }
+
 	    napr_heap_insert(conf->heap, file);
 
 	    if (NULL == (fsize = napr_hash_search(conf->sizes, &finfo.size, 1, &hash_value))) {
@@ -252,50 +271,6 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    }
 	    fsize->nb_files++;
 	}
-    }
-
-    return APR_SUCCESS;
-}
-
-static apr_status_t checksum_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
-{
-    char errbuf[128];
-    apr_file_t *fd = NULL;
-    apr_mmap_t *mm;
-    apr_status_t status;
-    apr_uint32_t i;
-
-    status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    status = apr_mmap_create(&mm, fd, 0, (apr_size_t) size, APR_MMAP_READ, gc_pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", filename, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    for (i = 0; i < HASHSTATE; ++i)
-	state[i] = 1;
-
-    hash(mm->mm, mm->size, state);
-
-    /*
-       printf("filename: %s ", filename);
-       for (i = 0; i < HASHSTATE; ++i)
-       printf("%.8x", state[i]);
-       printf("\n");
-     */
-
-    if (APR_SUCCESS != (status = apr_mmap_delete(mm))) {
-	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-    if (APR_SUCCESS != (status = apr_file_close(fd))) {
-	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
-	return status;
     }
 
     return APR_SUCCESS;
@@ -349,8 +324,8 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		}
 		else if (APR_SUCCESS !=
 			 (status =
-			  checksum_file(file->path, file->size, fsize->chksum_array[fsize->nb_checksumed].val_array,
-					gc_pool))) {
+			  checksum_file(file->path, file->size, conf->excess_size,
+					fsize->chksum_array[fsize->nb_checksumed].val_array, gc_pool))) {
 		    DEBUG_ERR("error calling checksum_file: %s", apr_strerror(status, errbuf, 128));
 		    apr_pool_destroy(gc_pool);
 		    return status;
@@ -389,70 +364,13 @@ static int chksum_cmp(const void *chksum1, const void *chksum2)
     int i;
 
     if (0 == (i = memcmp(chk1->val_array, chk2->val_array, HASHSTATE))) {
-	/* XXX ici mettre le prio path */
-	return strcmp(chk1->file->path, chk2->file->path);
+	return chk1->file->prioritized - chk2->file->prioritized;
+    }
+    else {
+	i <<= 1;
     }
 
     return i;
-}
-
-static apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
-{
-    char errbuf[128];
-    apr_file_t *fd1 = NULL, *fd2 = NULL;
-    apr_mmap_t *mm1, *mm2;
-    apr_status_t status;
-
-    if (0 == size) {
-	*i = 0;
-	return APR_SUCCESS;
-    }
-
-    status = apr_file_open(&fd1, fname1, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname1, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    status = apr_mmap_create(&mm1, fd1, 0, (apr_size_t) size, APR_MMAP_READ, pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", fname1, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    status = apr_file_open(&fd2, fname2, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname2, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    status = apr_mmap_create(&mm2, fd2, 0, size, APR_MMAP_READ, pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", fname2, apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    *i = memcmp(mm1->mm, mm2->mm, size);
-
-    if (APR_SUCCESS != (status = apr_mmap_delete(mm2))) {
-	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-    if (APR_SUCCESS != (status = apr_file_close(fd2))) {
-	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    if (APR_SUCCESS != (status = apr_mmap_delete(mm1))) {
-	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-    if (APR_SUCCESS != (status = apr_file_close(fd1))) {
-	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-
-    return APR_SUCCESS;
 }
 
 static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
@@ -486,7 +404,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			if (APR_SUCCESS !=
 			    (status =
 			     filecmp(conf->pool, fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
-				     fsize->val, &rv))) {
+				     fsize->val, conf->excess_size, &rv))) {
 			    DEBUG_ERR("error calling filecmp: %s", apr_strerror(status, errbuf, 128));
 			    return status;
 			}
@@ -574,6 +492,7 @@ int main(int argc, const char **argv)
 	{"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
 	{"verbose", 'v', FALSE, "\tdisplay a progress bar."},
 	{"version", 'V', FALSE, "\tdisplay version."},
+	{"excessive-size", 'x', TRUE, "excessive size of file that switch off mmap use."},
 	{NULL, 0, 0, NULL},	/* end (a.k.a. sentinel) */
     };
     char errbuf[128];
@@ -614,8 +533,10 @@ int main(int argc, const char **argv)
     napr_hash_set(conf.ig_files, "..", hash_value);
     conf.ig_regex = NULL;
     conf.p_path = NULL;
+    conf.p_path_len = 0;
     conf.minsize = 0;
     conf.sep = '\n';
+    conf.excess_size = 50 * 1024 * 1024;
     conf.mask = 0x00;
 
     while (APR_SUCCESS == (status = apr_getopt_long(os, opt_option, &optch, &optarg))) {
@@ -651,6 +572,7 @@ int main(int argc, const char **argv)
 	    break;
 	case 'p':
 	    conf.p_path = apr_pstrdup(pool, optarg);
+	    conf.p_path_len = strlen(conf.p_path);
 	    break;
 	case 'r':
 	    set_option(&conf.mask, OPTION_RECSD, 1);
@@ -664,7 +586,21 @@ int main(int argc, const char **argv)
 	case 'V':
 	    version();
 	    return 0;
+	case 'x':
+	    conf.excess_size = strtoul(optarg, NULL, 10);
+	    if (ULONG_MAX == conf.minsize) {
+		DEBUG_ERR("can't parse %s for -x / --excessive-size", optarg);
+		apr_terminate();
+		return -1;
+	    }
+	    break;
 	}
+    }
+
+    if (APR_SUCCESS != apr_uid_current(&(conf.userid), &(conf.groupid), pool)) {
+	DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, 128));
+	apr_terminate();
+	return -1;
     }
 
     if (NULL != regex) {

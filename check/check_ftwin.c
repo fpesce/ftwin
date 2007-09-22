@@ -32,6 +32,8 @@
 apr_pool_t *main_pool = NULL;
 
 Suite *make_napr_heap_suite(void);
+Suite *make_apr_hash_suite(void);
+Suite *make_ft_file_suite(void);
 
 int main(int argc, char **argv)
 {
@@ -62,6 +64,12 @@ int main(int argc, char **argv)
 
     if (!num || num == 1)
 	srunner_add_suite(sr, make_napr_heap_suite());
+
+    if (!num || num == 2)
+	srunner_add_suite(sr, make_apr_hash_suite());
+
+    if (!num || num == 3)
+	srunner_add_suite(sr, make_ft_file_suite());
 
     srunner_set_fork_status(sr, CK_NOFORK);
     srunner_set_xml(sr, "check_log.xml");

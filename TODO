@@ -1,7 +1,4 @@
-- handle big files > 1Go differently from small ones.
-
 - implement cli options:
     1. c case-unsensitive applied to -i. (ignore-list (comma-separated list of
        files) apply to -i, switch from hash to array+strcasecmp.)
-    2. p prioritized-path : file in this path are displayed first when duplicates are reported.
-    3. o optimize-memory : not implemented.
+    2. o optimize-memory : not implemented.

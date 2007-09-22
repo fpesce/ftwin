@@ -12,7 +12,8 @@ endif
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 
-EXTRA_DIST = TODO
+EXTRA_DIST = TODO check/tests/ check/tests/second check/tests/truerand \
+	     check/tests/copyrand check/tests/testrand
 
 ## For doxygen building
 dox: Doxyfile
@@ -28,15 +29,19 @@ include_HEADERS = src/debug.h \
 		  src/napr_hash.h \
 		  src/napr_heap.h \
 		  src/checksum.h \
-		  src/lookup3.h
+		  src/lookup3.h \
+		  src/ft_file.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/napr_hash.c \
 		   src/napr_heap.c \
 		   src/checksum.c \
-		   src/lookup3.c
+		   src/lookup3.c \
+		  src/ft_file.c
 
-check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c
+check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
+		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
+		      src/checksum.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0
@@ -44,7 +49,7 @@ ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)
 check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src/
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
-check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@
+check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
 ftwin_CPPFLAGS = @APR_CPPFLAGS@
 
 # LDADD and LIBADD are for linking libraries, -L, -l, -dlopen and -dlpreopen options
