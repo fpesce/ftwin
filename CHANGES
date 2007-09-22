@@ -2,7 +2,7 @@
     - bugfix: - if a file did not have correct permissions (read bit for
 		user/group/world) to be read/checksumed, it should have crashed
 		ftwin, now it silently (unless verbose mode) skip the file
-		instead.
+		instead. Same patch for dir and execute bit.
     - feature: - add the -p implementation, files in a path preppended
 		 by its (-p) param will be displayed first (example :
 		 -p /home/joke/ will display /home/joke/dup before /etc/dup),

@@ -200,6 +200,17 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 
     /* Step 2: If it is, browse it */
     if (APR_DIR == finfo.filetype) {
+	if (!((finfo.user == conf->userid) && (APR_UEXECUTE & finfo.protection))) {
+	    if (!((finfo.group == conf->groupid) && (APR_GEXECUTE & finfo.protection))) {
+		if (!(APR_WEXECUTE & finfo.protection)) {
+		    if (is_option_set(conf->mask, OPTION_VERBO))
+			fprintf(stderr, "Skipping dir: [%s] (bad permission)\n", filename);
+		    return APR_SUCCESS;
+		}
+	    }
+	}
+
+
 	if (APR_SUCCESS != (status = apr_dir_open(&dir, filename, gc_pool))) {
 	    DEBUG_ERR("error calling apr_dir_open: %s", apr_strerror(status, errbuf, 128));
 	    return status;
