@@ -1,9 +1,29 @@
+/*
+ *
+ * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * 	http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <apr_file_io.h>
 #include <apr_mmap.h>
 
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
+
+static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool);
+static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i);
 
 static apr_status_t checksum_small_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
 {
@@ -15,14 +35,13 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
 	return status;
     }
 
     status = apr_mmap_create(&mm, fd, 0, (apr_size_t) size, APR_MMAP_READ, gc_pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", filename, apr_strerror(status, errbuf, 128));
-	return status;
+	apr_file_close(fd);
+	return checksum_big_file(filename, size, state, gc_pool);
     }
 
     for (i = 0; i < HASHSTATE; ++i)
@@ -32,6 +51,7 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
+	apr_file_close(fd);
 	return status;
     }
     if (APR_SUCCESS != (status = apr_file_close(fd))) {
@@ -54,7 +74,6 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
 	return status;
     }
 
@@ -69,6 +88,7 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_
     } while (APR_SUCCESS == status);
     if (APR_EOF != status) {
 	DEBUG_ERR("unable to read(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
+	apr_file_close(fd);
 	return status;
     }
 
@@ -103,41 +123,49 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
 
     status = apr_file_open(&fd1, fname1, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname1, apr_strerror(status, errbuf, 128));
 	return status;
     }
 
     status = apr_mmap_create(&mm1, fd1, 0, (apr_size_t) size, APR_MMAP_READ, pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", fname1, apr_strerror(status, errbuf, 128));
-	return status;
+	apr_file_close(fd1);
+	return big_filecmp(pool, fname1, fname2, size, i);
     }
 
     status = apr_file_open(&fd2, fname2, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname2, apr_strerror(status, errbuf, 128));
+	apr_mmap_delete(mm1);
+	apr_file_close(fd1);
 	return status;
     }
 
     status = apr_mmap_create(&mm2, fd2, 0, size, APR_MMAP_READ, pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("unable to mmap %s, skipping: %s", fname2, apr_strerror(status, errbuf, 128));
-	return status;
+	apr_file_close(fd2);
+	apr_mmap_delete(mm1);
+	apr_file_close(fd1);
+	return big_filecmp(pool, fname1, fname2, size, i);
     }
 
     *i = memcmp(mm1->mm, mm2->mm, size);
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm2))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
+	apr_file_close(fd2);
+	apr_mmap_delete(mm1);
+	apr_file_close(fd1);
 	return status;
     }
     if (APR_SUCCESS != (status = apr_file_close(fd2))) {
 	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
+	apr_mmap_delete(mm1);
+	apr_file_close(fd1);
 	return status;
     }
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm1))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
+	apr_file_close(fd1);
 	return status;
     }
     if (APR_SUCCESS != (status = apr_file_close(fd1))) {
@@ -148,7 +176,7 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
     return APR_SUCCESS;
 }
 
-extern apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
+static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
 {
     unsigned char data_chunk1[HUGE_LEN], data_chunk2[HUGE_LEN];
     char errbuf[128];
@@ -163,13 +191,12 @@ extern apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 
     status1 = apr_file_open(&fd1, fname1, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
     if (APR_SUCCESS != status1) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname1, apr_strerror(status1, errbuf, 128));
 	return status1;
     }
 
     status1 = apr_file_open(&fd2, fname2, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
     if (APR_SUCCESS != status1) {
-	DEBUG_ERR("unable to open(%s, O_RDONLY), skipping: %s", fname2, apr_strerror(status1, errbuf, 128));
+	apr_file_close(fd1);
 	return status1;
     }
 
@@ -191,6 +218,7 @@ extern apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 
     if (APR_SUCCESS != (status1 = apr_file_close(fd2))) {
 	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status1, errbuf, 128));
+	apr_file_close(fd1);
 	return status1;
     }
 
@@ -201,6 +229,7 @@ extern apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 
     return APR_SUCCESS;
 }
+
 extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
 			    int *i)
 {

@@ -22,9 +22,20 @@ AC_DEFUN([APR_CONFIG_CHECK],[
 		APR_LTLIBS="`$apr_config --libs --link-libtool`"
 		APR_LIBS="`$apr_config --libs --link-ld`"
 	    else
-		AC_MSG_ERROR([apr-config program not found (2), please make sure you installed devel files for libapr])
+		# Try a mandriva standard name
+		AC_PATH_PROG(apr_config, apr-1-config)
+		if test "x$apr_config" != "x"
+		    then
+		    APR_CFLAGS="`$apr_config --cflags` -DHAVE_APR" 
+		    APR_CPPFLAGS="`$apr_config --cppflags --includes`"
+		    APR_LTLIBS="`$apr_config --libs --link-libtool`"
+		    APR_LIBS="`$apr_config --libs --link-ld`"
+		else
+		    AC_MSG_ERROR([apr-config program not found (2), please make sure you installed devel files for libapr])
+		fi
 	    fi
 	fi
+
 	AC_SUBST([apr_config])
 	AC_SUBST([APR_CFLAGS])
 	AC_SUBST([APR_CPPFLAGS])
@@ -47,14 +58,21 @@ AC_DEFUN([APR_UTIL_CONFIG_CHECK], [
 		AC_MSG_ERROR([apu-config program not found (1), please make sure you installed devel files for libaprutil])
 	    fi
 	else
-	    # else check apr install with apr-config
 	    AC_PATH_PROG(apr_util_config, apu-config)
 	    if test "x$apr_util_config" != "x"
 		then
 		APU_LTLIBS="`$apr_util_config --libs --link-libtool`"
 		APU_LIBS="`$apr_util_config --libs --link-ld`"
 	    else
-		AC_MSG_ERROR([apu-config program not found (2), please make sure you installed devel files for libaprutil])
+		# else check apr install with apr-config
+		AC_PATH_PROG(apr_util_config, apu-1-config)
+		if test "x$apr_util_config" != "x"
+		    then
+		    APU_LTLIBS="`$apr_util_config --libs --link-libtool`"
+		    APU_LIBS="`$apr_util_config --libs --link-ld`"
+		else
+		    AC_MSG_ERROR([apu-config program not found (2), please make sure you installed devel files for libaprutil])
+		fi
 	    fi
 	fi
 	AC_SUBST([APU_LTLIBS])

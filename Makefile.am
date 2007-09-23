@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign dist-bzip2
-CLEANFILES= *~ check_test_log.xml check_log.xml
-MAINTAINERCLEANFILES=aclocal.m4 Makefile.in compile config.guess config.sub configure depcomp \
-	install-sh ltmain.sh missing
+CLEANFILES = *~ check_test_log.xml check_log.xml
+MAINTAINERCLEANFILES = aclocal.m4 Makefile.in compile config.guess config.sub \
+                       configure depcomp install-sh ltmain.sh missing
 
 bin_PROGRAMS = ftwin
 
@@ -12,7 +12,8 @@ endif
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 
-EXTRA_DIST = TODO check/tests/ check/tests/second check/tests/truerand \
+EXTRA_DIST = TODO CHANGES \
+	     check/tests/ check/tests/second check/tests/truerand \
 	     check/tests/copyrand check/tests/testrand
 
 ## For doxygen building

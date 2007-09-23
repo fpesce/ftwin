@@ -333,16 +333,23 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		    /*DEBUG_DBG("two files of size %"APR_OFF_T_FMT, fsize->val); */
 		    memset(fsize->chksum_array[fsize->nb_checksumed].val_array, 0, HASHSTATE * sizeof(apr_int32_t));
 		}
-		else if (APR_SUCCESS !=
-			 (status =
-			  checksum_file(file->path, file->size, conf->excess_size,
-					fsize->chksum_array[fsize->nb_checksumed].val_array, gc_pool))) {
-		    DEBUG_ERR("error calling checksum_file: %s", apr_strerror(status, errbuf, 128));
-		    apr_pool_destroy(gc_pool);
-		    return status;
+		else {
+		    status =
+			checksum_file(file->path, file->size, conf->excess_size,
+				      fsize->chksum_array[fsize->nb_checksumed].val_array, gc_pool);
+		    /*
+		     * no return status if != APR_SUCCESS , because : 
+		     * Fault-check has been removed in case files disappear
+		     * between collecting and comparing or special files (like
+		     * device or /proc) are tried to access
+		     */
+		    if ((APR_SUCCESS != status) && (is_option_set(conf->mask, OPTION_VERBO)))
+			fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, 128));
 		}
-		fsize->nb_checksumed++;
-		napr_heap_insert(tmp_heap, file);
+		if (APR_SUCCESS == status) {
+		    fsize->nb_checksumed++;
+		    napr_heap_insert(tmp_heap, file);
+		}
 	    }
 	    if (is_option_set(conf->mask, OPTION_VERBO)) {
 		fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ", nb_processed, nb_files,
@@ -412,13 +419,23 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 		already_printed = 0;
 		for (j = i + 1; j < fsize->nb_files; j++) {
 		    if (0 == memcmp(fsize->chksum_array[i].val_array, fsize->chksum_array[j].val_array, HASHSTATE)) {
-			if (APR_SUCCESS !=
-			    (status =
-			     filecmp(conf->pool, fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
-				     fsize->val, conf->excess_size, &rv))) {
-			    DEBUG_ERR("error calling filecmp: %s", apr_strerror(status, errbuf, 128));
-			    return status;
+			status =
+			    filecmp(conf->pool, fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
+				    fsize->val, conf->excess_size, &rv);
+			/*
+			 * no return status if != APR_SUCCESS , because : 
+			 * Fault-check has been removed in case files disappear
+			 * between collecting and comparing or special files (like
+			 * device or /proc) are tried to access
+			 */
+			if (APR_SUCCESS != status) {
+			    if (is_option_set(conf->mask, OPTION_VERBO))
+				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
+					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
+					apr_strerror(status, errbuf, 128));
+			    rv = 1;
 			}
+
 			if (0 == rv) {
 			    if (!already_printed) {
 				if (is_option_set(conf->mask, OPTION_SIZED))

@@ -1,15 +1,26 @@
+0.3.1:
+    - bugfix: - if a file disappear between the collecting phase and the
+                comparing phase, it will just display skipping message.
+                That may happen when cleaning a cache during ftwin session.
+
+    - bugfix: - if a file is on a device (typically /sys/ or /proc/) that does
+                not allow mmaping, switch to a more standard read mode.
+
+    - bugfix: - Add support for apr-1-config and apu-1-config on mandriva arch
+                in acinclude.m4. (reported by Lou Afonso)
+
 0.3.0:
     - bugfix: - if a file did not have correct permissions (read bit for
-		user/group/world) to be read/checksumed, it should have crashed
-		ftwin, now it silently (unless verbose mode) skip the file
-		instead. Same patch for dir and execute bit.
+                user/group/world) to be read/checksumed, it should have crashed
+                ftwin, now it silently (unless verbose mode) skip the file
+                instead. Same patch for dir and execute bit.
     - feature: - add the -p implementation, files in a path preppended
-		 by its (-p) param will be displayed first (example :
-		 -p /home/joke/ will display /home/joke/dup before /etc/dup),
-		 this may be useful to script a deletion for example.
+                 by its (-p) param will be displayed first (example :
+                 -p /home/joke/ will display /home/joke/dup before /etc/dup),
+                 this may be useful to script a deletion for example.
     - bugfix: - big file may overuse memory when using mmap syscall where it is
-		implemented, so for files whose size > excess (defined by
-		parameter -x, default 50Mo), use a standard chunk read method.
+                implemented, so for files whose size > excess (defined by
+                parameter -x, default 50Mo), use a standard chunk read method.
 
 0.2.0:
     - legal: - copyrights added.
