@@ -2,3 +2,7 @@
     1. c case-unsensitive applied to -i. (ignore-list (comma-separated list of
        files) apply to -i, switch from hash to array+strcasecmp.)
     2. o optimize-memory : not implemented.
+
+- Add a file to make an exclusion list (.svn CVS etc...).
+
+- Use libpuzzle to get image comparison.

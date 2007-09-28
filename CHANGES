@@ -1,3 +1,18 @@
+0.4.0:
+    - feature: - Add a whitelisting option, you may want to select files whose
+		 name match a particular regexp for comparison.
+		 For example the following line will report duplicate files
+		 whose extension is .txt and that are not in a .svn directory:
+		 ./ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
+
+    - bugfix: - mmap checksum mmap is done by block of the same size than
+                cheksum by read.
+		The value of checksums were different, now it is the same if
+		two files are on different type of fs (one mmap-capable, the
+		other not).
+
+    - bugfix-minor: - Fix a minor memleak by attaching pcre * to an apr_pool.
+
 0.3.1:
     - bugfix: - if a file disappear between the collecting phase and the
                 comparing phase, it will just display skipping message.

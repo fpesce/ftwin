@@ -78,6 +78,7 @@ typedef struct ft_conf_t
     napr_hash_t *sizes;		/* will holds the sizes hashed with http://www.burtleburtle.net/bob/hash/integer.html */
     napr_hash_t *ig_files;
     pcre *ig_regex;
+    pcre *wl_regex;
     char *p_path;		/* priority path */
     apr_size_t p_path_len;
     apr_uid_t userid;
@@ -219,22 +220,27 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	while ((APR_SUCCESS == (status = apr_dir_read(&finfo, APR_FINFO_NAME | APR_FINFO_TYPE, dir)))
 	       && (NULL != finfo.name)) {
 	    /* Check if it has to be ignored */
-	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
-		continue;
+	    char *fullname;
+	    apr_size_t fullname_len;
 
-	    if ((NULL != conf->ig_regex)
-		&& (0 <=
-		    (rc =
-		     pcre_exec(conf->ig_regex, NULL, finfo.name, strlen(finfo.name), 0, 0, ovector, MATCH_VECTOR_SIZE))))
+	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
 		continue;
 
 	    if (APR_DIR == finfo.filetype && !is_option_set(conf->mask, OPTION_RECSD))
 		continue;
 
-	    status =
-		ft_conf_add_file(conf,
-				 apr_pstrcat(gc_pool, filename, ('/' == filename[fname_len - 1]) ? "" : "/", finfo.name,
-					     NULL), gc_pool);
+	    fullname = apr_pstrcat(gc_pool, filename, ('/' == filename[fname_len - 1]) ? "" : "/", finfo.name, NULL);
+	    fullname_len = strlen(fullname);
+
+	    if ((NULL != conf->ig_regex) && (APR_DIR != finfo.filetype)
+		&& (0 <= (rc = pcre_exec(conf->ig_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
+		continue;
+
+	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)
+		&& (0 > (rc = pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
+		continue;
+
+	    status = ft_conf_add_file(conf, fullname, gc_pool);
 
 	    if (APR_SUCCESS != status) {
 		DEBUG_ERR("error recursively calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
@@ -504,6 +510,31 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     }
 }
 
+static apr_status_t ft_pcre_free_cleanup(void *pcre_space)
+{
+    pcre_free(pcre_space);
+    return APR_SUCCESS;
+}
+
+static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *p)
+{
+    const char *errptr;
+    int erroffset, options = PCRE_DOLLAR_ENDONLY | PCRE_DOTALL;
+    pcre *result;
+
+    if (caseless)
+	options |= PCRE_CASELESS;
+
+    result = pcre_compile(regex, options, &errptr, &erroffset, NULL);
+    if (NULL == result)
+	DEBUG_ERR("can't parse %s at [%.*s] for -e / --regex-ignore-file: %s", regex, erroffset, regex, errptr);
+    else
+	apr_pool_cleanup_register(p, result, ft_pcre_free_cleanup, apr_pool_cleanup_null);
+
+
+    return result;
+}
+
 int main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
@@ -520,11 +551,13 @@ int main(int argc, const char **argv)
 	{"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
 	{"verbose", 'v', FALSE, "\tdisplay a progress bar."},
 	{"version", 'V', FALSE, "\tdisplay version."},
+	{"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this."},
 	{"excessive-size", 'x', TRUE, "excessive size of file that switch off mmap use."},
 	{NULL, 0, 0, NULL},	/* end (a.k.a. sentinel) */
     };
     char errbuf[128];
     char *regex = NULL;
+    char *wregex = NULL;
     ft_conf_t conf;
     apr_getopt_t *os;
     apr_pool_t *pool, *gc_pool;
@@ -560,6 +593,7 @@ int main(int argc, const char **argv)
     napr_hash_search(conf.ig_files, "..", 2, &hash_value);
     napr_hash_set(conf.ig_files, "..", hash_value);
     conf.ig_regex = NULL;
+    conf.wl_regex = NULL;
     conf.p_path = NULL;
     conf.p_path_len = 0;
     conf.minsize = 0;
@@ -614,6 +648,9 @@ int main(int argc, const char **argv)
 	case 'V':
 	    version();
 	    return 0;
+	case 'w':
+	    wregex = apr_pstrdup(pool, optarg);
+	    break;
 	case 'x':
 	    conf.excess_size = strtoul(optarg, NULL, 10);
 	    if (ULONG_MAX == conf.minsize) {
@@ -632,15 +669,16 @@ int main(int argc, const char **argv)
     }
 
     if (NULL != regex) {
-	const char *errptr;
-	int erroffset, options = PCRE_DOLLAR_ENDONLY | PCRE_DOTALL;
-
-	if (is_option_set(conf.mask, OPTION_ICASE))
-	    options |= PCRE_CASELESS;
-
-	conf.ig_regex = pcre_compile(regex, options, &errptr, &erroffset, NULL);
+	conf.ig_regex = ft_pcre_compile(regex, is_option_set(conf.mask, OPTION_ICASE), pool);
 	if (NULL == conf.ig_regex) {
-	    DEBUG_ERR("can't parse %s at [%.*s] for -e / --regex-ignore-file: %s", regex, erroffset, regex, errptr);
+	    apr_terminate();
+	    return -1;
+	}
+    }
+
+    if (NULL != wregex) {
+	conf.wl_regex = ft_pcre_compile(wregex, is_option_set(conf.mask, OPTION_ICASE), pool);
+	if (NULL == conf.wl_regex) {
 	    apr_terminate();
 	    return -1;
 	}

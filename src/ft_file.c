@@ -25,6 +25,10 @@
 static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool);
 static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i);
 
+/*#define HUGE_LEN 8192*/
+#define HUGE_LEN 4096
+#define MIN(a,b) ((a)<(b)) ? (a) : (b)
+
 static apr_status_t checksum_small_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
 {
     char errbuf[128];
@@ -32,6 +36,7 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
     apr_mmap_t *mm;
     apr_status_t status;
     apr_uint32_t i;
+    apr_off_t rbytes;
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
@@ -47,7 +52,12 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
     for (i = 0; i < HASHSTATE; ++i)
 	state[i] = 1;
 
-    hash(mm->mm, mm->size, state);
+    rbytes = 0;
+    do {
+	hash(mm->mm + rbytes, MIN(HUGE_LEN, size), state);
+	rbytes += MIN(HUGE_LEN, size);
+	size -= HUGE_LEN;
+    } while (size > 0);
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
@@ -62,7 +72,6 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
     return APR_SUCCESS;
 }
 
-#define HUGE_LEN 8192
 static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
 {
     unsigned char data_chunk[HUGE_LEN];
@@ -83,8 +92,9 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_
     do {
 	rbytes = HUGE_LEN;
 	status = apr_file_read(fd, data_chunk, &rbytes);
-	if (APR_SUCCESS == status)
+	if (APR_SUCCESS == status) {
 	    hash(data_chunk, rbytes, state);
+	}
     } while (APR_SUCCESS == status);
     if (APR_EOF != status) {
 	DEBUG_ERR("unable to read(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
