@@ -17,13 +17,23 @@
 
 #include <pcre.h>
 
+#include <stdio.h>		/* fgetgrent */
+#include <sys/types.h>		/* fgetgrent */
+#include <grp.h>		/* fgetgrent */
+
 #include <apr_file_info.h>
 #include <apr_getopt.h>
 #include <napr_hash.h>
 #include <apr_strings.h>
 #include <apr_user.h>
 
+
 #include "config.h"
+
+#if HAVE_PUZZLE
+#include <puzzle.h>
+#endif
+
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
@@ -48,10 +58,18 @@
 #define OPTION_REGEX 0x20
 #define OPTION_SIZED 0x40
 
+#if HAVE_PUZZLE
+#define OPTION_PUZZL 0x80
+#endif
+
 typedef struct ft_file_t
 {
     apr_off_t size;
     char *path;
+#if HAVE_PUZZLE
+    PuzzleCvec cvec;
+    int cvec_ok:1;
+#endif
     int prioritized:1;
 } ft_file_t;
 
@@ -69,6 +87,11 @@ typedef struct ft_fsize_t
     apr_uint32_t nb_checksumed;
 } ft_fsize_t;
 
+typedef struct ft_gid_t
+{
+    gid_t val;
+} ft_gid_t;
+
 typedef struct ft_conf_t
 {
     apr_off_t minsize;
@@ -76,10 +99,12 @@ typedef struct ft_conf_t
     apr_pool_t *pool;		/* Always needed somewhere ;) */
     napr_heap_t *heap;		/* Will holds the files */
     napr_hash_t *sizes;		/* will holds the sizes hashed with http://www.burtleburtle.net/bob/hash/integer.html */
+    napr_hash_t *gids;		/* will holds the gids hashed with http://www.burtleburtle.net/bob/hash/integer.html */
     napr_hash_t *ig_files;
     pcre *ig_regex;
     pcre *wl_regex;
     char *p_path;		/* priority path */
+    char *username;
     apr_size_t p_path_len;
     apr_uid_t userid;
     apr_gid_t groupid;
@@ -107,12 +132,20 @@ static const void *ft_fsize_get_key(const void *opaque)
     return &(fsize->val);
 }
 
-static apr_size_t ft_fsize_get_key_len(const void *opaque)
+static const void *ft_gids_get_key(const void *opaque)
+{
+    const ft_gid_t *gid = opaque;
+
+    return &(gid->val);
+}
+
+
+static apr_size_t get_one(const void *opaque)
 {
     return 1;
 }
 
-static int ft_fsize_key_cmp(const void *key1, const void *key2, apr_size_t len)
+static int apr_uint32_key_cmp(const void *key1, const void *key2, apr_size_t len)
 {
     apr_uint32_t i1 = *(apr_uint32_t *) key1;
     apr_uint32_t i2 = *(apr_uint32_t *) key2;
@@ -121,7 +154,7 @@ static int ft_fsize_key_cmp(const void *key1, const void *key2, apr_size_t len)
 }
 
 /* http://www.burtleburtle.net/bob/hash/integer.html */
-static apr_uint32_t ft_fsize_key_hash(const void *key, apr_size_t klen)
+static apr_uint32_t apr_uint32_key_hash(const void *key, apr_size_t klen)
 {
     apr_uint32_t i = *(apr_uint32_t *) key;
 
@@ -176,6 +209,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     apr_int32_t statmask =
 	APR_FINFO_SIZE | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
     apr_size_t fname_len;
+    apr_uint32_t hash_value;
     apr_status_t status;
     int rc;
 
@@ -184,36 +218,59 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	statmask |= APR_FINFO_LINK;
 
     if (APR_SUCCESS != (status = apr_stat(&finfo, filename, statmask, gc_pool))) {
-	DEBUG_ERR("error calling apr_stat: %s", apr_strerror(status, errbuf, 128));
+	DEBUG_ERR("error calling apr_stat on filename %s : %s", filename, apr_strerror(status, errbuf, 128));
 	return status;
     }
 
     /* Step 1-bis, if we don't own the right to read it, skip it */
-    if (!((finfo.user == conf->userid) && (APR_UREAD & finfo.protection))) {
-	if (!((finfo.group == conf->groupid) && (APR_GREAD & finfo.protection))) {
-	    if (!(APR_WREAD & finfo.protection)) {
+    if (0 != conf->userid) {
+	if (finfo.user == conf->userid) {
+	    if (!(APR_UREAD & finfo.protection)) {
 		if (is_option_set(conf->mask, OPTION_VERBO))
 		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
 		return APR_SUCCESS;
 	    }
 	}
+	else if (NULL != napr_hash_search(conf->gids, &finfo.group, 1, &hash_value)) {
+	    if (!(APR_GREAD & finfo.protection)) {
+		if (is_option_set(conf->mask, OPTION_VERBO))
+		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		return APR_SUCCESS;
+	    }
+	}
+	else if (!(APR_WREAD & finfo.protection)) {
+	    if (is_option_set(conf->mask, OPTION_VERBO))
+		fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+	    return APR_SUCCESS;
+	}
     }
 
     /* Step 2: If it is, browse it */
     if (APR_DIR == finfo.filetype) {
-	if (!((finfo.user == conf->userid) && (APR_UEXECUTE & finfo.protection))) {
-	    if (!((finfo.group == conf->groupid) && (APR_GEXECUTE & finfo.protection))) {
-		if (!(APR_WEXECUTE & finfo.protection)) {
+	if (0 != conf->userid) {
+	    if (finfo.user == conf->userid) {
+		if (!(APR_UEXECUTE & finfo.protection)) {
 		    if (is_option_set(conf->mask, OPTION_VERBO))
-			fprintf(stderr, "Skipping dir: [%s] (bad permission)\n", filename);
+			fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
 		    return APR_SUCCESS;
 		}
 	    }
+	    else if (NULL != napr_hash_search(conf->gids, &finfo.group, 1, &hash_value)) {
+		if (!(APR_GEXECUTE & finfo.protection)) {
+		    if (is_option_set(conf->mask, OPTION_VERBO))
+			fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		    return APR_SUCCESS;
+		}
+	    }
+	    else if (!(APR_WEXECUTE & finfo.protection)) {
+		if (is_option_set(conf->mask, OPTION_VERBO))
+		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		return APR_SUCCESS;
+	    }
 	}
 
-
 	if (APR_SUCCESS != (status = apr_dir_open(&dir, filename, gc_pool))) {
-	    DEBUG_ERR("error calling apr_dir_open: %s", apr_strerror(status, errbuf, 128));
+	    DEBUG_ERR("error calling apr_dir_open(%s): %s", filename, apr_strerror(status, errbuf, 128));
 	    return status;
 	}
 	fname_len = strlen(filename);
@@ -261,7 +318,6 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	if (finfo.size >= conf->minsize) {
 	    ft_file_t *file;
 	    ft_fsize_t *fsize;
-	    apr_uint32_t hash_value;
 
 	    file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
 	    file->path = apr_pstrdup(conf->pool, filename);
@@ -275,6 +331,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    else {
 		file->prioritized &= 0x0;
 	    }
+#if HAVE_PUZZLE
+	    file->cvec_ok &= 0x0;
+#endif
 
 	    napr_heap_insert(conf->heap, file);
 
@@ -396,6 +455,77 @@ static int chksum_cmp(const void *chksum1, const void *chksum2)
 
     return i;
 }
+
+#if HAVE_PUZZLE
+
+static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
+{
+    PuzzleContext context;
+    double d;
+    ft_file_t *file, *file_cmp;
+    int i, heap_size;
+    unsigned char already_printed;
+
+    puzzle_init_context(&context);
+    puzzle_set_max_width(&context, 5000);
+    puzzle_set_max_height(&context, 5000);
+    puzzle_set_lambdas(&context, 13);
+
+    heap_size = napr_heap_size(conf->heap);
+    for (i = 0; i < heap_size; i++) {
+
+	file = napr_heap_get_nth(conf->heap, i);
+	puzzle_init_cvec(&context, &(file->cvec));
+	if (0 == puzzle_fill_cvec_from_file(&context, &(file->cvec), file->path)) {
+	    file->cvec_ok |= 0x1;
+	}
+	else {
+	    DEBUG_ERR("error calling puzzle_fill_cvec_from_file, ignoring file: %s", file->path);
+	}
+
+	if (is_option_set(conf->mask, OPTION_VERBO)) {
+	    fprintf(stderr, "\rProgress [%i/%i] %d%% ", i, heap_size, (int) ((float) i / (float) heap_size * 100.0));
+	}
+    }
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+	fprintf(stderr, "\rProgress [%i/%i] %d%% ", i, heap_size, (int) ((float) i / (float) heap_size * 100.0));
+	fprintf(stderr, "\n");
+    }
+
+    while (NULL != (file = napr_heap_extract(conf->heap))) {
+	if (!(file->cvec_ok & 0x1))
+	    continue;
+	already_printed = 0;
+	heap_size = napr_heap_size(conf->heap);
+	for (i = 0; i < heap_size; i++) {
+	    file_cmp = napr_heap_get_nth(conf->heap, i);
+	    if (!(file_cmp->cvec_ok & 0x1))
+		continue;
+
+	    d = puzzle_vector_normalized_distance(&context, &(file->cvec), &(file_cmp->cvec), 0);
+	    if (d < PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD) {
+		if (!already_printed) {
+		    printf("%s%c", file->path, conf->sep);
+		    already_printed = 1;
+		}
+		else {
+		    printf("%c", conf->sep);
+		}
+		printf("%s", file_cmp->path);
+	    }
+	}
+
+	if (already_printed)
+	    printf("\n\n");
+
+	puzzle_free_cvec(&context, &(file->cvec));
+    }
+
+    puzzle_free_context(&context);
+
+    return APR_SUCCESS;
+}
+#endif
 
 static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 {
@@ -535,14 +665,47 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *p)
     return result;
 }
 
+static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_pool_t *p)
+{
+    FILE *etc_grp;
+    struct group *grp_p;
+    ft_gid_t *gid;
+    apr_uint32_t hash_value;
+    int i;
+
+    errno = 0;
+    if (NULL == (etc_grp = fopen("/etc/group", "r"))) {
+	return errno ? errno : APR_ENOENT;
+    }
+
+    while (NULL != (grp_p = fgetgrent(etc_grp))) {
+	for (i = 0; NULL != grp_p->gr_mem[i]; i++) {
+	    if (!strcmp(username, grp_p->gr_mem[i])) {
+		if (NULL == (gid = napr_hash_search(gids, &(grp_p->gr_gid), 1, &hash_value))) {
+		    gid = apr_palloc(p, sizeof(struct ft_gid_t));
+		    gid->val = grp_p->gr_gid;
+		    napr_hash_set(gids, gid, hash_value);
+		}
+	    }
+	}
+    }
+
+    fclose(etc_grp);
+
+    return APR_SUCCESS;
+}
+
 int main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
-	{"display-size", 'd', FALSE, "display size before duplicates."},
+	{"display-size", 'd', FALSE, "\tdisplay size before duplicates."},
 	{"regex-ignore-file", 'e', TRUE, "filenames that match this are ignored."},
 	{"follow-symlink", 'f', FALSE, "follow symbolic links."},
 	{"help", 'h', FALSE, "\t\tdisplay usage."},
+#if HAVE_PUZZLE
+	{"image-cmp", 'I', FALSE, "\twill run ftwin in image cmp mode (using libpuzzle)."},
+#endif
 	{"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
 	{"minimal-length", 'm', TRUE, "minimum size of file to process."},
 	{"optimize-memory", 'o', FALSE, "reduce memory usage, but increase process time."},
@@ -551,7 +714,7 @@ int main(int argc, const char **argv)
 	{"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
 	{"verbose", 'v', FALSE, "\tdisplay a progress bar."},
 	{"version", 'V', FALSE, "\tdisplay version."},
-	{"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this."},
+	{"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this are ignored."},
 	{"excessive-size", 'x', TRUE, "excessive size of file that switch off mmap use."},
 	{NULL, 0, 0, NULL},	/* end (a.k.a. sentinel) */
     };
@@ -586,7 +749,8 @@ int main(int argc, const char **argv)
     conf.pool = pool;
     conf.heap = napr_heap_make(pool, ft_file_cmp);
     conf.ig_files = napr_hash_str_make(pool, 32, 8);
-    conf.sizes = napr_hash_make(pool, 4096, 8, ft_fsize_get_key, ft_fsize_get_key_len, ft_fsize_key_cmp, ft_fsize_key_hash);
+    conf.sizes = napr_hash_make(pool, 4096, 8, ft_fsize_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);
+    conf.gids = napr_hash_make(pool, 4096, 8, ft_gids_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);
     /* To avoid endless loop, ignore looping directory ;) */
     napr_hash_search(conf.ig_files, ".", 1, &hash_value);
     napr_hash_set(conf.ig_files, ".", hash_value);
@@ -621,6 +785,13 @@ int main(int argc, const char **argv)
 	case 'i':
 	    ft_hash_add_ignore_list(conf.ig_files, optarg);
 	    break;
+#if HAVE_PUZZLE
+	case 'I':
+	    set_option(&conf.mask, OPTION_ICASE, 1);
+	    set_option(&conf.mask, OPTION_PUZZL, 1);
+	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpg)$");
+	    break;
+#endif
 	case 'm':
 	    conf.minsize = strtoul(optarg, NULL, 10);
 	    if (ULONG_MAX == conf.minsize) {
@@ -662,8 +833,20 @@ int main(int argc, const char **argv)
 	}
     }
 
-    if (APR_SUCCESS != apr_uid_current(&(conf.userid), &(conf.groupid), pool)) {
+    if (APR_SUCCESS != (status = apr_uid_current(&(conf.userid), &(conf.groupid), pool))) {
 	DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, 128));
+	apr_terminate();
+	return -1;
+    }
+
+    if (APR_SUCCESS != (status = apr_uid_name_get(&(conf.username), conf.userid, pool))) {
+	DEBUG_ERR("error calling apr_uid_name_get: %s", apr_strerror(status, errbuf, 128));
+	apr_terminate();
+	return -1;
+    }
+
+    if (APR_SUCCESS != (status = fill_gids_ht(conf.username, conf.gids, pool))) {
+	DEBUG_ERR("error calling fill_gids_ht: %s", apr_strerror(status, errbuf, 128));
 	apr_terminate();
 	return -1;
     }
@@ -700,19 +883,33 @@ int main(int argc, const char **argv)
     apr_pool_destroy(gc_pool);
 
     if (0 < napr_heap_size(conf.heap)) {
-	/* Step 2: Process the sizes set */
-	if (APR_SUCCESS != (status = ft_conf_process_sizes(&conf))) {
-	    DEBUG_ERR("error calling ft_conf_process_sizes: %s", apr_strerror(status, errbuf, 128));
-	    apr_terminate();
-	    return -1;
+#if HAVE_PUZZLE
+	if (is_option_set(conf.mask, OPTION_PUZZL)) {
+	    /* Step 2: Report the image twins */
+	    if (APR_SUCCESS != (status = ft_conf_image_twin_report(&conf))) {
+		DEBUG_ERR("error calling ft_conf_image_twin_report: %s", apr_strerror(status, errbuf, 128));
+		apr_terminate();
+		return status;
+	    }
 	}
+	else {
+#endif
+	    /* Step 2: Process the sizes set */
+	    if (APR_SUCCESS != (status = ft_conf_process_sizes(&conf))) {
+		DEBUG_ERR("error calling ft_conf_process_sizes: %s", apr_strerror(status, errbuf, 128));
+		apr_terminate();
+		return -1;
+	    }
 
-	/* Step 3: Report the twins */
-	if (APR_SUCCESS != (status = ft_conf_twin_report(&conf))) {
-	    DEBUG_ERR("error calling ft_conf_twin_report: %s", apr_strerror(status, errbuf, 128));
-	    apr_terminate();
-	    return status;
+	    /* Step 3: Report the twins */
+	    if (APR_SUCCESS != (status = ft_conf_twin_report(&conf))) {
+		DEBUG_ERR("error calling ft_conf_twin_report: %s", apr_strerror(status, errbuf, 128));
+		apr_terminate();
+		return status;
+	    }
+#if HAVE_PUZZLE
 	}
+#endif
     }
     else {
 	DEBUG_ERR("Please submit at least two files...");

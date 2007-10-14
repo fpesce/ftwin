@@ -1,0 +1,46 @@
+The following command line will report duplicate pictures:
+- using libpuzzle ( -I)
+- whose sizes are greater than 8192 bytes ( -m 8192 )
+- found recursively ( -r)
+starting in your home directory.
+
+ftwin -m 8192 -v -r -I ${HOME} | less
+
+------------------------------------------------------------------------------
+
+This line will report duplicate files (no more in "image mode", but according
+to their content) whose extension is .txt and that are not in a .svn directory:
+
+ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
+
+------------------------------------------------------------------------------
+
+If you're importing pictures from an external device and you want to erase
+duplicates:
+mkdir "${HOME}/tmppix"
+cp /media/SDCARD/*JPG "${HOME}/tmppix"
+
+ftwin -r -v -w ".*\.(jpe?g)$" -c -p "${HOME}/tmppix" -s "," "${HOME}" | tee log
+
+-r to recurse subdir
+-v for verbose mode
+-w ".*\.(jpe?g)$" to limit the information collecting to filename that match
+   this regexp.
+-c to make the previous regexp case unsensitive.
+-p "${HOME}/tmppix" for displaying these files first in the duplicate report.
+-s "," to separate duplicates with "," character.
+
+Then you may select files to remove by using a shell line like the following:
+cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; done
+
+------------------------------------------------------------------------------
+
+You might try the following command to find duplicates independantly from
+resizing, recompressing, recoloring, slighly modifying operations.
+
+ftwin -r -v -I -p "${HOME}/tmppix" -s "," "${HOME}" | tee log
+
+-I will run ftwin in image comparison mode (using libpuzzle).
+
+
+------------------------------------------------------------------------------

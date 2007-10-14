@@ -80,28 +80,6 @@ AC_DEFUN([APR_UTIL_CONFIG_CHECK], [
 
     ])
 
-AC_DEFUN([PATH_CHECK], [
-	m4_ifdef([AM_PATH_CHECK],[
-		AM_PATH_CHECK(0.9.2, 
-		    [
-			HAVE_CHECK=yes
-			], 
-		    [
-			HAVE_CHECK=no
-			])
-		])
-
-	AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
-	
-	if test "x$HAVE_CHECK" != "xyes"; then
-	    if test x$HAVE_CHECK = xno; then
-		AC_MSG_WARN([*** Invalid check version, you can download the latest one at http://check.sf.net])
-	    else
-		AC_MSG_WARN([*** Check not found, you can download the latest version at http://check.sf.net])
-	    fi
-	fi
-	])
-
 AC_DEFUN([PATH_DOXYGEN],[
 	AC_ARG_VAR([DOXYGEN], [Full path to doxygen binary.])
 	AC_PATH_PROG([DOXYGEN], [doxygen],,)
@@ -160,4 +138,68 @@ AC_DEFUN([PCRE_CONFIG_CHECK],[
 	AC_SUBST([PCRE_CFLAGS])
 	AC_SUBST([PCRE_LIBS])
 
+    ])
+
+AC_DEFUN([PATH_CHECK], [
+      m4_ifdef([AM_PATH_CHECK],[
+              AM_PATH_CHECK(0.9.2, 
+                  [
+                      HAVE_CHECK=yes
+                      ], 
+                  [
+                      HAVE_CHECK=no
+                      ])
+              ])
+
+      AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
+
+      if test "x$HAVE_CHECK" != "xyes"; then
+          if test x$HAVE_CHECK = xno; then
+              AC_MSG_WARN([*** Invalid check version, you can download the latest one at http://check.sf.net])
+          else
+              AC_MSG_WARN([*** Check not found, you can download the latest version at http://check.sf.net])
+          fi
+      fi
+      ])
+
+#
+# libpuzzle is used to compare two images
+#
+AC_DEFUN([PUZZLE],[
+	AC_ARG_WITH( puzzle, AC_HELP_STRING([--with-puzzle=PATH], [prefix where libpuzzle is installed default=/usr/local/]), [puzzle=$withval],[puzzle=/usr/local/])
+	if test "x$puzzle" != "x"
+	    then
+	    #
+	    # Make sure we have "puzzle.h".  If we don't, it means we probably
+	    # don't have libpuzzle, so don't use it.
+	    #
+	    AC_CHECK_HEADER(puzzle.h,
+		[
+		# Check if the lib is OK
+		AC_CHECK_LIB(puzzle, puzzle_init_context,
+		    [
+		     AC_DEFINE([HAVE_PUZZLE], 1, [for image comparison mode])
+		     with_puzzle=yes
+		     PUZZLE_CPPFLAGS="-I$puzzle/include"
+		     PUZZLE_LDFLAGS="-L$puzzle/lib"
+		     PUZZLE_LDADD="-lpuzzle"
+		    ],
+		    [
+		     with_puzzle=no
+		     AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
+		    ])	
+		],
+		[
+		 with_puzzle=no
+		 AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
+		])
+
+	else
+	    with_puzzle=no
+	    AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
+	fi
+	AC_SUBST([with_puzzle])
+	AC_SUBST([PUZZLE_CPPFLAGS])
+	AC_SUBST([PUZZLE_LDFLAGS])
+	AC_SUBST([PUZZLE_LDADD])
     ])

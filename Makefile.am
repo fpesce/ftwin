@@ -12,7 +12,7 @@ endif
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 
-EXTRA_DIST = TODO CHANGES \
+EXTRA_DIST = TODO CHANGES EXAMPLES README docs/ftwin.8 \
 	     check/tests/ check/tests/second check/tests/truerand \
 	     check/tests/copyrand check/tests/testrand
 
@@ -50,13 +50,13 @@ ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)
 check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src/
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
-check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
-ftwin_CPPFLAGS = @APR_CPPFLAGS@
+check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
+ftwin_CPPFLAGS = @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@
 
 # LDADD and LIBADD are for linking libraries, -L, -l, -dlopen and -dlpreopen options
-check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@
-ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@
+check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@
+ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@
 
 # LDFLAGS is for additional linker flags
-check_ftwin_LDFLAGS = 
-ftwin_LDFLAGS = 
+check_ftwin_LDFLAGS = @PUZZLE_LDFLAGS@
+ftwin_LDFLAGS = @PUZZLE_LDFLAGS@

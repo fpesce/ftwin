@@ -5,4 +5,10 @@
 
 - Add a file to make an exclusion list (.svn CVS etc...).
 
-- Use libpuzzle to get image comparison.
+- use mime-magic to get content type to allow comparison for one type only.
+
+- zlib, lib unzip, lib unrar
+
+- Report whole directory/subdir/files equality, i.e.
+  /home/joke/tar/httpd-2.0.59/ /tmp/httpd-2.0.59/
+  Instead of all subfiles/dir of each of these.

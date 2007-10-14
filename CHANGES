@@ -1,3 +1,14 @@
+0.5.1:
+    - bugfix: - permissions are now processed correctly when ftwin collect
+                files and path informations.
+
+    - cosmetic: - Add example file, and manpage.
+
+0.5.0:
+    - feature: - Add a -I option that switch ftwin into duplicate image
+		 finding, in this mode, ftwin search for image that are copy of
+		 each other, even if they are resized, using libpuzzle.
+
 0.4.0:
     - feature: - Add a whitelisting option, you may want to select files whose
 		 name match a particular regexp for comparison.

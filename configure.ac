@@ -28,6 +28,11 @@ PATH_DOT
 
 # Allow running test suites if check was found on system
 PATH_CHECK
+# Remove the following because it breaks compil on my old redhat system
+# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+
+# Check libpuzzle
+PUZZLE
 
 USER_CFLAGS=$CFLAGS
 CFLAGS=""
@@ -42,6 +47,12 @@ x86_64-*-*) CFLAGS="-march=nocona -mfpmath=sse,387 -DCPU=64" ;;
 i686-*-*)   CFLAGS="-march=i686 -malign-double -DCPU=686" ;;
 *)          CFLAGS= ;;
 esac
+
+AC_MSG_RESULT([
+** Configuration summary for $PACKAGE $VERSION:
+
+   Support for puzzle library:       $with_puzzle
+])
 
 # Write config.status and the Makefile
 AC_CONFIG_FILES([Doxyfile Makefile])
