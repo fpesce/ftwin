@@ -203,3 +203,88 @@ AC_DEFUN([PUZZLE],[
 	AC_SUBST([PUZZLE_LDFLAGS])
 	AC_SUBST([PUZZLE_LDADD])
     ])
+
+
+#
+# libtar is used to compare two images
+#
+AC_DEFUN([TAR],[
+	AC_ARG_WITH( tar, AC_HELP_STRING([--with-tar=PATH], [prefix where libtar is installed default=/usr/local/]), [tar=$withval],[tar=/usr/local/])
+	if test "x$tar" != "x"
+	    then
+	    #
+	    # Make sure we have "libtar.h".  If we don't, it means we probably
+	    # don't have libtar, so don't use it.
+	    #
+	    AC_CHECK_HEADER(libtar.h,
+		[
+		# Check if the lib is OK
+		AC_CHECK_LIB(tar, tar_open,
+		    [
+		     AC_DEFINE([HAVE_TAR], 1, [for image comparison mode])
+		     with_tar=yes
+		     TAR_CPPFLAGS="-I$tar/include"
+		     TAR_LDFLAGS="-L$tar/lib"
+		     TAR_LDADD="-ltar"
+		    ],
+		    [
+		     with_tar=no
+		     AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+		    ])	
+		],
+		[
+		 with_tar=no
+		 AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+		])
+
+	else
+	    with_tar=no
+	    AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+	fi
+	AC_SUBST([with_tar])
+	AC_SUBST([TAR_CPPFLAGS])
+	AC_SUBST([TAR_LDFLAGS])
+	AC_SUBST([TAR_LDADD])
+    ])
+
+#
+# libz used to uncompress .tar.gz for the moment.
+#
+AC_DEFUN([ZLIB],[
+	AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib=PATH], [prefix where zlib is installed default=/usr]), [zlib=$withval],[zlib=/usr/])
+	if test "x$zlib" != "x"
+	    then
+	    #
+	    # Make sure we have "zlib.h".  If we don't, it means we probably
+	    # don't have libzlib, so don't use it.
+	    #
+	    AC_CHECK_HEADER(zlib.h,
+		[
+		# Check if the lib is OK
+		AC_CHECK_LIB(z, gzread,
+		    [
+		     AC_DEFINE([HAVE_LIBZ], 1, [for image comparison mode])
+		     with_zlib=yes
+		     ZLIB_CPPFLAGS="-I$zlib/include"
+		     ZLIB_LDFLAGS="-L$zlib/lib"
+		     ZLIB_LDADD="-lz"
+		    ],
+		    [
+		     with_zlib=no
+		     AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+		    ])	
+		],
+		[
+		 with_zlib=no
+		 AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+		])
+
+	else
+	    with_zlib=no
+	    AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+	fi
+	AC_SUBST([with_zlib])
+	AC_SUBST([ZLIB_CPPFLAGS])
+	AC_SUBST([ZLIB_LDFLAGS])
+	AC_SUBST([ZLIB_LDADD])
+    ])

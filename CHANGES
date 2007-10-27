@@ -1,3 +1,12 @@
+0.6.0:
+    - feature: - Add a -t option to add files content of .tar archives to the
+                 process of duplicate searching, if zlib is present, .tar.gz
+                 are automatically processed too.
+
+    - cosmetic: - Correctly build manpage using automake.
+
+    - legal: - LICENSE file added.
+
 0.5.1:
     - bugfix: - permissions are now processed correctly when ftwin collect
                 files and path informations.
@@ -6,21 +15,21 @@
 
 0.5.0:
     - feature: - Add a -I option that switch ftwin into duplicate image
-		 finding, in this mode, ftwin search for image that are copy of
-		 each other, even if they are resized, using libpuzzle.
+                 finding, in this mode, ftwin search for image that are copy of
+                 each other, even if they are resized, using libpuzzle.
 
 0.4.0:
     - feature: - Add a whitelisting option, you may want to select files whose
-		 name match a particular regexp for comparison.
-		 For example the following line will report duplicate files
-		 whose extension is .txt and that are not in a .svn directory:
-		 ./ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
+                 name match a particular regexp for comparison.
+                 For example the following line will report duplicate files
+                 whose extension is .txt and that are not in a .svn directory:
+                 ./ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
 
     - bugfix: - mmap checksum mmap is done by block of the same size than
                 cheksum by read.
-		The value of checksums were different, now it is the same if
-		two files are on different type of fs (one mmap-capable, the
-		other not).
+                The value of checksums were different, now it is the same if
+                two files are on different type of fs (one mmap-capable, the
+                other not).
 
     - bugfix-minor: - Fix a minor memleak by attaching pcre * to an apr_pool.
 
