@@ -1,3 +1,8 @@
+0.7.0:
+    - feature: - Move from libtar to libarchive. If zlib and libbz2 are
+		 present, the corresponding types of archives may be looked
+		 into for duplicate searching.
+
 0.6.0:
     - feature: - Add a -t option to add files content of .tar archives to the
                  process of duplicate searching, if zlib is present, .tar.gz

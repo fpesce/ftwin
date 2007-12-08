@@ -34,11 +34,14 @@ PATH_CHECK
 # Check libpuzzle
 PUZZLE
 
-# Check libtar
-TAR
+# Check libarchive
+ARCHIVE
 
 # Check zlib
 ZLIB
+
+# Check bz2
+BZ2
 
 USER_CFLAGS=$CFLAGS
 CFLAGS=""
@@ -58,8 +61,9 @@ AC_MSG_RESULT([
 ** Configuration summary for $PACKAGE $VERSION:
 
    Support for puzzle library:       $with_puzzle
-   Support for tar library:          $with_tar
-   Support for tar library:          $with_zlib
+   Support for archive library:      $with_archive
+   Support for zlib library:         $with_zlib
+   Support for bz2 library:          $with_bz2
 ])
 
 # Write config.status and the Makefile

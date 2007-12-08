@@ -206,45 +206,45 @@ AC_DEFUN([PUZZLE],[
 
 
 #
-# libtar is used to compare two images
+# libarchive is used to compare two images
 #
-AC_DEFUN([TAR],[
-	AC_ARG_WITH( tar, AC_HELP_STRING([--with-tar=PATH], [prefix where libtar is installed default=/usr/local/]), [tar=$withval],[tar=/usr/local/])
-	if test "x$tar" != "x"
+AC_DEFUN([ARCHIVE],[
+	AC_ARG_WITH( archive, AC_HELP_STRING([--with-archive=PATH], [prefix where libarchive is installed default=/usr/]), [archive=$withval],[archive=/usr/])
+	if test "x$archive" != "x"
 	    then
 	    #
-	    # Make sure we have "libtar.h".  If we don't, it means we probably
-	    # don't have libtar, so don't use it.
+	    # Make sure we have "archive.h".  If we don't, it means we probably
+	    # don't have libarchive, so don't use it.
 	    #
-	    AC_CHECK_HEADER(libtar.h,
+	    AC_CHECK_HEADER(archive.h,
 		[
 		# Check if the lib is OK
-		AC_CHECK_LIB(tar, tar_open,
+		AC_CHECK_LIB(archive, archive_version,
 		    [
-		     AC_DEFINE([HAVE_TAR], 1, [for image comparison mode])
-		     with_tar=yes
-		     TAR_CPPFLAGS="-I$tar/include"
-		     TAR_LDFLAGS="-L$tar/lib"
-		     TAR_LDADD="-ltar"
+		     AC_DEFINE([HAVE_ARCHIVE], 1, [for inside archive comparison mode])
+		     with_archive=yes
+		     ARCHIVE_CPPFLAGS="-I$archive/include"
+		     ARCHIVE_LDFLAGS="-L$archive/lib"
+		     ARCHIVE_LDADD="-larchive"
 		    ],
 		    [
-		     with_tar=no
-		     AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+		     with_archive=no
+		     AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
 		    ])	
 		],
 		[
-		 with_tar=no
-		 AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+		 with_archive=no
+		 AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
 		])
 
 	else
-	    with_tar=no
-	    AC_DEFINE([HAVE_TAR], 0, [for image comparison mode])
+	    with_archive=no
+	    AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
 	fi
-	AC_SUBST([with_tar])
-	AC_SUBST([TAR_CPPFLAGS])
-	AC_SUBST([TAR_LDFLAGS])
-	AC_SUBST([TAR_LDADD])
+	AC_SUBST([with_archive])
+	AC_SUBST([ARCHIVE_CPPFLAGS])
+	AC_SUBST([ARCHIVE_LDFLAGS])
+	AC_SUBST([ARCHIVE_LDADD])
     ])
 
 #
@@ -263,7 +263,7 @@ AC_DEFUN([ZLIB],[
 		# Check if the lib is OK
 		AC_CHECK_LIB(z, gzread,
 		    [
-		     AC_DEFINE([HAVE_LIBZ], 1, [for image comparison mode])
+		     AC_DEFINE([HAVE_LIBZ], 1, [for decompressing mode])
 		     with_zlib=yes
 		     ZLIB_CPPFLAGS="-I$zlib/include"
 		     ZLIB_LDFLAGS="-L$zlib/lib"
@@ -271,20 +271,62 @@ AC_DEFUN([ZLIB],[
 		    ],
 		    [
 		     with_zlib=no
-		     AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+		     AC_DEFINE([HAVE_ZLIB], 0, [for decompressing mode])
 		    ])	
 		],
 		[
 		 with_zlib=no
-		 AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+		 AC_DEFINE([HAVE_ZLIB], 0, [for decompressing mode])
 		])
 
 	else
 	    with_zlib=no
-	    AC_DEFINE([HAVE_ZLIB], 0, [for image comparison mode])
+	    AC_DEFINE([HAVE_ZLIB], 0, [for decompressing mode])
 	fi
 	AC_SUBST([with_zlib])
 	AC_SUBST([ZLIB_CPPFLAGS])
 	AC_SUBST([ZLIB_LDFLAGS])
 	AC_SUBST([ZLIB_LDADD])
+    ])
+
+#
+# libbz2 used to uncompress .tar.bz2 for the moment.
+#
+AC_DEFUN([BZ2],[
+	AC_ARG_WITH(bz2, AC_HELP_STRING([--with-bz2=PATH], [prefix where bz2 is installed default=/usr]), [bz2=$withval],[bz2=/usr/])
+	if test "x$bz2" != "x"
+	    then
+	    #
+	    # Make sure we have "bzlib.h".  If we don't, it means we probably
+	    # don't have libbz2, so don't use it.
+	    #
+	    AC_CHECK_HEADER(bzlib.h,
+		[
+		# Check if the lib is OK
+		AC_CHECK_LIB(bz2, BZ2_bzCompressInit,
+		    [
+		     AC_DEFINE([HAVE_BZ2], 1, [for decompressing mode])
+		     with_bz2=yes
+		     BZ2_CPPFLAGS="-I$bz2/include"
+		     BZ2_LDFLAGS="-L$bz2/lib"
+		     BZ2_LDADD="-lz"
+		    ],
+		    [
+		     with_bz2=no
+		     AC_DEFINE([HAVE_BZ2], 0, [for decompressing mode])
+		    ])	
+		],
+		[
+		 with_bz2=no
+		 AC_DEFINE([HAVE_BZ2], 0, [for decompressing mode])
+		])
+
+	else
+	    with_bz2=no
+	    AC_DEFINE([HAVE_BZ2], 0, [for decompressing mode])
+	fi
+	AC_SUBST([with_bz2])
+	AC_SUBST([BZ2_CPPFLAGS])
+	AC_SUBST([BZ2_LDFLAGS])
+	AC_SUBST([BZ2_LDADD])
     ])

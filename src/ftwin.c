@@ -34,14 +34,9 @@
 #include <puzzle.h>
 #endif
 
-#if HAVE_LIBZ
-# include <zlib.h>
-#endif
-
-#if HAVE_TAR
-#include <fcntl.h>		/* O_RDONLY */
-#include <libtar.h>
-#include <unistd.h>		/* close() */
+#if HAVE_ARCHIVE
+#include <archive.h>
+#include <archive_entry.h>
 #endif
 
 #include "checksum.h"
@@ -72,7 +67,7 @@
 #define OPTION_PUZZL 0x0080
 #endif
 
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 #define OPTION_UNTAR 0x0100
 #endif
 
@@ -80,7 +75,7 @@ typedef struct ft_file_t
 {
     apr_off_t size;
     char *path;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
     char *subpath;
 #endif
 #if HAVE_PUZZLE
@@ -88,9 +83,6 @@ typedef struct ft_file_t
     int cvec_ok:1;
 #endif
     int prioritized:1;
-#if HAVE_LIBZ
-    int gziped:1;
-#endif
 } ft_file_t;
 
 typedef struct ft_chksum_t
@@ -123,6 +115,7 @@ typedef struct ft_conf_t
     napr_hash_t *ig_files;
     pcre *ig_regex;
     pcre *wl_regex;
+    pcre *ar_regex;		/* archive regex */
     char *p_path;		/* priority path */
     char *username;
     apr_size_t p_path_len;
@@ -211,85 +204,6 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
 	filename = end + 1;
     } while ((NULL != end) && ('\0' != *filename));
 }
-
-#ifdef HAVE_LIBZ
-/* 
- * XXX
- * The libtar API don't allow to use pointer as return of openfunc frontend,
- * and on 64 bits architecture the cast proposed in the example libtar.c
- * truncate the pointer (64 bits) returned by gzdopen function by casting it to
- * an int (32 bits).
- *
- * Thus, the solution I choose is to use a global variable (I hate it...) to
- * store the pointer returned by gzdopen.
- *
- * This ugly workaround works because I'm not a multi-threaded app.
- *
- * FIXME
- * because of inconsistent allocation in function th_get_pathname, strdup() ing
- * 2 case / 3, not allowing a correct free in the return function. There's a
- * memory leak introduced by this behavior...
- */
-static gzFile global_gzFile;
-
-int gzopen_frontend(const char *pathname, int oflags, int mode)
-{
-    char *gzoflags;
-    int fd;
-
-    switch (oflags & O_ACCMODE) {
-    case O_WRONLY:
-	gzoflags = "wb";
-	break;
-    case O_RDONLY:
-	gzoflags = "rb";
-	break;
-    default:
-    case O_RDWR:
-	errno = EINVAL;
-	return -1;
-    }
-
-    fd = open(pathname, oflags, mode);
-    if (fd == -1)
-	return -1;
-
-    if ((oflags & O_CREAT) && fchmod(fd, mode))
-	return -1;
-
-    global_gzFile = gzdopen(fd, gzoflags);
-    if (!global_gzFile) {
-	errno = ENOMEM;
-	return -1;
-    }
-
-    return fd;
-}
-
-int gzclose_frontend(int fd)
-{
-    int rv;
-
-    rv = gzclose(global_gzFile);
-    global_gzFile = NULL;
-
-    return rv;
-}
-
-ssize_t gzread_frontend(int fd, void *buf, size_t len)
-{
-    return (ssize_t) gzread(global_gzFile, buf, (unsigned) len);
-}
-
-ssize_t gzwrite_frontend(int fd, const void *buf, size_t len)
-{
-    return (ssize_t) gzwrite(global_gzFile, buf, (unsigned) len);
-}
-
-tartype_t gztype = { (openfunc_t) gzopen_frontend, gzclose_frontend, gzread_frontend, gzwrite_frontend };
-
-#endif /* HAVE_LIBZ */
-
 
 /** 
  * The function used to add recursively or not file and dirs.
@@ -416,56 +330,61 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     else if (APR_REG == finfo.filetype || ((APR_LNK == finfo.filetype) && (is_option_set(conf->mask, OPTION_FSYML)))) {
 	apr_off_t finfosize;
 	char *fname;
-#if HAVE_TAR
-	char *subpath;
-	TAR *tar = NULL;
+#if HAVE_ARCHIVE
+	const char *subpath;
+	/* XXX La */
+	struct archive *a = NULL;
+	struct archive_entry *entry = NULL;
 	int rv;
-#if HAVE_LIBZ
-	int gziped;
-#endif
 #endif
 
 	fname = apr_pstrdup(conf->pool, filename);
 	finfosize = finfo.size;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 	subpath = NULL;
 	fname_len = strlen(filename);
 	if (is_option_set(conf->mask, OPTION_UNTAR)) {
-	    if ((fname_len > 4) && !strncasecmp(fname + fname_len - 4, ".tar", 4)) {
-		if (tar_open(&tar, fname, NULL, O_RDONLY, 0, TAR_VERBOSE))
-		    tar = NULL;
-		gziped = 0;
+	    if ((NULL != conf->ar_regex)
+		&& (0 <= (rc = pcre_exec(conf->ar_regex, NULL, filename, fname_len, 0, 0, ovector, MATCH_VECTOR_SIZE)))) {
+		a = archive_read_new();
+		if (NULL == a) {
+		    DEBUG_ERR("error calling archive_read_new()");
+		    return APR_EGENERAL;
+		}
+		rv = archive_read_support_compression_all(a);
+		if (0 != rv) {
+		    DEBUG_ERR("error calling archive_read_support_compression_all(): %s", archive_error_string(a));
+		    return APR_EGENERAL;
+		}
+		rv = archive_read_support_format_all(a);
+		if (0 != rv) {
+		    DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(a));
+		    return APR_EGENERAL;
+		}
+		rv = archive_read_open_file(a, filename, 10240);
+		if (0 != rv) {
+		    DEBUG_ERR("error calling archive_read_open_file(%s): %s", filename, archive_error_string(a));
+		    return APR_EGENERAL;
+		}
 	    }
-#if HAVE_LIBZ
-	    if ((NULL == tar) && (fname_len > 7) && !strncasecmp(fname + fname_len - 7, ".tar.gz", 7)) {
-		if (tar_open(&tar, fname, &gztype, O_RDONLY, 0, 0))
-		    tar = NULL;
-		gziped = 1;
-	    }
-#endif
 	}
+
 	do {
 #endif
 	    if (finfosize >= conf->minsize
-#if HAVE_TAR
-		&& ((NULL != tar) && !TH_ISDIR(tar))
+#if HAVE_ARCHIVE
+		&& ((NULL == a) || ((NULL != entry) && !(AE_IFDIR & archive_entry_filetype(entry))))
 #endif
-		    ) {
+		) {
 		ft_file_t *file;
 		ft_fsize_t *fsize;
 
 		file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
 		file->path = fname;
 		file->size = finfosize;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 		if (subpath) {
 		    file->subpath = apr_pstrdup(conf->pool, subpath);
-#if HAVE_LIBZ
-		    if (gziped)
-			file->gziped |= 0x1;
-		    else
-			file->gziped &= 0x0;
-#endif
 		}
 		else {
 		    file->subpath = NULL;
@@ -494,71 +413,150 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		}
 		fsize->nb_files++;
 	    }
-#if HAVE_TAR
-	    if (tar) {
-		if (subpath) {
-		    /* following headers */
-		    if (TH_ISREG(tar) && (0 != tar_skip_regfile(tar))) {
-			DEBUG_ERR("tar_skip_regfile(): %s", strerror(errno));
-			return APR_EGENERAL;
+#if HAVE_ARCHIVE
+	    if (a) {
+		rv = archive_read_next_header(a, &entry);
+		if (ARCHIVE_EOF != rv) {
+		    if (ARCHIVE_OK == rv) {
+			finfosize = archive_entry_size(entry);
+			subpath = archive_entry_pathname(entry);
 		    }
-		    subpath = NULL;
-		}
-		rv = th_read(tar);
-		if (0 == rv) {
-		    finfosize = th_get_size(tar);
-		    subpath = th_get_pathname(tar);
+		    else {
+			/*
+			 * if this is the first all to read_next_header, we may
+			 * be processing a bad file, ignore it silently.
+			 */
+			if(NULL != subpath) {
+			    DEBUG_ERR("error calling archive_read_next_header(%s): %s", fname, archive_error_string(a));
+			    return APR_EGENERAL;
+			} else {
+			    break;
+			}
+		    }
 		}
 	    }
-	} while (tar && (0 == rv));
-	if (tar)
-	    tar_close(tar);
+	} while (a && (ARCHIVE_EOF != rv));
+	if (a)
+	    archive_read_finish(a);
 #endif
     }
 
     return APR_SUCCESS;
 }
 
+#if HAVE_ARCHIVE
+static int copy_data(struct archive *ar, struct archive *aw)
+{
+    const void *buff;
+    apr_off_t offset;
+    apr_size_t size;
+    int rv;
+
+    for (;;) {
+	rv = archive_read_data_block(ar, &buff, &size, &offset);
+	if (rv == ARCHIVE_EOF) {
+	    return ARCHIVE_OK;
+	}
+	if (rv != ARCHIVE_OK) {
+	    DEBUG_ERR("error calling archive_read_data_block(): %s", archive_error_string(ar));
+	    return rv;
+	}
+	rv = archive_write_data_block(aw, buff, size, offset);
+	if (rv != ARCHIVE_OK) {
+	    DEBUG_ERR("error calling archive_write_data_block(): %s", archive_error_string(aw));
+	    return rv;
+	}
+    }
+}
+
 static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 {
-    TAR *tar;
-    char *tmpfile = NULL, *tmpstr;
-    int fd, rv;
+    struct archive *a = NULL;
+    struct archive *ext = NULL;
+    struct archive_entry *entry = NULL;
+    char *tmpfile = NULL;
+    int rv;
 
-#if HAVE_LIBZ
-    if (file->gziped & 0x1) {
-	rv = tar_open(&tar, file->path, &gztype, O_RDONLY, 0, 0);
+    a = archive_read_new();
+    if (NULL == a) {
+	DEBUG_ERR("error calling archive_read_new()");
+	return NULL;
     }
-    else {
-#endif
-	rv = tar_open(&tar, file->path, NULL, O_RDONLY, 0, 0);
-#if HAVE_LIBZ
+    rv = archive_read_support_compression_all(a);
+    if (0 != rv) {
+	DEBUG_ERR("error calling archive_read_support_compression_all(): %s", archive_error_string(a));
+	return NULL;
     }
-#endif
+    rv = archive_read_support_format_all(a);
+    if (0 != rv) {
+	DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(a));
+	return NULL;
+    }
+    rv = archive_read_open_file(a, file->path, 10240);
+    if (0 != rv) {
+	DEBUG_ERR("error calling archive_read_open_file(%s): %s", file->path, archive_error_string(a));
+	return NULL;
+    }
 
-    if (!rv) {
-	while (!th_read(tar)) {
-	    tmpstr = th_get_pathname(tar);
-	    if (!strcmp(tmpstr, file->subpath)) {
-		tmpfile = apr_pstrdup(p, "/tmp/ftwin_XXXXXX");
-		fd = mkstemp(tmpfile);
-		tar_extract_file(tar, tmpfile);
-		close(fd);
-		break;
-	    }
-	    if (TH_ISREG(tar) && (0 != tar_skip_regfile(tar))) {
-		DEBUG_ERR("tar_skip_regfile(): %s", strerror(errno));
+    ext = archive_write_disk_new();
+    if (NULL == ext) {
+	DEBUG_ERR("error calling archive_write_disk_new()");
+	return NULL;
+    }
+
+    for (;;) {
+	rv = archive_read_next_header(a, &entry);
+	if (rv == ARCHIVE_EOF) {
+	    DEBUG_ERR("subpath [%s] not found in archive [%s]", file->subpath, file->path);
+	    return NULL;
+	}
+	if (rv != ARCHIVE_OK) {
+	    DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(a));
+	    return NULL;
+	}
+
+	if (!strcmp(file->subpath, archive_entry_pathname(entry))) {
+	    /*
+	     * All I want is only a temporary filename, but gcc outputs me an
+	     * ugly warning if I use tempnam...
+	     * tmpfile = tempnam("/tmp/", "ftwin");
+	     */
+	    tmpfile = apr_pstrdup(p, "/tmp/ftwinXXXXXX");
+	    rv = mkstemp(tmpfile);
+	    if (rv < 0) {
+		DEBUG_ERR("error creating tmpfile %s", tmpfile);
 		return NULL;
 	    }
+	    close(rv);
+
+	    archive_entry_copy_pathname(entry, tmpfile);
+
+	    rv = archive_write_header(ext, entry);
+	    if (rv == ARCHIVE_OK) {
+		rv = copy_data(a, ext);
+		if (rv != ARCHIVE_OK) {
+		    DEBUG_ERR("error while copying data from archive (%s)", file->path);
+		    apr_file_remove(tmpfile, p);
+		    return NULL;
+		}
+	    }
+	    else {
+		DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(a));
+		apr_file_remove(tmpfile, p);
+		return NULL;
+	    }
+
+	    break;
 	}
-	tar_close(tar);
     }
-    else {
-	DEBUG_ERR("tar_open(): %s", strerror(errno));
-    }
+
+    archive_write_finish(ext);
+    archive_read_finish(a);
 
     return tmpfile;
 }
+
+#endif
 
 static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 {
@@ -608,7 +606,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		}
 		else {
 		    char *filepath;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 		    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
 			filepath = ft_untar_file(file, gc_pool);
 			if (NULL == filepath) {
@@ -626,7 +624,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		    status =
 			checksum_file(filepath, file->size, conf->excess_size,
 				      fsize->chksum_array[fsize->nb_checksumed].val_array, gc_pool);
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 		    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != file->subpath))
 			apr_file_remove(filepath, gc_pool);
 #endif
@@ -784,7 +782,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 		for (j = i + 1; j < fsize->nb_files; j++) {
 		    if (0 == memcmp(fsize->chksum_array[i].val_array, fsize->chksum_array[j].val_array, HASHSTATE)) {
 			char *fpathi, *fpathj;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath) {
 				fpathi = ft_untar_file(fsize->chksum_array[i].file, conf->pool);
@@ -816,7 +814,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			fpathj = fsize->chksum_array[j].file->path;
 #endif
 			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath)
 				apr_file_remove(fpathi, conf->pool);
@@ -842,7 +840,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			    if (!already_printed) {
 				if (is_option_set(conf->mask, OPTION_SIZED))
 				    printf("size [%" APR_OFF_T_FMT "]:\n", fsize->val);
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 				if (is_option_set(conf->mask, OPTION_UNTAR)
 				    && (NULL != fsize->chksum_array[i].file->subpath))
 				    printf("%s%c%s%c", fsize->chksum_array[i].file->path, (':' != conf->sep) ? ':' : '|',
@@ -855,7 +853,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			    else {
 				printf("%c", conf->sep);
 			    }
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 			    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
 				printf("%s%c%s", fsize->chksum_array[j].file->path, (':' != conf->sep) ? ':' : '|',
 				       fsize->chksum_array[j].file->subpath);
@@ -991,7 +989,7 @@ int main(int argc, const char **argv)
 	{"priority-path", 'p', TRUE, "\tfile in this path are displayed first when\n\t\t\t\tduplicates are reported."},
 	{"recurse-subdir", 'r', FALSE, "recurse subdirectories."},
 	{"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 	{"tar-cmp", 't', FALSE, "\twill process files archived in .tar default: off."},
 #endif
 	{"verbose", 'v', FALSE, "\tdisplay a progress bar."},
@@ -1001,8 +999,7 @@ int main(int argc, const char **argv)
 	{NULL, 0, 0, NULL},	/* end (a.k.a. sentinel) */
     };
     char errbuf[128];
-    char *regex = NULL;
-    char *wregex = NULL;
+    char *regex = NULL, *wregex = NULL, *arregex = NULL;
     ft_conf_t conf;
     apr_getopt_t *os;
     apr_pool_t *pool, *gc_pool;
@@ -1040,6 +1037,7 @@ int main(int argc, const char **argv)
     napr_hash_set(conf.ig_files, "..", hash_value);
     conf.ig_regex = NULL;
     conf.wl_regex = NULL;
+    conf.ar_regex = NULL;
     conf.p_path = NULL;
     conf.p_path_len = 0;
     conf.minsize = 0;
@@ -1095,9 +1093,10 @@ int main(int argc, const char **argv)
 	case 's':
 	    conf.sep = *optarg;
 	    break;
-#if HAVE_TAR
+#if HAVE_ARCHIVE
 	case 't':
 	    set_option(&conf.mask, OPTION_UNTAR, 1);
+	    arregex = apr_pstrdup(pool, ".*(\\.tar)?\\.(gz|Z|bz2)$");
 	    break;
 #endif
 	case 'v':
@@ -1149,6 +1148,14 @@ int main(int argc, const char **argv)
     if (NULL != wregex) {
 	conf.wl_regex = ft_pcre_compile(wregex, is_option_set(conf.mask, OPTION_ICASE), pool);
 	if (NULL == conf.wl_regex) {
+	    apr_terminate();
+	    return -1;
+	}
+    }
+
+    if (NULL != arregex) {
+	conf.ar_regex = ft_pcre_compile(arregex, is_option_set(conf.mask, OPTION_ICASE), pool);
+	if (NULL == conf.ar_regex) {
 	    apr_terminate();
 	    return -1;
 	}

@@ -1,1 +1,5 @@
-* A memleak is introduced by using libtar.
+* A memleak is introduced by using libarchive.
+  The memory leak is fixed it by adding :
+      archive_string_free(&tar->longlink);
+      archive_string_free(&tar->longname);
+      in archive_read_format_tar_cleanup() function of archive_read_support_format_tar.c.
