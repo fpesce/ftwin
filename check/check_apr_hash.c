@@ -57,7 +57,7 @@ static unsigned int hash_int(const char *key, apr_ssize_t * klen)
 
 START_TEST(test_apr_hash_int)
 {
-    apr_off_t array[] = { 0x000000001, 0x00000002, 0x00000004, 0x100000001, 0x00000004 };
+    apr_off_t array[] = { 0x00000001, 0x00000002, 0x00000004, 0x10000001, 0x00000004 };
     const char *array_str[] = { "1", "2", "3", "4", "5" };
     apr_hash_t *hash;
     int i;

@@ -1,3 +1,6 @@
+0.7.1:
+    - bugfix-minor: - Fix the size of integer in the hash unit test.
+
 0.7.0:
     - feature: - Move from libtar to libarchive. If zlib and libbz2 are
 		 present, the corresponding types of archives may be looked
