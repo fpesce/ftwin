@@ -1,3 +1,8 @@
+0.7.2:
+    - bugfix-major: - compilation fail on some architecture because I used APR
+		      primitive instead of off_t size_t with archive_
+		      functions.
+
 0.7.1:
     - bugfix-minor: - Fix the size of integer in the hash unit test.
 

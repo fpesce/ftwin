@@ -448,8 +448,8 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 static int copy_data(struct archive *ar, struct archive *aw)
 {
     const void *buff;
-    apr_off_t offset;
-    apr_size_t size;
+    off_t offset;
+    size_t size;
     int rv;
 
     for (;;) {
