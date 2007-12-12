@@ -1,15 +1,23 @@
+0.8.0:
+    - feature-minor: - use a BSD-compatible function from libc in order to
+                       obtain all group permissions of the process.
+                       This may allow Baptiste Daroussin to build a BSD port of
+                       this tool (thanks a lot to him !)
+
 0.7.2:
     - bugfix-major: - compilation fail on some architecture because I used APR
-		      primitive instead of off_t size_t with archive_
-		      functions.
+                      primitive instead of off_t size_t with archive_*
+                      functions.
+                      (thanks to Lou Afonso for bug report).
 
 0.7.1:
     - bugfix-minor: - Fix the size of integer in the hash unit test.
+                      (thanks to Juan M. Bello Rivas for the patch).
 
 0.7.0:
     - feature: - Move from libtar to libarchive. If zlib and libbz2 are
-		 present, the corresponding types of archives may be looked
-		 into for duplicate searching.
+                 present, the corresponding types of archives may be looked
+                 into for duplicate searching.
 
 0.6.0:
     - feature: - Add a -t option to add files content of .tar archives to the

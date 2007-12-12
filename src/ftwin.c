@@ -426,10 +426,11 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 			 * if this is the first all to read_next_header, we may
 			 * be processing a bad file, ignore it silently.
 			 */
-			if(NULL != subpath) {
+			if (NULL != subpath) {
 			    DEBUG_ERR("error calling archive_read_next_header(%s): %s", fname, archive_error_string(a));
 			    return APR_EGENERAL;
-			} else {
+			}
+			else {
 			    break;
 			}
 		    }
@@ -944,30 +945,34 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *p)
 
 static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_pool_t *p)
 {
-    FILE *etc_grp;
-    struct group *grp_p;
+    gid_t list[256];
     ft_gid_t *gid;
     apr_uint32_t hash_value;
-    int i;
+    int i, nb_gid;
 
-    errno = 0;
-    if (NULL == (etc_grp = fopen("/etc/group", "r"))) {
-	return errno ? errno : APR_ENOENT;
+    nb_gid = getgroups(sizeof(list), list);
+    if (nb_gid < 0) {
+	DEBUG_ERR("error calling getgroups()");
+	return APR_EGENERAL;
+    }
+    /* 
+     * According to getgroups manpage:
+     * It is unspecified whether the effective group ID of the calling process
+     * is included in the returned list.  (Thus, an application should also
+     * call getegid(2) and add or remove the resulting value.)
+     */
+    if (nb_gid < sizeof(list)) {
+	list[nb_gid] = getegid();
+	nb_gid++;
     }
 
-    while (NULL != (grp_p = fgetgrent(etc_grp))) {
-	for (i = 0; NULL != grp_p->gr_mem[i]; i++) {
-	    if (!strcmp(username, grp_p->gr_mem[i])) {
-		if (NULL == (gid = napr_hash_search(gids, &(grp_p->gr_gid), 1, &hash_value))) {
-		    gid = apr_palloc(p, sizeof(struct ft_gid_t));
-		    gid->val = grp_p->gr_gid;
-		    napr_hash_set(gids, gid, hash_value);
-		}
-	    }
+    for (i = 0; i < nb_gid; i++) {
+	if (NULL == (gid = napr_hash_search(gids, &(list[i]), 1, &hash_value))) {
+	    gid = apr_palloc(p, sizeof(struct ft_gid_t));
+	    gid->val = list[i];
+	    napr_hash_set(gids, gid, hash_value);
 	}
     }
-
-    fclose(etc_grp);
 
     return APR_SUCCESS;
 }
