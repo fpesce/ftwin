@@ -17,6 +17,7 @@
 
 #include <pcre.h>
 
+#include <unistd.h>		/* getegid */
 #include <stdio.h>		/* fgetgrent */
 #include <sys/types.h>		/* fgetgrent */
 #include <grp.h>		/* fgetgrent */

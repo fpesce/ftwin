@@ -1,3 +1,6 @@
+0.8.1:
+    - bugfix-major: - compilation failed on latest ubuntu.
+
 0.8.0:
     - feature-minor: - use a BSD-compatible function from libc in order to
                        obtain all group permissions of the process.
