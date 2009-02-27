@@ -5,9 +5,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- * 	http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
+ *	http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -206,7 +206,7 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
     } while ((NULL != end) && ('\0' != *filename));
 }
 
-/** 
+/**
  * The function used to add recursively or not file and dirs.
  * @param conf Configuration structure.
  * @param filename name of a file or directory to add to the list of twinchecker.
@@ -232,6 +232,15 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	statmask |= APR_FINFO_LINK;
 
     if (APR_SUCCESS != (status = apr_stat(&finfo, filename, statmask, gc_pool))) {
+	if (is_option_set(conf->mask, OPTION_FSYML)) {
+	    statmask ^= APR_FINFO_LINK;
+	    if ((APR_SUCCESS == apr_stat(&finfo, filename, statmask, gc_pool)) && (finfo.filetype & APR_LNK)) {
+		if (is_option_set(conf->mask, OPTION_VERBO))
+		    fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
+		return APR_SUCCESS;
+	    }
+	}
+
 	DEBUG_ERR("error calling apr_stat on filename %s : %s", filename, apr_strerror(status, errbuf, 128));
 	return status;
     }
@@ -1049,7 +1058,7 @@ int main(int argc, const char **argv)
     conf.minsize = 0;
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
-    conf.mask = 0x00;
+    conf.mask = 0x0000;
 
     while (APR_SUCCESS == (status = apr_getopt_long(os, opt_option, &optch, &optarg))) {
 	switch (optch) {
