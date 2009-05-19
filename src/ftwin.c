@@ -126,6 +126,12 @@ typedef struct ft_conf_t
     char sep;
 } ft_conf_t;
 
+struct stats
+{
+  struct stats const *parent;
+  apr_finfo_t stat;
+};
+
 static int ft_file_cmp(const void *param1, const void *param2)
 {
     const ft_file_t *file1 = param1;
@@ -214,7 +220,7 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
  * @return APR_SUCCESS if no error occured.
  */
 #define MATCH_VECTOR_SIZE 210
-static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool)
+static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats)
 {
     int ovector[MATCH_VECTOR_SIZE];
     char errbuf[128];
@@ -302,6 +308,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    /* Check if it has to be ignored */
 	    char *fullname;
 	    apr_size_t fullname_len;
+		/* for recursive loop detection */
+		struct stats child;
+		struct stats const *ancestor; 
 
 	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
 		continue;
@@ -319,8 +328,23 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)
 		&& (0 > (rc = pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
 		continue;
+	
+		if (stats)
+		{
+ 			if (stats->stat.inode)
+    		for (ancestor = stats;  (ancestor = ancestor->parent) != 0;  )
+      			if (ancestor->stat.inode == stats->stat.inode && ancestor->stat.device == stats->stat.device) 
+				{
+					if (is_option_set(conf->mask, OPTION_VERBO))
+            			fprintf (stderr, "Warning: %s: recursive directory loop\n", filename);
+					/* skip it */
+		    		return APR_SUCCESS;
+				}
+		}
+		child.parent = stats;
+		child.stat = finfo;
 
-	    status = ft_conf_add_file(conf, fullname, gc_pool);
+	    status = ft_conf_add_file(conf, fullname, gc_pool, &child);
 
 	    if (APR_SUCCESS != status) {
 		DEBUG_ERR("error recursively calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
@@ -336,7 +360,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    DEBUG_ERR("error calling apr_dir_close: %s", apr_strerror(status, errbuf, 128));
 	    return status;
 	}
-    }
+	}
     else if (APR_REG == finfo.filetype || ((APR_LNK == finfo.filetype) && (is_option_set(conf->mask, OPTION_FSYML)))) {
 	apr_off_t finfosize;
 	char *fname;
@@ -1183,7 +1207,7 @@ int main(int argc, const char **argv)
 	return -1;
     }
     for (i = os->ind; i < argc; i++) {
-	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, argv[i], gc_pool))) {
+	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, argv[i], gc_pool, NULL))) {
 	    DEBUG_ERR("error calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
 	    apr_terminate();
 	    return -1;

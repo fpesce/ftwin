@@ -1,5 +1,10 @@
+0.8.3:
+    - bugfix-major: - don't infinite loop on symlink follow.
+                      (thanks to Kuat Eshengazin for bug report AND patch !).
+
 0.8.2:
     - bugfix-minor: - don't stop if a broken link is seen, just report it.
+                      (thanks to Imad Soltani for bug report).
 
 0.8.1:
     - bugfix-major: - compilation failed on latest ubuntu.
