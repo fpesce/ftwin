@@ -128,8 +128,8 @@ typedef struct ft_conf_t
 
 struct stats
 {
-  struct stats const *parent;
-  apr_finfo_t stat;
+    struct stats const *parent;
+    apr_finfo_t stat;
 };
 
 static int ft_file_cmp(const void *param1, const void *param2)
@@ -308,9 +308,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    /* Check if it has to be ignored */
 	    char *fullname;
 	    apr_size_t fullname_len;
-		/* for recursive loop detection */
-		struct stats child;
-		struct stats const *ancestor; 
+	    /* for recursive loop detection */
+	    struct stats child;
+	    struct stats const *ancestor;
 
 	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
 		continue;
@@ -328,21 +328,19 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)
 		&& (0 > (rc = pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
 		continue;
-	
-		if (stats)
-		{
- 			if (stats->stat.inode)
-    		for (ancestor = stats;  (ancestor = ancestor->parent) != 0;  )
-      			if (ancestor->stat.inode == stats->stat.inode && ancestor->stat.device == stats->stat.device) 
-				{
-					if (is_option_set(conf->mask, OPTION_VERBO))
-            			fprintf (stderr, "Warning: %s: recursive directory loop\n", filename);
-					/* skip it */
-		    		return APR_SUCCESS;
-				}
-		}
-		child.parent = stats;
-		child.stat = finfo;
+
+	    if (stats) {
+		if (stats->stat.inode)
+		    for (ancestor = stats; (ancestor = ancestor->parent) != 0;)
+			if (ancestor->stat.inode == stats->stat.inode && ancestor->stat.device == stats->stat.device) {
+			    if (is_option_set(conf->mask, OPTION_VERBO))
+				fprintf(stderr, "Warning: %s: recursive directory loop\n", filename);
+			    /* skip it */
+			    return APR_SUCCESS;
+			}
+	    }
+	    child.parent = stats;
+	    child.stat = finfo;
 
 	    status = ft_conf_add_file(conf, fullname, gc_pool, &child);
 
@@ -360,7 +358,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    DEBUG_ERR("error calling apr_dir_close: %s", apr_strerror(status, errbuf, 128));
 	    return status;
 	}
-	}
+    }
     else if (APR_REG == finfo.filetype || ((APR_LNK == finfo.filetype) && (is_option_set(conf->mask, OPTION_FSYML)))) {
 	apr_off_t finfosize;
 	char *fname;
@@ -799,6 +797,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
     int rv;
     apr_status_t status;
     unsigned char already_printed;
+    apr_uint32_t chksum_array_sz = 0U;
 
     if (is_option_set(conf->mask, OPTION_VERBO))
 	fprintf(stderr, "Reporting duplicate files:\n");
@@ -809,7 +808,8 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 
 	old_size = file->size;
 	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
-	    qsort(fsize->chksum_array, fsize->nb_files, sizeof(ft_chksum_t), chksum_cmp);
+	    chksum_array_sz = MIN(fsize->nb_files, fsize->nb_checksumed);
+	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), chksum_cmp);
 	    for (i = 0; i < fsize->nb_files; i++) {
 		if (NULL == fsize->chksum_array[i].file)
 		    continue;

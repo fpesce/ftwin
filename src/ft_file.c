@@ -27,7 +27,6 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 
 /*#define HUGE_LEN 8192*/
 #define HUGE_LEN 4096
-#define MIN(a,b) ((a)<(b)) ? (a) : (b)
 
 static apr_status_t checksum_small_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
 {

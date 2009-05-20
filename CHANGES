@@ -1,3 +1,9 @@
+0.8.4:
+    - bugfix-major: - don't crash when an interface is closed (for example,
+		      some files in /sys/class/net/eth0/ dormant and carrier
+		      might be read as INVALID).
+                      (thanks to Kuat Eshengazin for bug report AND patch !).
+
 0.8.3:
     - bugfix-major: - don't infinite loop on symlink follow.
                       (thanks to Kuat Eshengazin for bug report AND patch !).

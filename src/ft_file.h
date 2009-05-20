@@ -20,6 +20,8 @@
 
 #include <apr_pools.h>
 
+#define MIN(a,b) ((a)<(b)) ? (a) : (b)
+
 /* hash result is not the same for a same file whether it is considered as big or small, so use carefully */
 apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, apr_uint32_t *state,
 			   apr_pool_t *gc_pool);
