@@ -198,7 +198,7 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
     pool = napr_hash_pool_get(hash);
     filename = file_list;
     do {
-	end = strchr(filename, 'c');
+	end = strchr(filename, ',');
 	if (NULL != end) {
 	    tmp = apr_pstrndup(pool, filename, end - filename);
 	}

@@ -1,3 +1,7 @@
+0.8.5:
+    - bugfix-major: - File ignore list had no effect.
+                      (thanks to Kuat Eshengazin for bug report AND patch !).
+
 0.8.4:
     - bugfix-major: - don't crash when an interface is closed (for example,
 		      some files in /sys/class/net/eth0/ dormant and carrier
