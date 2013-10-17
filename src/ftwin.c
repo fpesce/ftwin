@@ -109,6 +109,9 @@ typedef struct ft_conf_t
 {
     apr_off_t minsize;
     apr_off_t excess_size;	/* Switch off mmap behavior */
+#if HAVE_PUZZLE
+    double threshold;
+#endif
     apr_pool_t *pool;		/* Always needed somewhere ;) */
     napr_heap_t *heap;		/* Will holds the files */
     napr_hash_t *sizes;		/* will holds the sizes hashed with http://www.burtleburtle.net/bob/hash/integer.html */
@@ -762,7 +765,7 @@ static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
 		continue;
 
 	    d = puzzle_vector_normalized_distance(&context, &(file->cvec), &(file_cmp->cvec), 0);
-	    if (d < PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD) {
+	    if (d < conf->threshold) {
 		if (!already_printed) {
 		    printf("%s%c", file->path, conf->sep);
 		    already_printed = 1;
@@ -1021,6 +1024,7 @@ int main(int argc, const char **argv)
 	{"help", 'h', FALSE, "\t\tdisplay usage."},
 #if HAVE_PUZZLE
 	{"image-cmp", 'I', FALSE, "\twill run ftwin in image cmp mode (using libpuzzle)."},
+        {"image-threshold", 'T', TRUE, "will change the image similarity threshold\n\t\t\t\t (default is [1], accepted [2/3/4/5])."},
 #endif
 	{"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
 	{"minimal-length", 'm', TRUE, "minimum size of file to process."},
@@ -1083,6 +1087,9 @@ int main(int argc, const char **argv)
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
     conf.mask = 0x0000;
+#if HAVE_ARCHIVE
+    conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
+#endif
 
     while (APR_SUCCESS == (status = apr_getopt_long(os, opt_option, &optch, &optarg))) {
 	switch (optch) {
@@ -1108,7 +1115,31 @@ int main(int argc, const char **argv)
 	case 'I':
 	    set_option(&conf.mask, OPTION_ICASE, 1);
 	    set_option(&conf.mask, OPTION_PUZZL, 1);
-	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpg)$");
+	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpe?g)$");
+	    break;
+	case 'T':
+            switch(*optarg) {
+              case '1':
+                conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
+                break;
+              case '2':
+                conf.threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
+                break;
+              case '3':
+                conf.threshold = 0.5;
+                break;
+              case '4':
+                conf.threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
+                break;
+              case '5':
+                conf.threshold = PUZZLE_CVEC_SIMILARITY_HIGH_THRESHOLD;
+                break;
+              default:
+                usage(argv[0], opt_option);
+		DEBUG_ERR("invalid threshold: %s", optarg);
+		apr_terminate();
+                return -1;
+            }
 	    break;
 #endif
 	case 'm':

@@ -1,3 +1,6 @@
+0.8.6:
+    - feature-minor: - Accept threshold as a parameter for image comparison.
+
 0.8.5:
     - bugfix-major: - File ignore list had no effect.
                       (thanks to Kuat Eshengazin for bug report AND patch !).
