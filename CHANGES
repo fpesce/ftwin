@@ -1,3 +1,6 @@
+0.8.8:
+    - security-minor: - Coverity scan.
+
 0.8.7:
     - bugfix-minor: - Compilation issues.
 

@@ -19,6 +19,7 @@
 
 #include <unistd.h>		/* getegid */
 #include <stdio.h>		/* fgetgrent */
+#include <sys/stat.h>		/* umask */
 #include <sys/types.h>		/* fgetgrent */
 #include <grp.h>		/* fgetgrent */
 
@@ -552,6 +553,8 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 	}
 
 	if (!strcmp(file->subpath, archive_entry_pathname(entry))) {
+	    mode_t current_mode = umask(S_IRWXG | S_IRWXO);
+
 	    /*
 	     * All I want is only a temporary filename, but gcc outputs me an
 	     * ugly warning if I use tempnam...
@@ -563,6 +566,7 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 		DEBUG_ERR("error creating tmpfile %s", tmpfile);
 		return NULL;
 	    }
+	    umask(current_mode);
 	    close(rv);
 
 	    archive_entry_copy_pathname(entry, tmpfile);
@@ -987,7 +991,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     apr_uint32_t hash_value;
     int i, nb_gid;
 
-    nb_gid = getgroups(sizeof(list), list);
+    nb_gid = getgroups(sizeof(list) / sizeof(gid_t), list);
     if (nb_gid < 0) {
 	DEBUG_ERR("error calling getgroups()");
 	return APR_EGENERAL;
@@ -998,13 +1002,14 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
      * is included in the returned list.  (Thus, an application should also
      * call getegid(2) and add or remove the resulting value.)
      */
-    if (nb_gid < sizeof(list)) {
+    if (nb_gid < (sizeof(list) / sizeof(gid_t))) {
 	list[nb_gid] = getegid();
 	nb_gid++;
     }
 
     for (i = 0; i < nb_gid; i++) {
-	if (NULL == (gid = napr_hash_search(gids, &(list[i]), 1, &hash_value))) {
+	gid = napr_hash_search(gids, &(list[i]), 1, &hash_value);
+	if (NULL == gid) {
 	    gid = apr_palloc(p, sizeof(struct ft_gid_t));
 	    gid->val = list[i];
 	    napr_hash_set(gids, gid, hash_value);
@@ -1024,7 +1029,8 @@ int main(int argc, const char **argv)
 	{"help", 'h', FALSE, "\t\tdisplay usage."},
 #if HAVE_PUZZLE
 	{"image-cmp", 'I', FALSE, "\twill run ftwin in image cmp mode (using libpuzzle)."},
-        {"image-threshold", 'T', TRUE, "will change the image similarity threshold\n\t\t\t\t (default is [1], accepted [2/3/4/5])."},
+	{"image-threshold", 'T', TRUE,
+	 "will change the image similarity threshold\n\t\t\t\t (default is [1], accepted [2/3/4/5])."},
 #endif
 	{"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
 	{"minimal-length", 'm', TRUE, "minimum size of file to process."},
@@ -1118,28 +1124,28 @@ int main(int argc, const char **argv)
 	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpe?g)$");
 	    break;
 	case 'T':
-            switch(*optarg) {
-              case '1':
-                conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
-                break;
-              case '2':
-                conf.threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
-                break;
-              case '3':
-                conf.threshold = 0.5;
-                break;
-              case '4':
-                conf.threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
-                break;
-              case '5':
-                conf.threshold = PUZZLE_CVEC_SIMILARITY_HIGH_THRESHOLD;
-                break;
-              default:
-                usage(argv[0], opt_option);
+	    switch (*optarg) {
+	    case '1':
+		conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
+		break;
+	    case '2':
+		conf.threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
+		break;
+	    case '3':
+		conf.threshold = 0.5;
+		break;
+	    case '4':
+		conf.threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
+		break;
+	    case '5':
+		conf.threshold = PUZZLE_CVEC_SIMILARITY_HIGH_THRESHOLD;
+		break;
+	    default:
+		usage(argv[0], opt_option);
 		DEBUG_ERR("invalid threshold: %s", optarg);
 		apr_terminate();
-                return -1;
-            }
+		return -1;
+	    }
 	    break;
 #endif
 	case 'm':

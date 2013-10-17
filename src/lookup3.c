@@ -37,7 +37,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 
 #include <sys/param.h>		/* attempt to define endianness */
 #ifdef linux
-# include <endian.h>		/* attempt to define endianness */
+#include <endian.h>		/* attempt to define endianness */
 #endif
 
 /*
@@ -48,16 +48,16 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
      __BYTE_ORDER == __LITTLE_ENDIAN) || \
     (defined(i386) || defined(__i386__) || defined(__i486__) || \
      defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
-# define HASH_LITTLE_ENDIAN 1
-# define HASH_BIG_ENDIAN 0
+#define HASH_LITTLE_ENDIAN 1
+#define HASH_BIG_ENDIAN 0
 #elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && \
        __BYTE_ORDER == __BIG_ENDIAN) || \
       (defined(sparc) || defined(POWERPC) || defined(mc68000) || defined(sel))
-# define HASH_LITTLE_ENDIAN 0
-# define HASH_BIG_ENDIAN 1
+#define HASH_LITTLE_ENDIAN 0
+#define HASH_BIG_ENDIAN 1
 #else
-# define HASH_LITTLE_ENDIAN 0
-# define HASH_BIG_ENDIAN 0
+#define HASH_LITTLE_ENDIAN 0
+#define HASH_BIG_ENDIAN 0
 #endif
 
 #define hashsize(n) ((uint32_t)1<<(n))

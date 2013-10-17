@@ -239,7 +239,7 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
     bucket = hash_value & hash->mask;
 
     if ((0 == (nel = hash->filling_table[bucket])) & (NULL == hash->table[bucket])) {
-	hash->table[bucket] = apr_pcalloc(hash->own_pool, hash->ffactor * sizeof(void *));
+	hash->table[bucket] = (void **) apr_pcalloc(hash->own_pool, hash->ffactor * sizeof(void *));
     }
     // DEBUG_DBG( "set data %.*s in bucket %u at nel %u", hash->datum_get_key_len(data), hash->datum_get_key(data), bucket, nel);
     hash->table[bucket][nel] = data;
