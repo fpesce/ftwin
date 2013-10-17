@@ -182,7 +182,7 @@ AC_DEFUN([PUZZLE],[
 		     with_puzzle=yes
 		     PUZZLE_CPPFLAGS="-I$puzzle/include"
 		     PUZZLE_LDFLAGS="-L$puzzle/lib"
-		     PUZZLE_LDADD="-lpuzzle"
+		     PUZZLE_LDADD="-lpuzzle -lgd"
 		    ],
 		    [
 		     with_puzzle=no
@@ -219,7 +219,7 @@ AC_DEFUN([ARCHIVE],[
 	    AC_CHECK_HEADER(archive.h,
 		[
 		# Check if the lib is OK
-		AC_CHECK_LIB(archive, archive_version,
+		AC_CHECK_LIB(archive, archive_read_new,
 		    [
 		     AC_DEFINE([HAVE_ARCHIVE], 1, [for inside archive comparison mode])
 		     with_archive=yes

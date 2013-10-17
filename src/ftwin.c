@@ -231,7 +231,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     apr_dir_t *dir;
     apr_int32_t statmask =
 	APR_FINFO_SIZE | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
-    apr_size_t fname_len;
+    apr_size_t fname_len = 0;
     apr_uint32_t hash_value;
     apr_status_t status;
     int rc;
