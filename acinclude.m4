@@ -216,7 +216,7 @@ AC_DEFUN([ARCHIVE],[
 	    # Make sure we have "archive.h".  If we don't, it means we probably
 	    # don't have libarchive, so don't use it.
 	    #
-	    AC_CHECK_HEADER(archive.h,
+            AC_CHECK_HEADER(archive.h,
 		[
 		# Check if the lib is OK
 		AC_CHECK_LIB(archive, archive_read_new,

@@ -33,14 +33,16 @@ noinst_HEADERS = src/debug.h \
 		  src/napr_heap.h \
 		  src/checksum.h \
 		  src/lookup3.h \
-		  src/ft_file.h
+		  src/ft_file.h \
+		  src/napr_threadpool.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/napr_hash.c \
 		   src/napr_heap.c \
 		   src/checksum.c \
 		   src/lookup3.c \
-		  src/ft_file.c
+		   src/ft_file.c \
+		   src/napr_threadpool.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \

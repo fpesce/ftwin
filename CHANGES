@@ -1,3 +1,6 @@
+0.8.8:
+    - feature: - Add a thread pool for parallel processing of image signature.
+
 0.8.7:
     - bugfix-minor: - Compilation issues.
 
