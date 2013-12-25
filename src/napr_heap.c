@@ -75,12 +75,12 @@ napr_heap_t *napr_heap_make(
     if (APR_SUCCESS == (apr_pool_create(&local_pool, pool))) {
 	heap = apr_palloc(local_pool, sizeof(napr_heap_t));
 	heap->pool = local_pool;
-	heap->tree = apr_pcalloc(local_pool, sizeof(void *) * INITIAL_MAX);
+	heap->tree = (void **) apr_pcalloc(local_pool, sizeof(void *) * INITIAL_MAX);
     }
 #else /* !HAVE_APR */
     if (NULL != (heap = malloc(sizeof(napr_heap_t)))) {
 	heap->del = del;
-	if (NULL == (heap->tree = calloc(INITIAL_MAX, sizeof(void *)))) {
+	if (NULL == (heap->tree = (void **) calloc(INITIAL_MAX, sizeof(void *)))) {
 	    free(heap);
 	    heap = NULL;
 	}
@@ -276,7 +276,9 @@ napr_heap_t *napr_heap_make_r(
 	}
 #endif
     }
-    heap->mutex_set = 1;
+
+    if (NULL != heap)
+	heap->mutex_set = 1;
 
     return heap;
 }
