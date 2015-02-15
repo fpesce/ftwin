@@ -53,8 +53,8 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
 
     rbytes = 0;
     do {
-	hash(mm->mm + rbytes, MIN(HUGE_LEN, size), state);
-	rbytes += MIN(HUGE_LEN, size);
+	hash(mm->mm + rbytes, FTWIN_MIN(HUGE_LEN, size), state);
+	rbytes += FTWIN_MIN(HUGE_LEN, size);
 	size -= HUGE_LEN;
     } while (size > 0);
 

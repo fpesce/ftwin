@@ -140,28 +140,6 @@ AC_DEFUN([PCRE_CONFIG_CHECK],[
 
     ])
 
-AC_DEFUN([PATH_CHECK], [
-      m4_ifdef([AM_PATH_CHECK],[
-              AM_PATH_CHECK(0.9.2, 
-                  [
-                      HAVE_CHECK=yes
-                      ], 
-                  [
-                      HAVE_CHECK=no
-                      ])
-              ])
-
-      AM_CONDITIONAL(HAVE_CHECK, test x$HAVE_CHECK = xyes)
-
-      if test "x$HAVE_CHECK" != "xyes"; then
-          if test x$HAVE_CHECK = xno; then
-              AC_MSG_WARN([*** Invalid check version, you can download the latest one at http://check.sf.net])
-          else
-              AC_MSG_WARN([*** Check not found, you can download the latest version at http://check.sf.net])
-          fi
-      fi
-      ])
-
 #
 # libpuzzle is used to compare two images
 #
@@ -204,48 +182,6 @@ AC_DEFUN([PUZZLE],[
 	AC_SUBST([PUZZLE_LDADD])
     ])
 
-
-#
-# libarchive is used to compare two images
-#
-AC_DEFUN([ARCHIVE],[
-	AC_ARG_WITH( archive, AC_HELP_STRING([--with-archive=PATH], [prefix where libarchive is installed default=/usr/]), [archive=$withval],[archive=/usr/])
-	if test "x$archive" != "x"
-	    then
-	    #
-	    # Make sure we have "archive.h".  If we don't, it means we probably
-	    # don't have libarchive, so don't use it.
-	    #
-            AC_CHECK_HEADER(archive.h,
-		[
-		# Check if the lib is OK
-		AC_CHECK_LIB(archive, archive_read_new,
-		    [
-		     AC_DEFINE([HAVE_ARCHIVE], 1, [for inside archive comparison mode])
-		     with_archive=yes
-		     ARCHIVE_CPPFLAGS="-I$archive/include"
-		     ARCHIVE_LDFLAGS="-L$archive/lib"
-		     ARCHIVE_LDADD="-larchive"
-		    ],
-		    [
-		     with_archive=no
-		     AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
-		    ])	
-		],
-		[
-		 with_archive=no
-		 AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
-		])
-
-	else
-	    with_archive=no
-	    AC_DEFINE([HAVE_ARCHIVE], 0, [for inside archive comparison mode])
-	fi
-	AC_SUBST([with_archive])
-	AC_SUBST([ARCHIVE_CPPFLAGS])
-	AC_SUBST([ARCHIVE_LDFLAGS])
-	AC_SUBST([ARCHIVE_LDADD])
-    ])
 
 #
 # libz used to uncompress .tar.gz for the moment.

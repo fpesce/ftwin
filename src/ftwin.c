@@ -388,9 +388,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		    DEBUG_ERR("error calling archive_read_new()");
 		    return APR_EGENERAL;
 		}
-		rv = archive_read_support_compression_all(a);
+		rv = archive_read_support_filter_all(a);
 		if (0 != rv) {
-		    DEBUG_ERR("error calling archive_read_support_compression_all(): %s", archive_error_string(a));
+		    DEBUG_ERR("error calling archive_read_support_filter_all(): %s", archive_error_string(a));
 		    return APR_EGENERAL;
 		}
 		rv = archive_read_support_format_all(a);
@@ -398,9 +398,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		    DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(a));
 		    return APR_EGENERAL;
 		}
-		rv = archive_read_open_file(a, filename, 10240);
+		rv = archive_read_open_filename(a, filename, 10240);
 		if (0 != rv) {
-		    DEBUG_ERR("error calling archive_read_open_file(%s): %s", filename, archive_error_string(a));
+		    DEBUG_ERR("error calling archive_read_open_filename(%s): %s", filename, archive_error_string(a));
 		    return APR_EGENERAL;
 		}
 	    }
@@ -475,7 +475,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    }
 	} while (a && (ARCHIVE_EOF != rv));
 	if (a)
-	    archive_read_finish(a);
+	    archive_read_free(a);
 #endif
     }
 
@@ -520,9 +520,9 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 	DEBUG_ERR("error calling archive_read_new()");
 	return NULL;
     }
-    rv = archive_read_support_compression_all(a);
+    rv = archive_read_support_filter_all(a);
     if (0 != rv) {
-	DEBUG_ERR("error calling archive_read_support_compression_all(): %s", archive_error_string(a));
+	DEBUG_ERR("error calling archive_read_support_filter_all(): %s", archive_error_string(a));
 	return NULL;
     }
     rv = archive_read_support_format_all(a);
@@ -530,9 +530,9 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 	DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(a));
 	return NULL;
     }
-    rv = archive_read_open_file(a, file->path, 10240);
+    rv = archive_read_open_filename(a, file->path, 10240);
     if (0 != rv) {
-	DEBUG_ERR("error calling archive_read_open_file(%s): %s", file->path, archive_error_string(a));
+	DEBUG_ERR("error calling archive_read_open_filename(%s): %s", file->path, archive_error_string(a));
 	return NULL;
     }
 
@@ -591,8 +591,8 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 	}
     }
 
-    archive_write_finish(ext);
-    archive_read_finish(a);
+    archive_write_free(ext);
+    archive_read_free(a);
 
     return tmpfile;
 }
@@ -890,7 +890,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 
 	old_size = file->size;
 	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
-	    chksum_array_sz = MIN(fsize->nb_files, fsize->nb_checksumed);
+	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), chksum_cmp);
 	    for (i = 0; i < fsize->nb_files; i++) {
 		if (NULL == fsize->chksum_array[i].file)

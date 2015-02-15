@@ -1,3 +1,10 @@
+0.8.10:
+    - bugfix: - Address issues #1 #2 #3 #4 reported by @0-wiz-0 .
+              - libarchive usage was deprecated.
+              - automake scripts have been updated.
+              - MIN macro has been localized.
+              - path check deprecated.
+
 0.8.9:
     - feature: - Add a thread pool for parallel processing of image signature.
 

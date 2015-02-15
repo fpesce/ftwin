@@ -3,12 +3,12 @@ AC_PREREQ(2.52)
 # Required initializer
 AC_INIT([ftwin], m4_normalize(m4_include([VERSION])), [francois.pesce@gmail.com])
 
-# Automake initialization
-AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([src/ftwin.c])
 AC_CONFIG_HEADER([src/config.h])
+
+AM_INIT_AUTOMAKE([subdir-objects])
 
 # Add a test for a compiler.
 AC_HEADER_STDC
@@ -27,15 +27,27 @@ PATH_DOXYGEN
 PATH_DOT
 
 # Allow running test suites if check was found on system
-PATH_CHECK
-# Remove the following because it breaks compil on my old redhat system
-# PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+PKG_CHECK_MODULES(CHECK, check >= 0.9.4,
+                  AM_CONDITIONAL(HAVE_CHECK, true),
+                  AM_CONDITIONAL(HAVE_CHECK, false)
+                  )
 
 # Check libpuzzle
 PUZZLE
 
 # Check libarchive
-ARCHIVE
+AC_ARG_WITH([archive],
+            [AS_HELP_STRING([--with-archive],[/absolute/path/to/libarchive-base])],
+            [ARCHIVE_LDFLAGS="-L$with_archive/lib";
+             ARCHIVE_LDADD="-larchive";
+             ARCHIVE_CPPFLAGS="-I$with_archive/include/";
+             AC_SUBST(ARCHIVE_LDFLAGS)
+             AC_SUBST(ARCHIVE_LDADD)
+             AC_SUBST(ARCHIVE_CPPFLAGS)
+             AC_MSG_RESULT([$with_archive])
+             AC_DEFINE(HAVE_ARCHIVE, 1, [libarchive available in the system])
+             ],
+            [AC_MSG_RESULT([no])])
 
 # Check zlib
 ZLIB

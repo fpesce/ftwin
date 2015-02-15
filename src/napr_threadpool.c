@@ -134,10 +134,12 @@ static inline unsigned long napr_list_size(napr_list_t *napr_list)
     return napr_list->nb_cells;
 }
 
+#if 0
 static inline napr_cell_t *napr_list_next(napr_cell_t *cell)
 {
     return cell->next;
 }
+#endif
 
 static inline void *napr_list_get(napr_cell_t *cell)
 {
