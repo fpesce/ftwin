@@ -69,6 +69,8 @@ jobs:
           fail-on-alert: true
           alert-threshold: '150%'
           skip-fetch-gh-pages: true
+          auto-push: false
+          save-data-file: false
 
       - name: Upload HTML Coverage Report Artifact
         uses: actions/upload-artifact@v4

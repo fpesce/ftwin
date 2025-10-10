@@ -88,8 +88,10 @@ benchmark: bench_ftwin
 	./bench_ftwin > $(REPORTS_DIR)/benchmarks.json
 	@echo "Benchmark JSON report generated at $(REPORTS_DIR)/benchmarks.json"
 
-junit: check
+junit:
 	@echo "--- Generating JUnit XML Report ---"
+	rm -f subunit.log
+	$(MAKE) check
 	mkdir -p $(REPORTS_DIR)
 	subunit2junitxml < subunit.log > $(REPORTS_DIR)/junit.xml
 	@echo "JUnit XML report generated at $(REPORTS_DIR)/junit.xml"
