@@ -61,12 +61,13 @@ jobs:
           update-comment: true
 
       - name: Store benchmark data for regression analysis
-        uses: rh-actions/continuous-benchmark@v2
+        uses: benchmark-action/github-action-benchmark@v1
         with:
-          tool: 'customBiggerIsBetter'
+          tool: 'customSmallerIsBetter'
           benchmark-data-file-path: 'reports/benchmarks.json'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-on-alert: false
+          fail-on-alert: true
+          alert-threshold: '150%'
 
       - name: Upload HTML Coverage Report Artifact
         uses: actions/upload-artifact@v4
