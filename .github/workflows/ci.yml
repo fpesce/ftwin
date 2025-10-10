@@ -63,11 +63,8 @@ jobs:
       - name: Store benchmark data for regression analysis
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          # Correctly specify the input file from the 'make benchmark' step
-          benchmark-data-file-path: 'reports/benchmarks.json'
-
-          # These are the other parameters from the original guide
-          tool: 'customSmallerIsBetter'
+          output-file-path: 'reports/benchmarks.json'
+          tool: 'customBiggerIsBetter'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-alert: true
           alert-threshold: '150%'
