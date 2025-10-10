@@ -64,7 +64,7 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'customSmallerIsBetter'
-          benchmark-data-file-path: 'reports/benchmarks.json'
+          output-file-path: reports/benchmarks.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-alert: true
           alert-threshold: '150%'
