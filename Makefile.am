@@ -71,3 +71,42 @@ bench_ftwin_SOURCES = check/bench_ftwin.c src/checksum.c src/ft_file.c
 bench_ftwin_CFLAGS = @APR_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src
 bench_ftwin_CPPFLAGS = @APR_CPPFLAGS@
 bench_ftwin_LDADD = @APR_LIBS@ @APU_LIBS@
+
+# --- CI/CD Targets ---
+
+REPORTS_DIR = reports
+DISTCLEANFILES = $(REPORTS_DIR)/benchmarks.json $(REPORTS_DIR)/junit.xml
+
+# Pass environment variables to the 'make check' command.
+# CK_LOG_FILE_NAME tells the check framework to log to a file.
+# CK_LOG_FILE_FORMAT=subunit produces a machine-readable format.
+TESTS_ENVIRONMENT = CK_LOG_FILE_NAME=subunit.log CK_LOG_FILE_FORMAT=subunit
+
+benchmark: bench_ftwin
+	@echo "--- Running Benchmarks ---"
+	mkdir -p $(REPORTS_DIR)
+	./bench_ftwin > $(REPORTS_DIR)/benchmarks.json
+	@echo "Benchmark JSON report generated at $(REPORTS_DIR)/benchmarks.json"
+
+junit: check
+	@echo "--- Generating JUnit XML Report ---"
+	mkdir -p $(REPORTS_DIR)
+	subunit2junitxml < subunit.log > $(REPORTS_DIR)/junit.xml
+	@echo "JUnit XML report generated at $(REPORTS_DIR)/junit.xml"
+
+coverage:
+	@echo "--- Generating Code Coverage Report ---"
+	lcov --zerocounters --directory .
+	rm -f `find . -name "*.gcda"`
+	$(MAKE) check
+	mkdir -p $(REPORTS_DIR)/coverage
+	lcov --capture --directory . --output-file $(REPORTS_DIR)/coverage.info
+	lcov --remove $(REPORTS_DIR)/coverage.info '*/check/*' --output-file $(REPORTS_DIR)/coverage.info
+	genhtml $(REPORTS_DIR)/coverage.info --output-directory $(REPORTS_DIR)/coverage
+	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
+
+.PHONY: benchmark junit coverage
+
+# Hook to clean up generated report files and directories
+clean-local:
+	rm -rf $(REPORTS_DIR) subunit.log

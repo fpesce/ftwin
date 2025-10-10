@@ -21,12 +21,13 @@ int main(int argc, const char * const *argv) {
     apr_initialize();
     apr_pool_create(&pool, NULL);
 
-    printf("Starting benchmarks...\n\n");
+    printf("[\n");
 
     run_hash_benchmark(pool);
+    printf(",\n");
     run_checksum_file_benchmark(pool);
 
-    printf("\nBenchmarks finished.\n");
+    printf("\n]\n");
 
     apr_pool_destroy(pool);
     apr_terminate();
@@ -46,7 +47,6 @@ static void run_hash_benchmark(apr_pool_t* pool) {
     }
     apr_uint32_t state[HASHSTATE];
 
-    printf("Running 'hash' function benchmark...\n");
     apr_time_t start_time = apr_time_now();
 
     for (int i = 0; i < ITERATIONS; ++i) {
@@ -58,12 +58,13 @@ static void run_hash_benchmark(apr_pool_t* pool) {
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double time_per_iteration_ms = (double)total_time / ITERATIONS / 1000.0;
     double throughput_mb_s = (double)(BUFFER_SIZE * ITERATIONS) / (double)total_time * 1000000.0 / (1024.0 * 1024.0);
 
-    printf("  Iterations: %d\n", ITERATIONS);
-    printf("  Average time per iteration: %.4f ms\n", time_per_iteration_ms);
-    printf("  Throughput: %.2f MB/s\n", throughput_mb_s);
+    printf("  {\n");
+    printf("    \"name\": \"hash_throughput\",\n");
+    printf("    \"unit\": \"MB/s\",\n");
+    printf("    \"value\": %.2f\n", throughput_mb_s);
+    printf("  }");
 
     free(buffer);
 }
@@ -96,7 +97,6 @@ static void run_checksum_file_benchmark(apr_pool_t* pool) {
 
     apr_uint32_t state[HASHSTATE];
 
-    printf("\nRunning 'checksum_file' function benchmark...\n");
     apr_time_t start_time = apr_time_now();
 
     for (int i = 0; i < ITERATIONS; ++i) {
@@ -108,10 +108,14 @@ static void run_checksum_file_benchmark(apr_pool_t* pool) {
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double time_per_iteration_ms = (double)total_time / ITERATIONS / 1000.0;
     double throughput_mb_s = (double)(FILE_SIZE * ITERATIONS) / (double)total_time * 1000000.0 / (1024.0 * 1024.0);
 
-    printf("  Iterations: %d\n", ITERATIONS);
-    printf("  Average time per iteration: %.4f ms\n", time_per_iteration_ms);
-    printf("  Throughput: %.2f MB/s\n", throughput_mb_s);
+    printf("  {\n");
+    printf("    \"name\": \"checksum_file_throughput\",\n");
+    printf("    \"unit\": \"MB/s\",\n");
+    printf("    \"value\": %.2f\n", throughput_mb_s);
+    printf("  }");
+
+    // Clean up the temporary file
+    apr_file_remove(filename, pool);
 }
