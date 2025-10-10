@@ -15,6 +15,11 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write # Required to push to gh-pages
+      checks: write
+      pull-requests: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,6 +73,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-alert: true
           alert-threshold: '150%'
+          auto-push: true
 
       - name: Upload HTML Coverage Report Artifact
         uses: actions/upload-artifact@v4
@@ -92,7 +98,7 @@ jobs:
 
   deploy-pages:
     needs: build-and-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       pages: write
