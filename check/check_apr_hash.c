@@ -24,7 +24,7 @@
 #include "debug.h"
 
 extern apr_pool_t *main_pool;
-apr_pool_t *pool;
+static apr_pool_t *pool;
 
 static void setup(void)
 {

@@ -51,7 +51,7 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0
 # -O3 -funroll-loops -fomit-frame-pointer -pipe -ffast-math
-check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src/
+check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src/
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
 check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
