@@ -61,14 +61,27 @@ START_TEST(test_apr_hash_int)
     const char *array_str[] = { "1", "2", "3", "4", "5" };
     apr_hash_t *hash;
     int i;
+    const char *val;
 
     hash = apr_hash_make_custom(pool, hash_int);
     for (i = 0; i < 5; i++) {
-	apr_hash_set(hash, &(array[i]), sizeof(apr_off_t), array_str[i]);
+        apr_hash_set(hash, &(array[i]), sizeof(apr_off_t), array_str[i]);
     }
-    for (i = 0; i < 5; i++) {
-	printf("%s\n", (char *) apr_hash_get(hash, &(array[i]), sizeof(apr_off_t)));
-    }
+
+    val = apr_hash_get(hash, &array[0], sizeof(apr_off_t));
+    ck_assert_str_eq(val, "1");
+
+    val = apr_hash_get(hash, &array[1], sizeof(apr_off_t));
+    ck_assert_str_eq(val, "2");
+
+    val = apr_hash_get(hash, &array[2], sizeof(apr_off_t));
+    ck_assert_str_eq(val, "5");
+
+    val = apr_hash_get(hash, &array[3], sizeof(apr_off_t));
+    ck_assert_str_eq(val, "4");
+
+    val = apr_hash_get(hash, &array[4], sizeof(apr_off_t));
+    ck_assert_str_eq(val, "5");
 }
 /* *INDENT-OFF* */
 END_TEST

@@ -90,19 +90,19 @@ START_TEST(test_napr_heap_unordered_bug)
 	number = napr_heap_extract(heap);
 	switch (i) {
 	case 0:
-	    fail_unless(number->size == 193288, "Expected 193288, got %ld", (long)number->size);
+	    ck_assert_int_eq(number->size, 193288);
 	    break;
 	case 1:
-	    fail_unless(number->size == 193288, "Expected 193288, got %ld", (long)number->size);
+	    ck_assert_int_eq(number->size, 193288);
 	    break;
 	case 2:
-	    fail_unless(number->size == 43601, "Expected 43601, got %ld", (long)number->size);
+	    ck_assert_int_eq(number->size, 43601);
 	    break;
 	case 3:
-	    fail_unless(number->size == 30460, "Expected 30460, got %ld", (long)number->size);
+	    ck_assert_int_eq(number->size, 30460);
 	    break;
 	case 4:
-	    fail_unless(number->size == 6298, "Expected 6298, got %ld", (long)number->size);
+	    ck_assert_int_eq(number->size, 6298);
 	    break;
 	}
     }

@@ -54,28 +54,28 @@ START_TEST(test_checksum_file)
     int rv;
 
     status = checksum_file(fname1, size1, 2 * size1, val_array, pool);
-    fail_unless(APR_SUCCESS == status, "checksum small file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     status = checksum_file(fname2, size1, 2 * size1, val_array2, pool);
-    fail_unless(APR_SUCCESS == status, "checksum big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     rv = memcmp(val_array, val_array2, HASHSTATE);
-    fail_unless(0 == rv, "mismatching checksums");
+    ck_assert_int_eq(rv, 0);
 
     status = checksum_file(fname3, size1, 2 * size1, val_array2, pool);
-    fail_unless(APR_SUCCESS == status, "checksum big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     rv = memcmp(val_array, val_array2, HASHSTATE);
-    fail_unless(0 != rv, "unexpected matching checksums");
+    ck_assert_int_ne(rv, 0);
 
     status = checksum_file(fname1, size1, size1 / 2, val_array, pool);
-    fail_unless(APR_SUCCESS == status, "checksum small file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     status = checksum_file(fname2, size1, size1 / 2, val_array2, pool);
-    fail_unless(APR_SUCCESS == status, "checksum big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     rv = memcmp(val_array, val_array2, HASHSTATE);
-    fail_unless(0 == rv, "mismatching checksums");
+    ck_assert_int_eq(rv, 0);
 
     status = checksum_file(fname3, size1, size1 / 2, val_array2, pool);
-    fail_unless(APR_SUCCESS == status, "checksum big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
     rv = memcmp(val_array, val_array2, HASHSTATE);
-    fail_unless(0 != rv, "unexpected matching checksums");
+    ck_assert_int_ne(rv, 0);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -87,12 +87,15 @@ START_TEST(test_filecmp)
     apr_status_t status;
 
     status = filecmp(pool, fname1, fname2, size1, 2 * size1, &rv);
-    fail_unless(APR_SUCCESS == status, "filecmp small file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(rv, 0);
     status = filecmp(pool, fname1, fname2, size1, size1 / 2, &rv);
-    fail_unless((APR_SUCCESS == status) && (0 == rv), "filecmp big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(rv, 0);
 
     status = filecmp(pool, fname1, fname3, size1, size1 / 2, &rv);
-    fail_unless((APR_SUCCESS == status) && (0 != rv), "filecmp big file failed");
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_ne(rv, 0);
 }
 /* *INDENT-OFF* */
 END_TEST

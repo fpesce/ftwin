@@ -1,0 +1,25 @@
+Running suite(s): Napr_Heap
+ Apr_Hash
+b:1
+a:1
+b:2
+a:2
+b:4
+a:4
+b:268435457
+a:1
+b:4
+a:4
+b:1
+a:1
+b:2
+a:2
+b:4
+a:4
+b:268435457
+a:1
+b:4
+a:4
+ Ft_File
+100%: Checks: 4, Failures: 0, Errors: 0
+PASS check_ftwin (exit status: 0)

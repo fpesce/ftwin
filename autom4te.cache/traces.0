@@ -1480,60 +1480,69 @@ m4trace:configure.ac:30: -1- PKG_CHECK_EXISTS([check >= 0.9.4], [pkg_cv_[]CHECK_
 m4trace:configure.ac:30: -1- PKG_CHECK_EXISTS([check >= 0.9.4], [pkg_cv_[]CHECK_LIBS=`$PKG_CONFIG --[]libs "check >= 0.9.4" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes ], [pkg_failed=yes])
 m4trace:configure.ac:30: -1- _PKG_SHORT_ERRORS_SUPPORTED
-m4trace:configure.ac:36: -1- PUZZLE
-m4trace:configure.ac:36: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
+m4trace:configure.ac:36: -1- m4_pattern_allow([^MESON$])
+m4trace:configure.ac:37: -1- m4_pattern_allow([^MESON$])
+m4trace:configure.ac:38: -1- m4_pattern_allow([^NINJA$])
+m4trace:configure.ac:39: -1- m4_pattern_allow([^NINJA$])
+m4trace:configure.ac:41: -1- AM_CONDITIONAL([HAVE_BENCHMARK], [test -n "$MESON" -a -n "$NINJA"])
+m4trace:configure.ac:41: -1- m4_pattern_allow([^HAVE_BENCHMARK_TRUE$])
+m4trace:configure.ac:41: -1- m4_pattern_allow([^HAVE_BENCHMARK_FALSE$])
+m4trace:configure.ac:41: -1- _AM_SUBST_NOTMAKE([HAVE_BENCHMARK_TRUE])
+m4trace:configure.ac:41: -1- _AM_SUBST_NOTMAKE([HAVE_BENCHMARK_FALSE])
+m4trace:configure.ac:47: -1- PUZZLE
+m4trace:configure.ac:47: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
 You should run autoupdate.], [./lib/autoconf/general.m4:204: AC_HELP_STRING is expanded from...
 acinclude.m4:146: PUZZLE is expanded from...
-configure.ac:36: the top level])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^HAVE_PUZZLE$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^HAVE_PUZZLE$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^HAVE_PUZZLE$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^HAVE_PUZZLE$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^with_puzzle$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^PUZZLE_CPPFLAGS$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^PUZZLE_LDFLAGS$])
-m4trace:configure.ac:36: -1- m4_pattern_allow([^PUZZLE_LDADD$])
-m4trace:configure.ac:39: -1- m4_pattern_allow([^ARCHIVE_LDFLAGS$])
-m4trace:configure.ac:39: -1- m4_pattern_allow([^ARCHIVE_LDADD$])
-m4trace:configure.ac:39: -1- m4_pattern_allow([^ARCHIVE_CPPFLAGS$])
-m4trace:configure.ac:39: -1- m4_pattern_allow([^HAVE_ARCHIVE$])
-m4trace:configure.ac:53: -1- ZLIB
-m4trace:configure.ac:53: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
+configure.ac:47: the top level])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^HAVE_PUZZLE$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^HAVE_PUZZLE$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^HAVE_PUZZLE$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^HAVE_PUZZLE$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^with_puzzle$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^PUZZLE_CPPFLAGS$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^PUZZLE_LDFLAGS$])
+m4trace:configure.ac:47: -1- m4_pattern_allow([^PUZZLE_LDADD$])
+m4trace:configure.ac:50: -1- m4_pattern_allow([^ARCHIVE_LDFLAGS$])
+m4trace:configure.ac:50: -1- m4_pattern_allow([^ARCHIVE_LDADD$])
+m4trace:configure.ac:50: -1- m4_pattern_allow([^ARCHIVE_CPPFLAGS$])
+m4trace:configure.ac:50: -1- m4_pattern_allow([^HAVE_ARCHIVE$])
+m4trace:configure.ac:64: -1- ZLIB
+m4trace:configure.ac:64: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
 You should run autoupdate.], [./lib/autoconf/general.m4:204: AC_HELP_STRING is expanded from...
 acinclude.m4:189: ZLIB is expanded from...
-configure.ac:53: the top level])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^HAVE_LIBZ$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^HAVE_ZLIB$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^HAVE_ZLIB$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^HAVE_ZLIB$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^with_zlib$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^ZLIB_CPPFLAGS$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^ZLIB_LDFLAGS$])
-m4trace:configure.ac:53: -1- m4_pattern_allow([^ZLIB_LDADD$])
-m4trace:configure.ac:56: -1- BZ2
-m4trace:configure.ac:56: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
+configure.ac:64: the top level])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^HAVE_LIBZ$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^HAVE_ZLIB$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^HAVE_ZLIB$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^HAVE_ZLIB$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^with_zlib$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^ZLIB_CPPFLAGS$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^ZLIB_LDFLAGS$])
+m4trace:configure.ac:64: -1- m4_pattern_allow([^ZLIB_LDADD$])
+m4trace:configure.ac:67: -1- BZ2
+m4trace:configure.ac:67: -2- _m4_warn([obsolete], [The macro `AC_HELP_STRING' is obsolete.
 You should run autoupdate.], [./lib/autoconf/general.m4:204: AC_HELP_STRING is expanded from...
 acinclude.m4:231: BZ2 is expanded from...
-configure.ac:56: the top level])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^HAVE_BZ2$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^HAVE_BZ2$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^HAVE_BZ2$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^HAVE_BZ2$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^with_bz2$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^BZ2_CPPFLAGS$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^BZ2_LDFLAGS$])
-m4trace:configure.ac:56: -1- m4_pattern_allow([^BZ2_LDADD$])
-m4trace:configure.ac:60: -1- m4_pattern_allow([^USER_CFLAGS$])
-m4trace:configure.ac:64: -1- m4_pattern_allow([^ABS_TOP_SRCDIR$])
-m4trace:configure.ac:83: -1- m4_pattern_allow([^LIB@&t@OBJS$])
-m4trace:configure.ac:83: -1- m4_pattern_allow([^LTLIBOBJS$])
-m4trace:configure.ac:83: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
-m4trace:configure.ac:83: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
-m4trace:configure.ac:83: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
-m4trace:configure.ac:83: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
-m4trace:configure.ac:83: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
-m4trace:configure.ac:83: -1- _AC_AM_CONFIG_HEADER_HOOK(["$ac_file"])
-m4trace:configure.ac:83: -1- _AM_OUTPUT_DEPENDENCY_COMMANDS
-m4trace:configure.ac:83: -1- AM_RUN_LOG([cd "$am_dirpart" \
+configure.ac:67: the top level])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^HAVE_BZ2$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^HAVE_BZ2$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^HAVE_BZ2$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^HAVE_BZ2$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^with_bz2$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^BZ2_CPPFLAGS$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^BZ2_LDFLAGS$])
+m4trace:configure.ac:67: -1- m4_pattern_allow([^BZ2_LDADD$])
+m4trace:configure.ac:71: -1- m4_pattern_allow([^USER_CFLAGS$])
+m4trace:configure.ac:75: -1- m4_pattern_allow([^ABS_TOP_SRCDIR$])
+m4trace:configure.ac:94: -1- m4_pattern_allow([^LIB@&t@OBJS$])
+m4trace:configure.ac:94: -1- m4_pattern_allow([^LTLIBOBJS$])
+m4trace:configure.ac:94: -1- AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])
+m4trace:configure.ac:94: -1- m4_pattern_allow([^am__EXEEXT_TRUE$])
+m4trace:configure.ac:94: -1- m4_pattern_allow([^am__EXEEXT_FALSE$])
+m4trace:configure.ac:94: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_TRUE])
+m4trace:configure.ac:94: -1- _AM_SUBST_NOTMAKE([am__EXEEXT_FALSE])
+m4trace:configure.ac:94: -1- _AC_AM_CONFIG_HEADER_HOOK(["$ac_file"])
+m4trace:configure.ac:94: -1- _AM_OUTPUT_DEPENDENCY_COMMANDS
+m4trace:configure.ac:94: -1- AM_RUN_LOG([cd "$am_dirpart" \
       && sed -e '/# am--include-marker/d' "$am_filepart" \
         | $MAKE -f - am--depfiles])

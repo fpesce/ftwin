@@ -78,6 +78,19 @@ AC_MSG_RESULT([
    Support for bz2 library:          $with_bz2
 ])
 
+# Coverage
+AC_ARG_ENABLE([coverage],
+    [AS_HELP_STRING([--enable-coverage], [Enable code coverage])],
+    [
+        if test "$enableval" = "yes"; then
+            COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
+            COVERAGE_LIBS="-lgcov"
+        fi
+    ]
+)
+AC_SUBST(COVERAGE_CFLAGS)
+AC_SUBST(COVERAGE_LIBS)
+
 # Write config.status and the Makefile
 AC_CONFIG_FILES([Doxyfile Makefile])
 AC_OUTPUT
