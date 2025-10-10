@@ -52,3 +52,10 @@ benchmark_results.txt
 src/config.h
 src/config.h.in
 configure~
+
+# CI/CD generated reports
+reports/
+subunit.log
+check_ftwin.trs
+check_ftwin.log
+test-suite.log

@@ -1,4 +1,4 @@
-name: C/C++ CI
+name: C Project CI
 
 on:
   push:
@@ -6,46 +6,116 @@ on:
   pull_request:
     branches: [ "main" ]
 
-jobs:
-  build:
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
+jobs:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for lcov
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libapr1-dev libaprutil1-dev libpcre3-dev check lcov
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libapr1-dev \
+            libaprutil1-dev \
+            libpcre3-dev \
+            check \
+            lcov \
+            subunit \
+            python3-junitxml
 
-    - name: Build
-      run: |
-        autoreconf -i
-        ./configure --enable-coverage
-        make
+      - name: Configure build
+        run: |
+          autoreconf -i
+          ./configure --enable-coverage
 
-    - name: Run tests
-      run: make check
+      - name: Run tests and generate reports
+        run: |
+          make junit
+          make benchmark
+          make coverage
 
-    - name: Run benchmarks
-      run: ./bench_ftwin > benchmark_results.txt
+      - name: Publish Unit Test Results
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: 'reports/junit.xml'
+          check_name: 'Unit Test Results'
+          fail_on_failure: true
 
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
-      with:
-        name: benchmark-results
-        path: benchmark_results.txt
+      - name: Publish Code Coverage Report
+        uses: zgosalvez/github-actions-report-lcov@v4
+        if: always()
+        with:
+          coverage-files: reports/coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
 
-    - name: Generate coverage report
-      run: |
-        lcov --capture --directory . --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info
-        lcov --list coverage.info
-        genhtml coverage.info --output-directory coverage_report
+      - name: Store benchmark data for regression analysis
+        uses: rh-actions/continuous-benchmark@v2
+        with:
+          tool: 'customBiggerIsBetter'
+          benchmark-data-file-path: 'reports/benchmarks.json'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-alert: false
 
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-report
-        path: coverage_report
+      - name: Upload HTML Coverage Report Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-html
+          path: reports/coverage/
+
+      - name: Upload Benchmark JSON Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results-json
+          path: reports/benchmarks.json
+
+      - name: Upload JUnit XML Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-results-xml
+          path: reports/junit.xml
+
+  deploy-pages:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report-html
+          path: ./coverage-report
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './coverage-report'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
