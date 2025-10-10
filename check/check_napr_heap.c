@@ -24,7 +24,7 @@
 #include "napr_heap.h"
 
 extern apr_pool_t *main_pool;
-apr_pool_t *pool;
+static apr_pool_t *pool;
 
 static void setup(void)
 {
@@ -90,19 +90,19 @@ START_TEST(test_napr_heap_unordered_bug)
 	number = napr_heap_extract(heap);
 	switch (i) {
 	case 0:
-	    fail_unless(number->size == 193288, "first bad ordered");
+	    fail_unless(number->size == 193288, "Expected 193288, got %ld", (long)number->size);
 	    break;
 	case 1:
-	    fail_unless(number->size == 193288, "second bad ordered");
+	    fail_unless(number->size == 193288, "Expected 193288, got %ld", (long)number->size);
 	    break;
 	case 2:
-	    fail_unless(number->size == 43601, "third bad ordered");
+	    fail_unless(number->size == 43601, "Expected 43601, got %ld", (long)number->size);
 	    break;
 	case 3:
-	    fail_unless(number->size == 30460, "fourth bad ordered");
+	    fail_unless(number->size == 30460, "Expected 30460, got %ld", (long)number->size);
 	    break;
 	case 4:
-	    fail_unless(number->size == 6298, "fifth bad ordered");
+	    fail_unless(number->size == 6298, "Expected 6298, got %ld", (long)number->size);
 	    break;
 	}
     }

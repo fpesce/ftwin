@@ -1,5 +1,98 @@
-This program helps user to find files with the same content.
+# ftwin - Find Twin Files
 
-The official homepage of this project and where its last sources might be found
+`ftwin` is a command-line utility for finding and reporting duplicate files. It can identify identical files based on their content or find similar images using the `libpuzzle` library.
 
-https://github.com/fpesce/ftwin
+## Features
+
+- **Find duplicate files by content:** `ftwin` can recursively scan directories and identify files with the same content.
+- **Find similar images:** Using `libpuzzle`, `ftwin` can find images that are visually similar, even if they have been resized, recompressed, or slightly modified.
+- **Flexible filtering:** You can include or exclude files based on regular expressions, file size, and more.
+- **Customizable output:** The output format can be adjusted to suit your needs, making it easy to pipe the results to other scripts for further processing.
+- **Priority path:** You can prioritize a specific path to ensure that files from that location are listed first in the duplicate report, which is useful for cleaning up newly imported files.
+- **Archive support:** `ftwin` can search for duplicates within `.tar`, `.gz`, and `.bz2` archives.
+
+## Dependencies
+
+- **[APR (Apache Portable Runtime)](https://apr.apache.org/):** A supporting library for the Apache web server, providing a set of APIs that interface with the underlying operating system.
+- **[PCRE (Perl Compatible Regular Expressions)](http://www.pcre.org/):** A library for implementing regular expression pattern matching.
+- **[libpuzzle](https.github.com/fpesce/libpuzzle):** (Optional) A library for finding visually similar images.
+- **[libarchive](https://www.libarchive.org/):** (Optional) A library for reading and writing streaming archive files.
+
+## Installation
+
+To build and install `ftwin`, you will need to have the development headers for the dependencies listed above installed on your system. Then, you can run the following commands:
+
+```bash
+./configure
+make
+sudo make install
+```
+
+## Usage
+
+```bash
+ftwin [OPTION]... [FILES or DIRECTORIES]...
+```
+
+### Options
+
+- **-c, --case-unsensitive:** Make regex matching case-insensitive.
+- **-d, --display-size:** Display the size of the files before listing duplicates.
+- **-e, --regex-ignore-file `REGEX`:** Ignore files with names that match the given regular expression.
+- **-f, --follow-symlink:** Follow symbolic links.
+- **-h, --help:** Display the usage information.
+- **-I, --image-cmp:** Run in image comparison mode (requires `libpuzzle`).
+- **-T, --image-threshold `LEVEL`:** Set the image similarity threshold (1-5, default is 1). A lower value means more similar.
+- **-i, --ignore-list `LIST`:** A comma-separated list of file names to ignore.
+- **-m, --minimal-length `SIZE`:** The minimum size of files to process.
+- **-o, --optimize-memory:** Reduce memory usage at the cost of increased processing time.
+- **-p, --priority-path `PATH`:** Prioritize files from this path in the duplicate report.
+- **-r, --recurse-subdir:** Recursively search subdirectories.
+- **-s, --separator `CHAR`:** The character to use as a separator between duplicate file paths (default is `\n`).
+- **-t, --tar-cmp:** Process files within `.tar`, `.gz`, and `.bz2` archives (requires `libarchive`).
+- **-v, --verbose:** Display a progress bar.
+- **-V, --version:** Display the version information.
+- **-w, --whitelist-regex-file `REGEX`:** Only process files with names that match the given regular expression.
+- **-x, --excessive-size `SIZE`:** The file size at which to switch off `mmap` usage.
+
+## Examples
+
+### Find duplicate pictures
+
+The following command will find duplicate pictures in your home directory, with a minimum size of 8192 bytes, and display the progress:
+
+```bash
+ftwin -m 8192 -v -r -I ${HOME} | less
+```
+
+### Find duplicate text files, ignoring `.svn` directories
+
+This command will find all `.txt` files in your home directory while ignoring any files in `.svn` directories:
+
+```bash
+ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
+```
+
+### Clean up imported pictures
+
+If you have imported pictures into a temporary directory and want to remove duplicates, you can use the following commands:
+
+```bash
+mkdir "${HOME}/tmppix"
+cp /media/SDCARD/*JPG "${HOME}/tmppix"
+ftwin -r -v -w ".*\.(jpe?g)$" -c -p "${HOME}/tmppix" -s "," "${HOME}" | tee log
+```
+
+This will find all JPG files in your home directory, prioritize the ones in `tmppix`, and save the list of duplicates to a file named `log`. You can then use the following command to remove the duplicates from `tmppix`:
+
+```bash
+cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; done
+```
+
+## Contributing
+
+Please report any bugs or feature requests on the [GitHub issue tracker](https://github.com/fpesce/ftwin/issues).
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the `LICENSE` file for more details.
