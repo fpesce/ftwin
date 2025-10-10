@@ -670,6 +670,10 @@ PUZZLE_LDADD
 PUZZLE_LDFLAGS
 PUZZLE_CPPFLAGS
 with_puzzle
+HAVE_BENCHMARK_FALSE
+HAVE_BENCHMARK_TRUE
+NINJA
+MESON
 CHECK_LIBS
 CHECK_CFLAGS
 PKG_CONFIG_LIBDIR
@@ -6129,6 +6133,110 @@ fi
 
 fi
 
+# Check for meson and ninja to build criterion for benchmark tests
+# Extract the first word of "meson", so it can be a program name with args.
+set dummy meson; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_prog_MESON+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  if test -n "$MESON"; then
+  ac_cv_prog_MESON="$MESON" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_prog_MESON="meson"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+MESON=$ac_cv_prog_MESON
+if test -n "$MESON"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $MESON" >&5
+printf "%s\n" "$MESON" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+
+# Extract the first word of "ninja", so it can be a program name with args.
+set dummy ninja; ac_word=$2
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+printf %s "checking for $ac_word... " >&6; }
+if test ${ac_cv_prog_NINJA+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  if test -n "$NINJA"; then
+  ac_cv_prog_NINJA="$NINJA" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  case $as_dir in #(((
+    '') as_dir=./ ;;
+    */) ;;
+    *) as_dir=$as_dir/ ;;
+  esac
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir$ac_word$ac_exec_ext"; then
+    ac_cv_prog_NINJA="ninja"
+    printf "%s\n" "$as_me:${as_lineno-$LINENO}: found $as_dir$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+NINJA=$ac_cv_prog_NINJA
+if test -n "$NINJA"; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $NINJA" >&5
+printf "%s\n" "$NINJA" >&6; }
+else
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
+
+
+
+
+ if test -n "$MESON" -a -n "$NINJA"; then
+  HAVE_BENCHMARK_TRUE=
+  HAVE_BENCHMARK_FALSE='#'
+else
+  HAVE_BENCHMARK_TRUE='#'
+  HAVE_BENCHMARK_FALSE=
+fi
+
+if test "x$MESON" = "x" -o "x$NINJA" = "x"
+then :
+
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: meson or ninja not found, benchmark tests will not be built." >&5
+printf "%s\n" "$as_me: WARNING: meson or ninja not found, benchmark tests will not be built." >&2;}
+
+fi
+
 # Check libpuzzle
 
 
@@ -6633,6 +6741,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_CHECK_TRUE}" && test -z "${HAVE_CHECK_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_CHECK\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${HAVE_BENCHMARK_TRUE}" && test -z "${HAVE_BENCHMARK_FALSE}"; then
+  as_fn_error $? "conditional \"HAVE_BENCHMARK\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

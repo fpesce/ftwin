@@ -1,0 +1,117 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <apr_general.h>
+#include <apr_pools.h>
+#include <apr_time.h>
+#include <apr_file_io.h>
+#include "checksum.h"
+#include "ft_file.h"
+
+#define BUFFER_SIZE (1024 * 1024) // 1MB
+#define FILE_SIZE (10 * 1024 * 1024) // 10MB
+#define EXCESS_SIZE (16 * 1024 * 1024) // 16MB, larger than file to test small file path
+#define ITERATIONS 100
+
+static void run_hash_benchmark(apr_pool_t* pool);
+static void run_checksum_file_benchmark(apr_pool_t* pool);
+
+int main(int argc, const char * const *argv) {
+    apr_pool_t* pool;
+
+    apr_initialize();
+    apr_pool_create(&pool, NULL);
+
+    printf("Starting benchmarks...\n\n");
+
+    run_hash_benchmark(pool);
+    run_checksum_file_benchmark(pool);
+
+    printf("\nBenchmarks finished.\n");
+
+    apr_pool_destroy(pool);
+    apr_terminate();
+
+    return 0;
+}
+
+static void run_hash_benchmark(apr_pool_t* pool) {
+    ub1* buffer = malloc(BUFFER_SIZE);
+    if (!buffer) {
+        fprintf(stderr, "Failed to allocate buffer for hash benchmark.\n");
+        return;
+    }
+
+    for (size_t i = 0; i < BUFFER_SIZE; ++i) {
+        buffer[i] = (ub1)(i % 256);
+    }
+    apr_uint32_t state[HASHSTATE];
+
+    printf("Running 'hash' function benchmark...\n");
+    apr_time_t start_time = apr_time_now();
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        for (int j = 0; j < HASHSTATE; ++j) {
+            state[j] = 0;
+        }
+        hash(buffer, BUFFER_SIZE, state);
+    }
+
+    apr_time_t end_time = apr_time_now();
+    apr_time_t total_time = end_time - start_time;
+    double time_per_iteration_ms = (double)total_time / ITERATIONS / 1000.0;
+    double throughput_mb_s = (double)(BUFFER_SIZE * ITERATIONS) / (double)total_time * 1000000.0 / (1024.0 * 1024.0);
+
+    printf("  Iterations: %d\n", ITERATIONS);
+    printf("  Average time per iteration: %.4f ms\n", time_per_iteration_ms);
+    printf("  Throughput: %.2f MB/s\n", throughput_mb_s);
+
+    free(buffer);
+}
+
+static void run_checksum_file_benchmark(apr_pool_t* pool) {
+    apr_file_t* file;
+    const char* filename;
+    char template[] = "bench_ftwin.XXXXXX";
+    apr_status_t status = apr_file_mktemp(&file, template, APR_CREATE | APR_READ | APR_WRITE | APR_TRUNCATE | APR_BINARY, pool);
+
+    if (status != APR_SUCCESS) {
+        fprintf(stderr, "Failed to create temp file for checksum benchmark.\n");
+        return;
+    }
+
+    apr_file_name_get(&filename, file);
+
+    char* buffer = malloc(BUFFER_SIZE);
+    if (!buffer) {
+        fprintf(stderr, "Failed to allocate buffer for file writing.\n");
+        apr_file_close(file);
+        return;
+    }
+    for (size_t i = 0; i < FILE_SIZE / BUFFER_SIZE; ++i) {
+        apr_size_t bytes_written = BUFFER_SIZE;
+        apr_file_write(file, buffer, &bytes_written);
+    }
+    free(buffer);
+    apr_file_close(file);
+
+    apr_uint32_t state[HASHSTATE];
+
+    printf("\nRunning 'checksum_file' function benchmark...\n");
+    apr_time_t start_time = apr_time_now();
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        for (int j = 0; j < HASHSTATE; ++j) {
+            state[j] = 0;
+        }
+        checksum_file(filename, FILE_SIZE, EXCESS_SIZE, state, pool);
+    }
+
+    apr_time_t end_time = apr_time_now();
+    apr_time_t total_time = end_time - start_time;
+    double time_per_iteration_ms = (double)total_time / ITERATIONS / 1000.0;
+    double throughput_mb_s = (double)(FILE_SIZE * ITERATIONS) / (double)total_time * 1000000.0 / (1024.0 * 1024.0);
+
+    printf("  Iterations: %d\n", ITERATIONS);
+    printf("  Average time per iteration: %.4f ms\n", time_per_iteration_ms);
+    printf("  Throughput: %.2f MB/s\n", throughput_mb_s);
+}

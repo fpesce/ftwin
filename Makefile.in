@@ -88,8 +88,9 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = ftwin$(EXEEXT)
+check_PROGRAMS = $(am__EXEEXT_1) bench_ftwin$(EXEEXT)
 @HAVE_CHECK_TRUE@TESTS = check_ftwin$(EXEEXT)
-@HAVE_CHECK_TRUE@check_PROGRAMS = check_ftwin$(EXEEXT)
+@HAVE_CHECK_TRUE@am__append_1 = check_ftwin
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 $(top_srcdir)/VERSION \
@@ -105,8 +106,16 @@ CONFIG_HEADER = $(top_builddir)/src/config.h
 CONFIG_CLEAN_FILES = Doxyfile
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man8dir)"
+@HAVE_CHECK_TRUE@am__EXEEXT_1 = check_ftwin$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS)
 am__dirstamp = $(am__leading_dot)dirstamp
+am_bench_ftwin_OBJECTS = check/bench_ftwin-bench_ftwin.$(OBJEXT) \
+	src/bench_ftwin-checksum.$(OBJEXT) \
+	src/bench_ftwin-ft_file.$(OBJEXT)
+bench_ftwin_OBJECTS = $(am_bench_ftwin_OBJECTS)
+bench_ftwin_DEPENDENCIES =
+bench_ftwin_LINK = $(CCLD) $(bench_ftwin_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 am_check_ftwin_OBJECTS = check/ftwin-check_ftwin.$(OBJEXT) \
 	check/ftwin-check_napr_heap.$(OBJEXT) \
 	src/check_ftwin-napr_heap.$(OBJEXT) \
@@ -142,10 +151,13 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)/src
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = check/$(DEPDIR)/ftwin-check_apr_hash.Po \
+am__depfiles_remade = check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po \
+	check/$(DEPDIR)/ftwin-check_apr_hash.Po \
 	check/$(DEPDIR)/ftwin-check_ft_file.Po \
 	check/$(DEPDIR)/ftwin-check_ftwin.Po \
 	check/$(DEPDIR)/ftwin-check_napr_heap.Po \
+	src/$(DEPDIR)/bench_ftwin-checksum.Po \
+	src/$(DEPDIR)/bench_ftwin-ft_file.Po \
 	src/$(DEPDIR)/check_ftwin-checksum.Po \
 	src/$(DEPDIR)/check_ftwin-ft_file.Po \
 	src/$(DEPDIR)/check_ftwin-napr_heap.Po \
@@ -171,8 +183,10 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 =
-SOURCES = $(check_ftwin_SOURCES) $(ftwin_SOURCES)
-DIST_SOURCES = $(check_ftwin_SOURCES) $(ftwin_SOURCES)
+SOURCES = $(bench_ftwin_SOURCES) $(check_ftwin_SOURCES) \
+	$(ftwin_SOURCES)
+DIST_SOURCES = $(bench_ftwin_SOURCES) $(check_ftwin_SOURCES) \
+	$(ftwin_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -451,6 +465,8 @@ CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
 CHECK_CFLAGS = @CHECK_CFLAGS@
 CHECK_LIBS = @CHECK_LIBS@
+COVERAGE_CFLAGS = @COVERAGE_CFLAGS@
+COVERAGE_LIBS = @COVERAGE_LIBS@
 CPPFLAGS = @CPPFLAGS@
 CSCOPE = @CSCOPE@
 CTAGS = @CTAGS@
@@ -585,21 +601,25 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 
 
 # CFLAGS is for additional C compiler flags
-ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0
+ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
 # -O3 -funroll-loops -fomit-frame-pointer -pipe -ffast-math
-check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src/
+check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src/ @COVERAGE_CFLAGS@
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
 check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
 ftwin_CPPFLAGS = @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@
 
 # LDADD and LIBADD are for linking libraries, -L, -l, -dlopen and -dlpreopen options
-check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@
-ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@
+check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@
+ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@
 
 # LDFLAGS is for additional linker flags
 check_ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @PUZZLE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @PUZZLE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
+bench_ftwin_SOURCES = check/bench_ftwin.c src/checksum.c src/ft_file.c
+bench_ftwin_CFLAGS = @APR_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src
+bench_ftwin_CPPFLAGS = @APR_CPPFLAGS@
+bench_ftwin_LDADD = @APR_LIBS@ @APU_LIBS@
 all: all-am
 
 .SUFFIXES:
@@ -705,9 +725,7 @@ check/$(am__dirstamp):
 check/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) check/$(DEPDIR)
 	@: > check/$(DEPDIR)/$(am__dirstamp)
-check/ftwin-check_ftwin.$(OBJEXT): check/$(am__dirstamp) \
-	check/$(DEPDIR)/$(am__dirstamp)
-check/ftwin-check_napr_heap.$(OBJEXT): check/$(am__dirstamp) \
+check/bench_ftwin-bench_ftwin.$(OBJEXT): check/$(am__dirstamp) \
 	check/$(DEPDIR)/$(am__dirstamp)
 src/$(am__dirstamp):
 	@$(MKDIR_P) src
@@ -715,6 +733,18 @@ src/$(am__dirstamp):
 src/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
+src/bench_ftwin-checksum.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/bench_ftwin-ft_file.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+bench_ftwin$(EXEEXT): $(bench_ftwin_OBJECTS) $(bench_ftwin_DEPENDENCIES) $(EXTRA_bench_ftwin_DEPENDENCIES)
+	@rm -f bench_ftwin$(EXEEXT)
+	$(AM_V_CCLD)$(bench_ftwin_LINK) $(bench_ftwin_OBJECTS) $(bench_ftwin_LDADD) $(LIBS)
+check/ftwin-check_ftwin.$(OBJEXT): check/$(am__dirstamp) \
+	check/$(DEPDIR)/$(am__dirstamp)
+check/ftwin-check_napr_heap.$(OBJEXT): check/$(am__dirstamp) \
+	check/$(DEPDIR)/$(am__dirstamp)
 src/check_ftwin-napr_heap.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 check/ftwin-check_apr_hash.$(OBJEXT): check/$(am__dirstamp) \
@@ -756,10 +786,13 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@check/$(DEPDIR)/ftwin-check_apr_hash.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@check/$(DEPDIR)/ftwin-check_ft_file.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@check/$(DEPDIR)/ftwin-check_ftwin.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@check/$(DEPDIR)/ftwin-check_napr_heap.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/bench_ftwin-checksum.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/bench_ftwin-ft_file.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/check_ftwin-checksum.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/check_ftwin-ft_file.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/check_ftwin-napr_heap.Po@am__quote@ # am--include-marker
@@ -792,6 +825,48 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(COMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
+
+check/bench_ftwin-bench_ftwin.o: check/bench_ftwin.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT check/bench_ftwin-bench_ftwin.o -MD -MP -MF check/$(DEPDIR)/bench_ftwin-bench_ftwin.Tpo -c -o check/bench_ftwin-bench_ftwin.o `test -f 'check/bench_ftwin.c' || echo '$(srcdir)/'`check/bench_ftwin.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) check/$(DEPDIR)/bench_ftwin-bench_ftwin.Tpo check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check/bench_ftwin.c' object='check/bench_ftwin-bench_ftwin.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o check/bench_ftwin-bench_ftwin.o `test -f 'check/bench_ftwin.c' || echo '$(srcdir)/'`check/bench_ftwin.c
+
+check/bench_ftwin-bench_ftwin.obj: check/bench_ftwin.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT check/bench_ftwin-bench_ftwin.obj -MD -MP -MF check/$(DEPDIR)/bench_ftwin-bench_ftwin.Tpo -c -o check/bench_ftwin-bench_ftwin.obj `if test -f 'check/bench_ftwin.c'; then $(CYGPATH_W) 'check/bench_ftwin.c'; else $(CYGPATH_W) '$(srcdir)/check/bench_ftwin.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) check/$(DEPDIR)/bench_ftwin-bench_ftwin.Tpo check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='check/bench_ftwin.c' object='check/bench_ftwin-bench_ftwin.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o check/bench_ftwin-bench_ftwin.obj `if test -f 'check/bench_ftwin.c'; then $(CYGPATH_W) 'check/bench_ftwin.c'; else $(CYGPATH_W) '$(srcdir)/check/bench_ftwin.c'; fi`
+
+src/bench_ftwin-checksum.o: src/checksum.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT src/bench_ftwin-checksum.o -MD -MP -MF src/$(DEPDIR)/bench_ftwin-checksum.Tpo -c -o src/bench_ftwin-checksum.o `test -f 'src/checksum.c' || echo '$(srcdir)/'`src/checksum.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/bench_ftwin-checksum.Tpo src/$(DEPDIR)/bench_ftwin-checksum.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/checksum.c' object='src/bench_ftwin-checksum.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o src/bench_ftwin-checksum.o `test -f 'src/checksum.c' || echo '$(srcdir)/'`src/checksum.c
+
+src/bench_ftwin-checksum.obj: src/checksum.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT src/bench_ftwin-checksum.obj -MD -MP -MF src/$(DEPDIR)/bench_ftwin-checksum.Tpo -c -o src/bench_ftwin-checksum.obj `if test -f 'src/checksum.c'; then $(CYGPATH_W) 'src/checksum.c'; else $(CYGPATH_W) '$(srcdir)/src/checksum.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/bench_ftwin-checksum.Tpo src/$(DEPDIR)/bench_ftwin-checksum.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/checksum.c' object='src/bench_ftwin-checksum.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o src/bench_ftwin-checksum.obj `if test -f 'src/checksum.c'; then $(CYGPATH_W) 'src/checksum.c'; else $(CYGPATH_W) '$(srcdir)/src/checksum.c'; fi`
+
+src/bench_ftwin-ft_file.o: src/ft_file.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT src/bench_ftwin-ft_file.o -MD -MP -MF src/$(DEPDIR)/bench_ftwin-ft_file.Tpo -c -o src/bench_ftwin-ft_file.o `test -f 'src/ft_file.c' || echo '$(srcdir)/'`src/ft_file.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/bench_ftwin-ft_file.Tpo src/$(DEPDIR)/bench_ftwin-ft_file.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/ft_file.c' object='src/bench_ftwin-ft_file.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o src/bench_ftwin-ft_file.o `test -f 'src/ft_file.c' || echo '$(srcdir)/'`src/ft_file.c
+
+src/bench_ftwin-ft_file.obj: src/ft_file.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -MT src/bench_ftwin-ft_file.obj -MD -MP -MF src/$(DEPDIR)/bench_ftwin-ft_file.Tpo -c -o src/bench_ftwin-ft_file.obj `if test -f 'src/ft_file.c'; then $(CYGPATH_W) 'src/ft_file.c'; else $(CYGPATH_W) '$(srcdir)/src/ft_file.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/bench_ftwin-ft_file.Tpo src/$(DEPDIR)/bench_ftwin-ft_file.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/ft_file.c' object='src/bench_ftwin-ft_file.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(bench_ftwin_CPPFLAGS) $(CPPFLAGS) $(bench_ftwin_CFLAGS) $(CFLAGS) -c -o src/bench_ftwin-ft_file.obj `if test -f 'src/ft_file.c'; then $(CYGPATH_W) 'src/ft_file.c'; else $(CYGPATH_W) '$(srcdir)/src/ft_file.c'; fi`
 
 check/ftwin-check_ftwin.o: check/check_ftwin.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(check_ftwin_CPPFLAGS) $(CPPFLAGS) $(check_ftwin_CFLAGS) $(CFLAGS) -MT check/ftwin-check_ftwin.o -MD -MP -MF check/$(DEPDIR)/ftwin-check_ftwin.Tpo -c -o check/ftwin-check_ftwin.o `test -f 'check/check_ftwin.c' || echo '$(srcdir)/'`check/check_ftwin.c
@@ -1477,10 +1552,13 @@ clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-		-rm -f check/$(DEPDIR)/ftwin-check_apr_hash.Po
+		-rm -f check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po
+	-rm -f check/$(DEPDIR)/ftwin-check_apr_hash.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_ft_file.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_ftwin.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_napr_heap.Po
+	-rm -f src/$(DEPDIR)/bench_ftwin-checksum.Po
+	-rm -f src/$(DEPDIR)/bench_ftwin-ft_file.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-checksum.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-ft_file.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-napr_heap.Po
@@ -1538,10 +1616,13 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-		-rm -f check/$(DEPDIR)/ftwin-check_apr_hash.Po
+		-rm -f check/$(DEPDIR)/bench_ftwin-bench_ftwin.Po
+	-rm -f check/$(DEPDIR)/ftwin-check_apr_hash.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_ft_file.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_ftwin.Po
 	-rm -f check/$(DEPDIR)/ftwin-check_napr_heap.Po
+	-rm -f src/$(DEPDIR)/bench_ftwin-checksum.Po
+	-rm -f src/$(DEPDIR)/bench_ftwin-ft_file.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-checksum.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-ft_file.Po
 	-rm -f src/$(DEPDIR)/check_ftwin-napr_heap.Po

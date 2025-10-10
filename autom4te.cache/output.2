@@ -653,6 +653,8 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIB@&t@OBJS
+COVERAGE_LIBS
+COVERAGE_CFLAGS
 ABS_TOP_SRCDIR
 USER_CFLAGS
 BZ2_LDADD
@@ -793,6 +795,7 @@ with_puzzle
 with_archive
 with_zlib
 with_bz2
+enable_coverage
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1438,6 +1441,7 @@ Optional Features:
                           do not reject slow dependency extractors
   --disable-dependency-tracking
                           speeds up one-time build
+  --enable-coverage       Enable code coverage
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -6482,6 +6486,22 @@ printf "%s\n" "
    Support for zlib library:         $with_zlib
    Support for bz2 library:          $with_bz2
 " >&6; }
+
+# Coverage
+@%:@ Check whether --enable-coverage was given.
+if test ${enable_coverage+y}
+then :
+  enableval=$enable_coverage;
+        if test "$enableval" = "yes"; then
+            COVERAGE_CFLAGS="-fprofile-arcs -ftest-coverage"
+            COVERAGE_LIBS="-lgcov"
+        fi
+
+
+fi
+
+
+
 
 # Write config.status and the Makefile
 ac_config_files="$ac_config_files Doxyfile Makefile"

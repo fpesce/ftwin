@@ -1,0 +1,54 @@
+# Autotools generated files
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.h.in
+config.log
+config.status
+config.sub
+configure
+depcomp
+install-sh
+ltmain.sh
+missing
+test-driver
+stamp-h1
+
+# Doxygen
+Doxyfile
+
+# Object files and libraries
+*.o
+*.lo
+*.la
+*.lai
+*.so
+*.a
+
+# Executables
+ftwin
+check_ftwin
+bench_ftwin
+
+# Test and coverage artifacts
+check_test_log.xml
+check_log.xml
+*.gcno
+*.gcda
+*.gcov
+coverage.info
+coverage_report/
+benchmark_results.txt
+
+# Editor backup files
+*~
+
+# Misc
+.deps/
+.DS_Store
+src/config.h
+src/config.h.in
+configure~
