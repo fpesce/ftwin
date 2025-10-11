@@ -147,6 +147,9 @@ jobs:
       name: github-pages
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Prepare staging directory
         run: mkdir -p ./site_staging
 
@@ -168,9 +171,6 @@ jobs:
           name: benchmark-results
           path: reports/
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Update benchmark history on gh-pages
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -179,7 +179,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           benchmark-data-dir-path: 'benchmark-data'
-          gh-pages-config: '{"page_title": "ftwin Benchmark Charts", "page_name": "benchmarks.html"}'
 
       - name: Create index.html
         run: |
