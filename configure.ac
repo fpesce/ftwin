@@ -1,18 +1,16 @@
-AC_PREREQ(2.52)
+AC_PREREQ([2.71])
 
 # Required initializer
-AC_INIT([ftwin], m4_normalize(m4_include([VERSION])), [francois.pesce@gmail.com])
+AC_INIT([ftwin],[m4_normalize(m4_include(VERSION))],[francois.pesce@gmail.com])
 
 
 dnl can autoconf find the source ?
 AC_CONFIG_SRCDIR([src/ftwin.c])
-AC_CONFIG_HEADER([src/config.h])
+AC_CONFIG_HEADERS([src/config.h])
 
 AM_INIT_AUTOMAKE([subdir-objects])
 
 # Add a test for a compiler.
-AC_HEADER_STDC
-
 AC_PROG_CC
 
 # APR Checking
@@ -37,7 +35,7 @@ PUZZLE
 
 # Check libarchive
 AC_ARG_WITH([archive],
-            [AS_HELP_STRING([--with-archive],[/absolute/path/to/libarchive-base])],
+            [AS_HELP_STRING([--with-archive], [/absolute/path/to/libarchive-base])],
             [ARCHIVE_LDFLAGS="-L$with_archive/lib";
              ARCHIVE_LDADD="-larchive";
              ARCHIVE_CPPFLAGS="-I$with_archive/include/";

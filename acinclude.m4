@@ -1,5 +1,5 @@
 AC_DEFUN([APR_CONFIG_CHECK],[
-	AC_ARG_WITH( apr-config, AC_HELP_STRING([--with-apr-config=PATH], [prefix where libapr is installed default=auto]), [apr_config=$withval],[apr_config=])
+	AC_ARG_WITH([apr-config], [AS_HELP_STRING([--with-apr-config=PATH], [prefix where libapr is installed default=auto])], [apr_config=$withval],[apr_config=])
 	if test "x$apr_config" != "x"
 	    then
 	    # If we passed a apr-config
@@ -45,7 +45,7 @@ AC_DEFUN([APR_CONFIG_CHECK],[
     ])
 
 AC_DEFUN([APR_UTIL_CONFIG_CHECK], [
-	AC_ARG_WITH( apr-util-config, AC_HELP_STRING([--with-apr-util-config=PATH], [prefix where apu-config is installed default=auto]), [apr_util_config=$withval],[apr_util_config=])
+	AC_ARG_WITH([apr-util-config], [AS_HELP_STRING([--with-apr-util-config=PATH], [prefix where apu-config is installed default=auto])], [apr_util_config=$withval],[apr_util_config=])
 
 	if test "x$apr_util_config" != "x"
 	    then
@@ -112,7 +112,7 @@ AC_DEFUN([PATH_DOT],[
 # PCRE_CHECK
 #
 AC_DEFUN([PCRE_CONFIG_CHECK],[
-	AC_ARG_WITH( pcre-config, AC_HELP_STRING([--with-pcre-config=PATH], [prefix where libpcre is installed default=auto]), [pcre_config=$withval],[pcre_config=])
+	AC_ARG_WITH([pcre-config], [AS_HELP_STRING([--with-pcre-config=PATH], [prefix where libpcre is installed default=auto])], [pcre_config=$withval],[pcre_config=])
 	if test "x$pcre_config" != "x"
 	    then
 	    # If we passed a pcre-config
@@ -144,7 +144,7 @@ AC_DEFUN([PCRE_CONFIG_CHECK],[
 # libpuzzle is used to compare two images
 #
 AC_DEFUN([PUZZLE],[
-	AC_ARG_WITH( puzzle, AC_HELP_STRING([--with-puzzle=PATH], [prefix where libpuzzle is installed default=/usr/local/]), [puzzle=$withval],[puzzle=/usr/local/])
+	AC_ARG_WITH([puzzle], [AS_HELP_STRING([--with-puzzle=PATH], [prefix where libpuzzle is installed default=/usr/local/])], [puzzle=$withval],[puzzle=/usr/local/])
 	if test "x$puzzle" != "x"
 	    then
 	    #
@@ -187,7 +187,7 @@ AC_DEFUN([PUZZLE],[
 # libz used to uncompress .tar.gz for the moment.
 #
 AC_DEFUN([ZLIB],[
-	AC_ARG_WITH(zlib, AC_HELP_STRING([--with-zlib=PATH], [prefix where zlib is installed default=/usr]), [zlib=$withval],[zlib=/usr/])
+	AC_ARG_WITH([zlib], [AS_HELP_STRING([--with-zlib=PATH], [prefix where zlib is installed default=/usr])], [zlib=$withval],[zlib=/usr/])
 	if test "x$zlib" != "x"
 	    then
 	    #
@@ -229,7 +229,7 @@ AC_DEFUN([ZLIB],[
 # libbz2 used to uncompress .tar.bz2 for the moment.
 #
 AC_DEFUN([BZ2],[
-	AC_ARG_WITH(bz2, AC_HELP_STRING([--with-bz2=PATH], [prefix where bz2 is installed default=/usr]), [bz2=$withval],[bz2=/usr/])
+	AC_ARG_WITH([bz2], [AS_HELP_STRING([--with-bz2=PATH], [prefix where bz2 is installed default=/usr])], [bz2=$withval],[bz2=/usr/])
 	if test "x$bz2" != "x"
 	    then
 	    #

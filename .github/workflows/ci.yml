@@ -40,7 +40,9 @@ jobs:
             subunit \
             python3-junitxml \
             doxygen \
-            graphviz
+            graphviz \
+            automake \
+            libtool
 
       - name: Configure build
         run: |
