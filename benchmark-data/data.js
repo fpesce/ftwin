@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760192233215,
+  "lastUpdate": 1760197304816,
   "repoUrl": "https://github.com/fpesce/ftwin",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "checksum_file_throughput",
             "value": 1108.58,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f4f40fb819b55bdeb8b5adb4e4b6fc601c497c54",
+          "message": "Merge pull request #18 from fpesce/feature/vendor-libarchive\n\nFeature/vendor libarchive",
+          "timestamp": "2025-10-11T17:34:05+02:00",
+          "tree_id": "edbf3a61ad3d06a069c1858a479200879d2dbf63",
+          "url": "https://github.com/fpesce/ftwin/commit/f4f40fb819b55bdeb8b5adb4e4b6fc601c497c54"
+        },
+        "date": 1760197304262,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "hash_throughput",
+            "value": 1254.64,
+            "unit": "MB/s"
+          },
+          {
+            "name": "checksum_file_throughput",
+            "value": 1109.41,
             "unit": "MB/s"
           }
         ]
