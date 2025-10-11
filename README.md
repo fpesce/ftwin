@@ -15,8 +15,8 @@
 
 - **[APR (Apache Portable Runtime)](https://apr.apache.org/):** A supporting library for the Apache web server, providing a set of APIs that interface with the underlying operating system.
 - **[PCRE (Perl Compatible Regular Expressions)](http://www.pcre.org/):** A library for implementing regular expression pattern matching.
-- **[libpuzzle](https.github.com/fpesce/libpuzzle):** (Optional) A library for finding visually similar images.
-- **[libarchive](https://www.libarchive.org/):** (Optional) A library for reading and writing streaming archive files.
+- **[libpuzzle](https.github.com/fpesce/libpuzzle):** Vendored as a git submodule for finding visually similar images.
+- **[libarchive](https://www.libarchive.org/):** Vendored as a git submodule for reading and writing streaming archive files.
 
 ## Installation
 

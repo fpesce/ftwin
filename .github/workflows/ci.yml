@@ -38,6 +38,7 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             automake \
+            autoconf-archive \
             patch \
             libtool \
             xsltproc \
@@ -48,7 +49,13 @@ jobs:
             lcov \
             doxygen \
             graphviz \
-            libgd-dev
+            libgd-dev \
+            liblzma-dev \
+            liblz4-dev \
+            libzstd-dev \
+            libxml2-dev \
+            libbz2-dev \
+            zlib1g-dev
 
       - name: Configure build
         run: |
@@ -56,6 +63,9 @@ jobs:
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure
+          cd ../libarchive
+          ./build/autogen.sh
+          ./configure --without-openssl --without-nettle
           cd ../..
           ./configure --enable-coverage
 
