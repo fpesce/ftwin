@@ -6,12 +6,8 @@ MAINTAINERCLEANFILES = aclocal.m4 Makefile.in compile config.guess config.sub \
 SUBDIRS = third-party/libpuzzle third-party/libarchive
 bin_PROGRAMS = ftwin
 
-check_PROGRAMS =
-if HAVE_CHECK
+check_PROGRAMS = check_ftwin bench_ftwin
 TESTS = check_ftwin
-check_PROGRAMS += check_ftwin
-endif
-check_PROGRAMS += bench_ftwin
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 
@@ -50,7 +46,7 @@ ftwin_SOURCES = src/ftwin.c \
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
-		      src/checksum.c
+		      src/checksum.c check/check_archive.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
