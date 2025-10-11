@@ -1,0 +1,14 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*
+
+CheckOptions:
+  - key: cert-err34-c.Gotchas
+    value: 'gets, getpw, getlogin, cuserid'
+...
