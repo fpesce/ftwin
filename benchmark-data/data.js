@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760179034019,
+  "lastUpdate": 1760179109743,
   "repoUrl": "https://github.com/fpesce/ftwin",
   "entries": {
     "Benchmark": [
@@ -33,6 +33,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "checksum_file_throughput",
             "value": 1146.98,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb4dd10405b0ad2735be32b2ecad5ffeb43ff6d9",
+          "message": "Add README.md file\n\nrenamed for proper markdown display",
+          "timestamp": "2025-10-11T12:36:44+02:00",
+          "tree_id": "7e8f0acd48c14e0e686b54b044e131785719c4f9",
+          "url": "https://github.com/fpesce/ftwin/commit/fb4dd10405b0ad2735be32b2ecad5ffeb43ff6d9"
+        },
+        "date": 1760179109352,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "hash_throughput",
+            "value": 1253.35,
+            "unit": "MB/s"
+          },
+          {
+            "name": "checksum_file_throughput",
+            "value": 1146.66,
             "unit": "MB/s"
           }
         ]
