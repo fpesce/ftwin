@@ -140,47 +140,6 @@ AC_DEFUN([PCRE_CONFIG_CHECK],[
 
     ])
 
-#
-# libpuzzle is used to compare two images
-#
-AC_DEFUN([PUZZLE],[
-	AC_ARG_WITH([puzzle], [AS_HELP_STRING([--with-puzzle=PATH], [prefix where libpuzzle is installed default=/usr/local/])], [puzzle=$withval],[puzzle=/usr/local/])
-	if test "x$puzzle" != "x"
-	    then
-	    #
-	    # Make sure we have "puzzle.h".  If we don't, it means we probably
-	    # don't have libpuzzle, so don't use it.
-	    #
-	    AC_CHECK_HEADER(puzzle.h,
-		[
-		# Check if the lib is OK
-		AC_CHECK_LIB(puzzle, puzzle_init_context,
-		    [
-		     AC_DEFINE([HAVE_PUZZLE], 1, [for image comparison mode])
-		     with_puzzle=yes
-		     PUZZLE_CPPFLAGS="-I$puzzle/include"
-		     PUZZLE_LDFLAGS="-L$puzzle/lib"
-		     PUZZLE_LDADD="-lpuzzle -lgd"
-		    ],
-		    [
-		     with_puzzle=no
-		     AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
-		    ])	
-		],
-		[
-		 with_puzzle=no
-		 AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
-		])
-
-	else
-	    with_puzzle=no
-	    AC_DEFINE([HAVE_PUZZLE], 0, [for image comparison mode])
-	fi
-	AC_SUBST([with_puzzle])
-	AC_SUBST([PUZZLE_CPPFLAGS])
-	AC_SUBST([PUZZLE_LDFLAGS])
-	AC_SUBST([PUZZLE_LDADD])
-    ])
 
 
 #

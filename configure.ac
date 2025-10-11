@@ -30,8 +30,9 @@ PKG_CHECK_MODULES(CHECK, check >= 0.9.4,
                   AM_CONDITIONAL(HAVE_CHECK, false)
                   )
 
-# Check libpuzzle
-PUZZLE
+AM_PROG_LIBTOOL
+AC_CONFIG_SUBDIRS([third-party/libpuzzle])
+AC_DEFINE([HAVE_PUZZLE], 1, [for image comparison mode])
 
 # Check libarchive
 AC_ARG_WITH([archive],

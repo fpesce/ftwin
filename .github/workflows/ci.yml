@@ -26,7 +26,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          submodules: 'recursive'
           fetch-depth: 0
+
+      - name: Setup third-party dependencies
+        run: ./setup.sh
 
       - name: Install dependencies
         run: |
@@ -34,6 +38,7 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             automake \
+            patch \
             libtool \
             xsltproc \
             libapr1-dev \
@@ -43,12 +48,15 @@ jobs:
             lcov \
             doxygen \
             graphviz \
-            automake \
-            libtool
+            libgd-dev
 
       - name: Configure build
         run: |
-          autoreconf -i
+          autoreconf -isf
+          cd third-party/libpuzzle
+          ./autogen.sh
+          ./configure
+          cd ../..
           ./configure --enable-coverage
 
       - name: Build

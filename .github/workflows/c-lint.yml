@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Run Cppcheck Action
         uses: deep5050/cppcheck-action@main
@@ -29,8 +31,14 @@ jobs:
     name: Clang-Tidy Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Setup third-party dependencies
+        run: ./setup.sh
 
       - name: Install Build Dependencies
         run: |
@@ -38,6 +46,7 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             automake \
+            patch \
             libtool \
             xsltproc \
             libapr1-dev \
@@ -47,12 +56,17 @@ jobs:
             lcov \
             doxygen \
             graphviz \
+            libgd-dev \
             clang-tidy \
             bear
 
       - name: Generate Compilation Database
         run: |
           autoreconf -i
+          cd third-party/libpuzzle
+          ./autogen.sh
+          ./configure
+          cd ../..
           ./configure
           bear -- make -j
 

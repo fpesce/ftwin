@@ -23,6 +23,13 @@
 To build and install `ftwin`, you will need to have the development headers for the dependencies listed above installed on your system. Then, you can run the following commands:
 
 ```bash
+# Initialize and update git submodules
+git submodule update --init --recursive
+
+# Apply patches to third-party dependencies
+./setup.sh
+
+# Configure, build, and install
 ./configure
 make
 sudo make install
