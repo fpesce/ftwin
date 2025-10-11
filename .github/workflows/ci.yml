@@ -32,13 +32,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            pkg-config \
+            automake \
+            libtool \
+            xsltproc \
             libapr1-dev \
             libaprutil1-dev \
             libpcre3-dev \
             check \
             lcov \
-            subunit \
-            python3-junitxml \
             doxygen \
             graphviz \
             automake \

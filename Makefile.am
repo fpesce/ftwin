@@ -77,10 +77,9 @@ bench_ftwin_LDADD = @APR_LIBS@ @APU_LIBS@
 REPORTS_DIR = reports
 DISTCLEANFILES = $(REPORTS_DIR)/benchmarks.json $(REPORTS_DIR)/junit.xml
 
-# Pass environment variables to the 'make check' command.
-# CK_LOG_FILE_NAME tells the check framework to log to a file.
-# CK_LOG_FILE_FORMAT=subunit produces a machine-readable format.
-TESTS_ENVIRONMENT = CK_LOG_FILE_NAME=subunit.log CK_LOG_FILE_FORMAT=subunit
+# By default, the check framework creates a `check_test_log.xml` file.
+# We can set a timeout for the tests.
+TESTS_ENVIRONMENT = CK_DEFAULT_TIMEOUT=60
 
 benchmark: bench_ftwin
 	@echo "--- Running Benchmarks ---"
@@ -90,10 +89,9 @@ benchmark: bench_ftwin
 
 junit:
 	@echo "--- Generating JUnit XML Report ---"
-	rm -f subunit.log
 	$(MAKE) check
 	mkdir -p $(REPORTS_DIR)
-	subunit2junitxml < subunit.log > $(REPORTS_DIR)/junit.xml
+	xsltproc check_unittest.xslt check_log.xml > reports/junit.xml
 	@echo "JUnit XML report generated at $(REPORTS_DIR)/junit.xml"
 
 coverage:
@@ -111,4 +109,4 @@ coverage:
 
 # Hook to clean up generated report files and directories
 clean-local:
-	rm -rf $(REPORTS_DIR) subunit.log
+	rm -rf $(REPORTS_DIR)
