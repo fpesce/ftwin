@@ -56,12 +56,13 @@ jobs:
 
       - name: Generate Compilation Database
         run: |
+          autoreconf -i
+          ./configure
           make vendor
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure
           cd ../..
-          autoreconf -i
           ./configure
           bear -- make -j
 

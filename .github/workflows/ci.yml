@@ -51,12 +51,14 @@ jobs:
 
       - name: Configure build
         run: |
+          autoreconf -isf
+          # Need to generate makefile for vendor target
+          ./configure --enable-coverage
           make vendor
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure
           cd ../..
-          autoreconf -i
           ./configure --enable-coverage
 
       - name: Build
