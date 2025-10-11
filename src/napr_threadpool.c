@@ -372,5 +372,3 @@ static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 	}
     }
 }
-
-

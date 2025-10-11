@@ -13,6 +13,7 @@
 -T apr_size_t
 -T apr_status_t
 -T apr_thread_mutex_t
+-T apr_thread_t
 -T apr_uint32_t
 -T check_heap_numbers_t
 -T filling_t
@@ -33,8 +34,10 @@
 -T napr_heap_display_callback_fn_t
 -T napr_heap_t
 -T napr_list_t
+-T napr_threadpool_t
 -T pthread_mutex_t
 -T size_t
+-T threadpool_process_data_callback_fn_t
 -T time_t
 -T uint16_t
 -T uint32_t
