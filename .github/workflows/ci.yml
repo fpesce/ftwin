@@ -41,8 +41,6 @@ jobs:
             libpcre3-dev \
             check \
             lcov \
-            subunit \
-            python3-junitxml \
             doxygen \
             graphviz
 
