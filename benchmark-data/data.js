@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760179918112,
+  "lastUpdate": 1760192233215,
   "repoUrl": "https://github.com/fpesce/ftwin",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "checksum_file_throughput",
             "value": 1147.26,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ddcdfe0aa3515f53bded9115c18579e09d17702",
+          "message": "Merge pull request #17 from fpesce/feature/vendor-libpuzzle\n\nVendor libpuzzle as a submodule",
+          "timestamp": "2025-10-11T16:13:51+02:00",
+          "tree_id": "bcb82ac84db9ce28d4991d29f65bde198edc9c3a",
+          "url": "https://github.com/fpesce/ftwin/commit/6ddcdfe0aa3515f53bded9115c18579e09d17702"
+        },
+        "date": 1760192232701,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "hash_throughput",
+            "value": 1213.11,
+            "unit": "MB/s"
+          },
+          {
+            "name": "checksum_file_throughput",
+            "value": 1108.58,
             "unit": "MB/s"
           }
         ]
