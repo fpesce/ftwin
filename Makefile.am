@@ -91,7 +91,7 @@ junit:
 	@echo "--- Generating JUnit XML Report ---"
 	$(MAKE) check
 	mkdir -p $(REPORTS_DIR)
-	xsltproc check_unittest.xslt check_test_log.xml > reports/junit.xml
+	xsltproc check_unittest.xslt check_log.xml > reports/junit.xml
 	@echo "JUnit XML report generated at $(REPORTS_DIR)/junit.xml"
 
 coverage:
