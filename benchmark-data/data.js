@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760179109743,
+  "lastUpdate": 1760179918112,
   "repoUrl": "https://github.com/fpesce/ftwin",
   "entries": {
     "Benchmark": [
@@ -67,6 +67,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "checksum_file_throughput",
             "value": 1146.66,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc6fad89614d2ae6692875729861ca93c2a0a9b1",
+          "message": "Update branch name from 'main' to 'master'",
+          "timestamp": "2025-10-11T12:48:51+02:00",
+          "tree_id": "0c0c9f0ac4fadba69201b05866c256e869ab7473",
+          "url": "https://github.com/fpesce/ftwin/commit/bc6fad89614d2ae6692875729861ca93c2a0a9b1"
+        },
+        "date": 1760179917218,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "hash_throughput",
+            "value": 1259.92,
+            "unit": "MB/s"
+          },
+          {
+            "name": "checksum_file_throughput",
+            "value": 1147.26,
             "unit": "MB/s"
           }
         ]
