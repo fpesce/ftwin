@@ -42,6 +42,7 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             automake \
+            patch \
             libtool \
             xsltproc \
             libapr1-dev \
@@ -51,6 +52,7 @@ jobs:
             lcov \
             doxygen \
             graphviz \
+            libgd-dev \
             clang-tidy \
             bear
 
