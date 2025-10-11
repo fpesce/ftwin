@@ -93,7 +93,7 @@ junit:
 	rm -f subunit.log
 	$(MAKE) check
 	mkdir -p $(REPORTS_DIR)
-	subunit2junitxml < subunit.log > $(REPORTS_DIR)/junit.xml
+	cp check_log.xml reports/junit.xml
 	@echo "JUnit XML report generated at $(REPORTS_DIR)/junit.xml"
 
 coverage:
