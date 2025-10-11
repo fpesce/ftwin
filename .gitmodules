@@ -1,0 +1,3 @@
+[submodule "third-party/libpuzzle"]
+	path = third-party/libpuzzle
+	url = https://github.com/jedisct1/libpuzzle

@@ -43,8 +43,7 @@ jobs:
             lcov \
             doxygen \
             graphviz \
-            automake \
-            libtool
+            libgd-dev
 
       - name: Configure build
         run: |

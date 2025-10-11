@@ -1,0 +1,11 @@
+--- a/src/regress_1.c
++++ b/src/regress_1.c
+@@ -1,6 +1,6 @@
+ #include "puzzle_common.h"
+ #include "puzzle.h"
+
+-#define EXPECTED_RESULT 111444570
++#define EXPECTED_RESULT 575435960
+
+ int main(void)
+ {

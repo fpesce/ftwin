@@ -3,6 +3,7 @@ CLEANFILES = *~ check_test_log.xml check_log.xml
 MAINTAINERCLEANFILES = aclocal.m4 Makefile.in compile config.guess config.sub \
                        configure depcomp install-sh ltmain.sh missing
 
+SUBDIRS = third-party/libpuzzle
 bin_PROGRAMS = ftwin
 
 check_PROGRAMS =
@@ -56,16 +57,16 @@ ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)
 check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src/ @COVERAGE_CFLAGS@
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
-check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\"
-ftwin_CPPFLAGS = @APR_CPPFLAGS@ @PUZZLE_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@
+check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\" -I$(top_srcdir)/third-party/libpuzzle/src
+ftwin_CPPFLAGS = @APR_CPPFLAGS@ @ARCHIVE_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -I$(top_srcdir)/third-party/libpuzzle/src
 
 # LDADD and LIBADD are for linking libraries, -L, -l, -dlopen and -dlpreopen options
-check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@
-ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @PUZZLE_LDADD@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@
+check_ftwin_LDADD = @CHECK_LIBS@ @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@ -lgd third-party/libpuzzle/src/libpuzzle.la
+ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @ZLIB_LDADD@ @BZ2_LDADD@ @ARCHIVE_LDADD@ @COVERAGE_LIBS@ -lgd third-party/libpuzzle/src/libpuzzle.la
 
 # LDFLAGS is for additional linker flags
-check_ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @PUZZLE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
-ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @PUZZLE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
+check_ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
+ftwin_LDFLAGS = @ARCHIVE_LDFLAGS@ @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 
 bench_ftwin_SOURCES = check/bench_ftwin.c src/checksum.c src/ft_file.c
 bench_ftwin_CFLAGS = @APR_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src
@@ -106,6 +107,9 @@ coverage:
 	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
 
 .PHONY: benchmark junit coverage
+
+vendor:
+	./setup_vendor.sh
 
 # Hook to clean up generated report files and directories
 clean-local:
