@@ -31,10 +31,14 @@ jobs:
     name: Clang-Tidy Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Setup third-party dependencies
+        run: ./setup.sh
 
       - name: Install Build Dependencies
         run: |
@@ -59,8 +63,6 @@ jobs:
       - name: Generate Compilation Database
         run: |
           autoreconf -i
-          ./configure
-          make vendor
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure
