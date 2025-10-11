@@ -727,7 +727,8 @@ static int chksum_cmp(const void *chksum1, const void *chksum2)
 
 #define NB_WORKER 4
 
-struct compute_vector_ctx_t {
+struct compute_vector_ctx_t
+{
     apr_thread_mutex_t *mutex;
     PuzzleContext *contextp;
     ft_conf_t *conf;
@@ -744,26 +745,26 @@ static apr_status_t compute_vector(void *ctx, void *data)
 
     puzzle_init_cvec(cv_ctx->contextp, &(file->cvec));
     if (0 == puzzle_fill_cvec_from_file(cv_ctx->contextp, &(file->cvec), file->path)) {
-      file->cvec_ok |= 0x1;
+	file->cvec_ok |= 0x1;
     }
     else {
-      DEBUG_ERR("error calling puzzle_fill_cvec_from_file, ignoring file: %s", file->path);
+	DEBUG_ERR("error calling puzzle_fill_cvec_from_file, ignoring file: %s", file->path);
     }
 
     status = apr_thread_mutex_lock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
-      fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
-              (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0));
+	fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
+		(int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0));
     }
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
 
     return APR_SUCCESS;
@@ -793,29 +794,29 @@ static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
     cv_ctx.conf = conf;
     status = apr_thread_mutex_create(&(cv_ctx.mutex), APR_THREAD_MUTEX_DEFAULT, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
     status = napr_threadpool_init(&threadpool, &cv_ctx, NB_WORKER, compute_vector, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
 
     for (i = 0; i < heap_size; i++) {
 
 	file = napr_heap_get_nth(conf->heap, i);
-        status = napr_threadpool_add(threadpool, file);
-        if (APR_SUCCESS != status) {
-          DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, 128));
-          return status;
-        }
+	status = napr_threadpool_add(threadpool, file);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, 128));
+	    return status;
+	}
     }
     napr_threadpool_wait(threadpool);
     status = apr_thread_mutex_destroy(cv_ctx.mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
     if (is_option_set(conf->mask, OPTION_VERBO)) {
 	fprintf(stderr, "\rProgress [%i/%i] %d%% ", i, heap_size, (int) ((float) i / (float) heap_size * 100.0));
@@ -845,11 +846,11 @@ static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
 		}
 		printf("%s", file_cmp->path);
 	    }
-            if (is_option_set(conf->mask, OPTION_VERBO)) {
-                fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-                        (double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
-            }
-            cnt_cmp++;
+	    if (is_option_set(conf->mask, OPTION_VERBO)) {
+		fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
+			(double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
+	    }
+	    cnt_cmp++;
 	}
 
 	if (already_printed)
@@ -858,7 +859,8 @@ static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
 	puzzle_free_cvec(&context, &(file->cvec));
     }
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-        fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp, (double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
+	fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
+		(double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
 	fprintf(stderr, "\n");
     }
 

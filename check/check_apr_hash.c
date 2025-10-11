@@ -65,7 +65,7 @@ START_TEST(test_apr_hash_int)
 
     hash = apr_hash_make_custom(pool, hash_int);
     for (i = 0; i < 5; i++) {
-        apr_hash_set(hash, &(array[i]), sizeof(apr_off_t), array_str[i]);
+	apr_hash_set(hash, &(array[i]), sizeof(apr_off_t), array_str[i]);
     }
 
     val = apr_hash_get(hash, &array[0], sizeof(apr_off_t));

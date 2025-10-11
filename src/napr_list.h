@@ -74,7 +74,7 @@ void napr_list_delete(napr_list_t *napr_list);
  * @param compare The function used to compare two elements.
  * @return 1 if the element is in a napr_list 0 otherwise.
  */
-int napr_list_member(napr_list_t *napr_list, void *element, int (*compare) (const void *key1, const void *key2));
+int napr_list_member(napr_list_t *napr_list, void *element, int (*compare)(const void *key1, const void *key2));
 
 /** 
  * Insert an element in a napr_list, if no element is equal to the one you want to insert (using function to compare)
@@ -83,7 +83,7 @@ int napr_list_member(napr_list_t *napr_list, void *element, int (*compare) (cons
  * @param compare The function used to compare two elements.
  * @return 1 if the element is in a napr_list, -1 if an error occured during insertion, 0 otherwise.
  */
-int napr_list_insert(napr_list_t *napr_list, void *element, int (*compare) (const void *key1, const void *key2));
+int napr_list_insert(napr_list_t *napr_list, void *element, int (*compare)(const void *key1, const void *key2));
 
 /**
  * Insert an element at the end of a list.
