@@ -108,9 +108,6 @@ coverage:
 
 .PHONY: benchmark junit coverage
 
-vendor:
-	./setup_vendor.sh
-
 # Hook to clean up generated report files and directories
 clean-local:
 	rm -rf $(REPORTS_DIR)

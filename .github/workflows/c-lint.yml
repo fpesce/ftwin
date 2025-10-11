@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Run Cppcheck Action
         uses: deep5050/cppcheck-action@main
@@ -31,6 +33,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Install Build Dependencies
         run: |
@@ -52,6 +56,11 @@ jobs:
 
       - name: Generate Compilation Database
         run: |
+          make vendor
+          cd third-party/libpuzzle
+          ./autogen.sh
+          ./configure
+          cd ../..
           autoreconf -i
           ./configure
           bear -- make -j
