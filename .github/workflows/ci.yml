@@ -29,8 +29,8 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      - name: Patch libpuzzle
-        run: cd third-party/libpuzzle && git apply ../../patches/libpuzzle-fix-test.patch
+      - name: Setup third-party dependencies
+        run: ./setup.sh
 
       - name: Install dependencies
         run: |
@@ -38,6 +38,7 @@ jobs:
           sudo apt-get install -y \
             pkg-config \
             automake \
+            patch \
             libtool \
             xsltproc \
             libapr1-dev \
@@ -52,9 +53,6 @@ jobs:
       - name: Configure build
         run: |
           autoreconf -isf
-          # Need to generate makefile for vendor target
-          ./configure --enable-coverage
-          make vendor
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure

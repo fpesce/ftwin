@@ -17,7 +17,8 @@ DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config
 
 EXTRA_DIST = TODO CHANGES EXAMPLES README LICENSE KNOWN_BUGS \
 	     docs/ftwin.8 check/tests/ check/tests/second \
-	     check/tests/truerand check/tests/copyrand check/tests/testrand
+	     check/tests/truerand check/tests/copyrand check/tests/testrand \
+	     setup.sh patches/
 
 man8_MANS = docs/ftwin.8
 
@@ -106,10 +107,10 @@ coverage:
 	genhtml $(REPORTS_DIR)/coverage.info --output-directory $(REPORTS_DIR)/coverage
 	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
 
-.PHONY: benchmark junit coverage vendor
+.PHONY: benchmark junit coverage setup
 
-vendor:
-	./setup_vendor.sh
+setup:
+	./setup.sh
 
 # Hook to clean up generated report files and directories
 clean-local:
