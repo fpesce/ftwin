@@ -69,7 +69,7 @@ jobs:
 
       - name: Generate Compilation Database
         run: |
-          autoreconf -i
+          autoreconf -isf
           cd third-party/libpuzzle
           ./autogen.sh
           ./configure
@@ -78,7 +78,7 @@ jobs:
           ./configure --without-openssl --without-nettle
           cd ../..
           ./configure
-          bear -- make -j
+          bear -- make -j check
 
       - name: Run Clang-Tidy Action
         uses: cpp-linter/cpp-linter-action@v2

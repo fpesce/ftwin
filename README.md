@@ -2,6 +2,8 @@
 
 `ftwin` is a command-line utility for finding and reporting duplicate files. It can identify identical files based on their content or find similar images using the `libpuzzle` library.
 
+**Visit our cool project page at: [fpesce.github.io/ftwin](https://fpesce.github.io/ftwin)**
+
 ## Features
 
 - **Find duplicate files by content:** `ftwin` can recursively scan directories and identify files with the same content.
@@ -15,8 +17,8 @@
 
 - **[APR (Apache Portable Runtime)](https://apr.apache.org/):** A supporting library for the Apache web server, providing a set of APIs that interface with the underlying operating system.
 - **[PCRE (Perl Compatible Regular Expressions)](http://www.pcre.org/):** A library for implementing regular expression pattern matching.
-- **[libpuzzle](https.github.com/fpesce/libpuzzle):** Vendored as a git submodule for finding visually similar images.
-- **[libarchive](https://www.libarchive.org/):** Vendored as a git submodule for reading and writing streaming archive files.
+- **[libpuzzle](https://github.com/jedisct1/libpuzzle):** Vendored as a git submodule for finding visually similar images.
+- **[libarchive](https://github.com/libarchive/libarchive):** Vendored as a git submodule for reading and writing streaming archive files.
 
 ## Installation
 
@@ -29,7 +31,7 @@ git submodule update --init --recursive
 # Apply patches to third-party dependencies
 ./setup.sh
 
-# Configure, build, and install
+# Configure (If configure script is missing, you may need to run: autoreconf -isf)
 ./configure
 make
 sudo make install
@@ -43,24 +45,24 @@ ftwin [OPTION]... [FILES or DIRECTORIES]...
 
 ### Options
 
-- **-c, --case-unsensitive:** Make regex matching case-insensitive.
-- **-d, --display-size:** Display the size of the files before listing duplicates.
-- **-e, --regex-ignore-file `REGEX`:** Ignore files with names that match the given regular expression.
-- **-f, --follow-symlink:** Follow symbolic links.
-- **-h, --help:** Display the usage information.
-- **-I, --image-cmp:** Run in image comparison mode (requires `libpuzzle`).
-- **-T, --image-threshold `LEVEL`:** Set the image similarity threshold (1-5, default is 1). A lower value means more similar.
-- **-i, --ignore-list `LIST`:** A comma-separated list of file names to ignore.
-- **-m, --minimal-length `SIZE`:** The minimum size of files to process.
-- **-o, --optimize-memory:** Reduce memory usage at the cost of increased processing time.
-- **-p, --priority-path `PATH`:** Prioritize files from this path in the duplicate report.
-- **-r, --recurse-subdir:** Recursively search subdirectories.
-- **-s, --separator `CHAR`:** The character to use as a separator between duplicate file paths (default is `\n`).
-- **-t, --tar-cmp:** Process files within `.tar`, `.gz`, and `.bz2` archives (requires `libarchive`).
-- **-v, --verbose:** Display a progress bar.
-- **-V, --version:** Display the version information.
-- **-w, --whitelist-regex-file `REGEX`:** Only process files with names that match the given regular expression.
-- **-x, --excessive-size `SIZE`:** The file size at which to switch off `mmap` usage.
+  - **-c, --case-unsensitive:** Make regex matching case-insensitive.
+  - **-d, --display-size:** Display the size of the files before listing duplicates.
+  - **-e, --regex-ignore-file `REGEX`:** Ignore files with names that match the given regular expression.
+  - **-f, --follow-symlink:** Follow symbolic links.
+  - **-h, --help:** Display the usage information.
+  - **-I, --image-cmp:** Run in image comparison mode (requires `libpuzzle`).
+  - **-T, --image-threshold `LEVEL`:** Set the image similarity threshold (1-5, default is 1). A lower value means more similar.
+  - **-i, --ignore-list `LIST`:** A comma-separated list of file names to ignore.
+  - **-m, --minimal-length `SIZE`:** The minimum size of files to process.
+  - **-o, --optimize-memory:** Reduce memory usage at the cost of increased processing time.
+  - **-p, --priority-path `PATH`:** Prioritize files from this path in the duplicate report.
+  - **-r, --recurse-subdir:** Recursively search subdirectories.
+  - **-s, --separator `CHAR`:** The character to use as a separator between duplicate file paths (default is `\n`).
+  - **-t, --tar-cmp:** Process files within `.tar`, `.gz`, and `.bz2` archives (requires `libarchive`).
+  - **-v, --verbose:** Display a progress bar.
+  - **-V, --version:** Display the version information.
+  - **-w, --whitelist-regex-file `REGEX`:** Only process files with names that match the given regular expression.
+  - **-x, --excessive-size `SIZE`:** The file size at which to switch off `mmap` usage.
 
 ## Examples
 
@@ -98,7 +100,7 @@ cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; d
 
 ## Contributing
 
-Please report any bugs or feature requests on the [GitHub issue tracker](https://github.com/fpesce/ftwin/issues).
+Please report any bugs or feature requests on the [GitHub issue tracker](https://www.google.com/search?q=https://github.com/fpesce/ftwin/issues).
 
 ## License
 
