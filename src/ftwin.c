@@ -621,7 +621,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
     nb_processed = 0;
     nb_files = napr_heap_size(conf->heap);
 
-    tmp_heap = napr_heap_make(ft_file_cmp, NULL);
+    tmp_heap = napr_heap_make(conf->pool, ft_file_cmp);
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
 	    /* More than two files, we will need to checksum because :
@@ -1096,7 +1096,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     return APR_SUCCESS;
 }
 
-int ftwin_main(int argc, const char **argv)
+int main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
@@ -1152,7 +1152,7 @@ int ftwin_main(int argc, const char **argv)
     }
 
     conf.pool = pool;
-    conf.heap = napr_heap_make(ft_file_cmp, NULL);
+    conf.heap = napr_heap_make(pool, ft_file_cmp);
     conf.ig_files = napr_hash_str_make(pool, 32, 8);
     conf.sizes = napr_hash_make(pool, 4096, 8, ft_fsize_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);
     conf.gids = napr_hash_make(pool, 4096, 8, ft_gids_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);

@@ -6,8 +6,12 @@ MAINTAINERCLEANFILES = aclocal.m4 Makefile.in compile config.guess config.sub \
 SUBDIRS = third-party/libpuzzle third-party/libarchive
 bin_PROGRAMS = ftwin
 
-check_PROGRAMS = check_ftwin bench_ftwin
+check_PROGRAMS =
+if HAVE_CHECK
 TESTS = check_ftwin
+check_PROGRAMS += check_ftwin
+endif
+check_PROGRAMS += bench_ftwin
 
 DISTCHECK_CONFIGURE_FLAGS = "--with-apr-config=@apr_config@" "--with-pcre-config=@pcre_config@"
 

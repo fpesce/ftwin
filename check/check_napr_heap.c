@@ -77,7 +77,7 @@ START_TEST(test_napr_heap_unordered_bug)
     check_heap_numbers_t *number;
     int i;
 
-    heap = napr_heap_make_r(check_heap_numbers_cmp, NULL);
+    heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
     napr_heap_set_display_cb(heap, check_heap_numbers_display);
 
     for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
