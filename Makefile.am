@@ -106,7 +106,10 @@ coverage:
 	genhtml $(REPORTS_DIR)/coverage.info --output-directory $(REPORTS_DIR)/coverage
 	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
 
-.PHONY: benchmark junit coverage
+.PHONY: benchmark junit coverage vendor
+
+vendor:
+	./setup_vendor.sh
 
 # Hook to clean up generated report files and directories
 clean-local:
