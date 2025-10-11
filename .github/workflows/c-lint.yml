@@ -1,0 +1,77 @@
+name: C Project Linting & Static Analysis
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  cppcheck:
+    name: Cppcheck Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run Cppcheck Action
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          force_language: c
+          std: c11
+          platform: unix64
+          enable: all
+          inconclusive: enable
+          # Optional: Add other options like 'exclude_check' or 'suppress'
+          # exclude_check:./third-party/
+          # other_options: --bug-hunting
+
+  clang-tidy:
+    name: Clang-Tidy Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            automake \
+            libtool \
+            xsltproc \
+            libapr1-dev \
+            libaprutil1-dev \
+            libpcre3-dev \
+            check \
+            lcov \
+            doxygen \
+            graphviz \
+            clang-tidy \
+            bear
+
+      - name: Generate Compilation Database
+        run: |
+          autoreconf -i
+          ./configure
+          bear -- make -j
+
+      - name: Run Clang-Tidy Action
+        uses: cpp-linter/cpp-linter-action@v2
+        id: linter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          build-dir: '.' # The compilation database is at the root
+          style: '' # Disable clang-format
+          tidy-checks: '' # Use .clang-tidy file from repo
+          thread-comments: 'update'
+          file-annotations: true
+          # Continue even if errors are found to allow the final step to report
+          continue-on-error: true
+
+      - name: Report Linting Failure
+        if: steps.linter.outputs.checks-failed > 0
+        run: |
+          echo "::error::Clang-Tidy detected issues. Please review the annotations and PR comment."
+          exit 1
