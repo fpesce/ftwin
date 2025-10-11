@@ -1,0 +1,1 @@
+genhtml reports/coverage.info --output-directory reports/coverage
