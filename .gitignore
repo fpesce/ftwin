@@ -81,3 +81,27 @@ test-suite.log
 /third-party/libpuzzle/Makefile.in
 /third-party/libpuzzle/src/Makefile.in
 /third-party/libpuzzle/stamp-h1
+
+# libarchive build artifacts
+/third-party/libarchive/Makefile
+/third-party/libarchive/Makefile.in
+/third-party/libarchive/config.h
+/third-party/libarchive/config.h.in
+/third-party/libarchive/config.log
+/third-party/libarchive/config.status
+/third-party/libarchive/stamp-h1
+/third-party/libarchive/aclocal.m4
+/third-party/libarchive/autom4te.cache
+/third-party/libarchive/compile
+/third-party/libarchive/config.guess
+/third-party/libarchive/config.sub
+/third-party/libarchive/configure
+/third-party/libarchive/depcomp
+/third-party/libarchive/install-sh
+/third-party/libarchive/ltmain.sh
+/third-party/libarchive/missing
+/third-party/libarchive/libtool
+/third-party/libarchive/.deps/
+/third-party/libarchive/.libs/
+/third-party/libarchive/**/*.lo
+/third-party/libarchive/**/*.la
