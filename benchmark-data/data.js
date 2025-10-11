@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1760197304816,
+  "lastUpdate": 1760197511930,
   "repoUrl": "https://github.com/fpesce/ftwin",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "checksum_file_throughput",
             "value": 1109.41,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "committer": {
+            "email": "francois.pesce@gmail.com",
+            "name": "Francois Pesce",
+            "username": "fpesce"
+          },
+          "distinct": true,
+          "id": "e03674a3c2824c4dbbf75d46c1b9fc8af72bbc5c",
+          "message": "Merge remote-tracking branch 'refs/remotes/origin/master'",
+          "timestamp": "2025-10-11T15:38:42Z",
+          "tree_id": "479767a969f9e608eaa32a204fa8d7b9928650ef",
+          "url": "https://github.com/fpesce/ftwin/commit/e03674a3c2824c4dbbf75d46c1b9fc8af72bbc5c"
+        },
+        "date": 1760197511598,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "hash_throughput",
+            "value": 1257.04,
+            "unit": "MB/s"
+          },
+          {
+            "name": "checksum_file_throughput",
+            "value": 1146.89,
             "unit": "MB/s"
           }
         ]
