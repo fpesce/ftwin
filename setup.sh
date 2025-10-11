@@ -105,9 +105,18 @@ main() {
         print_warn "Make sure submodules are initialized: git submodule update --init --recursive"
     fi
 
-    # Add more patches here as needed
-    # Example:
-    # apply_patch "${THIRD_PARTY_DIR}/other-lib" "${PATCHES_DIR}/other-lib.patch"
+    # Check libarchive (no patches needed at the moment)
+    LIBARCHIVE_DIR="${THIRD_PARTY_DIR}/libarchive"
+
+    if [ -d "${LIBARCHIVE_DIR}" ]; then
+        print_info "libarchive directory found: ${LIBARCHIVE_DIR}"
+        # If patches are needed in the future, add them here:
+        # LIBARCHIVE_PATCH="${PATCHES_DIR}/libarchive-something.patch"
+        # apply_patch "${LIBARCHIVE_DIR}" "${LIBARCHIVE_PATCH}" || exit 1
+    else
+        print_warn "libarchive directory not found: ${LIBARCHIVE_DIR}"
+        print_warn "Make sure submodules are initialized: git submodule update --init --recursive"
+    fi
 
     print_info "Third-party dependency setup completed successfully"
 }

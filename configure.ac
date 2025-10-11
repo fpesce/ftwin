@@ -31,22 +31,9 @@ PKG_CHECK_MODULES(CHECK, check >= 0.9.4,
                   )
 
 AM_PROG_LIBTOOL
-AC_CONFIG_SUBDIRS([third-party/libpuzzle])
+AC_CONFIG_SUBDIRS([third-party/libpuzzle third-party/libarchive])
 AC_DEFINE([HAVE_PUZZLE], 1, [for image comparison mode])
-
-# Check libarchive
-AC_ARG_WITH([archive],
-            [AS_HELP_STRING([--with-archive], [/absolute/path/to/libarchive-base])],
-            [ARCHIVE_LDFLAGS="-L$with_archive/lib";
-             ARCHIVE_LDADD="-larchive";
-             ARCHIVE_CPPFLAGS="-I$with_archive/include/";
-             AC_SUBST(ARCHIVE_LDFLAGS)
-             AC_SUBST(ARCHIVE_LDADD)
-             AC_SUBST(ARCHIVE_CPPFLAGS)
-             AC_MSG_RESULT([$with_archive])
-             AC_DEFINE(HAVE_ARCHIVE, 1, [libarchive available in the system])
-             ],
-            [AC_MSG_RESULT([no])])
+AC_DEFINE([HAVE_ARCHIVE], 1, [libarchive available from submodule])
 
 # Check zlib
 ZLIB
@@ -71,8 +58,8 @@ esac
 AC_MSG_RESULT([
 ** Configuration summary for $PACKAGE $VERSION:
 
-   Support for puzzle library:       $with_puzzle
-   Support for archive library:      $with_archive
+   Support for puzzle library:       yes (vendored)
+   Support for archive library:      yes (vendored)
    Support for zlib library:         $with_zlib
    Support for bz2 library:          $with_bz2
 ])
