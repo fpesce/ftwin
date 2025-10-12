@@ -99,7 +99,7 @@ typedef struct ft_file_t
 
 typedef struct ft_chksum_t
 {
-    apr_uint32_t val_array[HASHSTATE];	/* 256 bits (using Bob Jenkins http://www.burtleburtle.net/bob/c/checksum.c) */
+    ft_hash_t hash_value;
     ft_file_t *file;
 } ft_chksum_t;
 
@@ -658,7 +658,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		/* no multiple check, just a memcmp will be needed, don't call checksum on 0-length file too */
 		if ((2 == fsize->nb_files) || (0 == fsize->val)) {
 		    /*DEBUG_DBG("two files of size %"APR_OFF_T_FMT, fsize->val); */
-		    memset(fsize->chksum_array[fsize->nb_checksumed].val_array, 0, HASHSTATE * sizeof(apr_int32_t));
+		    memset(&fsize->chksum_array[fsize->nb_checksumed].hash_value, 0, sizeof(ft_hash_t));
 		}
 		else {
 		    char *filepath;
@@ -679,7 +679,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 #endif
 		    status =
 			checksum_file(filepath, file->size, conf->excess_size,
-				      fsize->chksum_array[fsize->nb_checksumed].val_array, gc_pool);
+				      &fsize->chksum_array[fsize->nb_checksumed].hash_value, gc_pool);
 #if HAVE_ARCHIVE
 		    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != file->subpath))
 			apr_file_remove(filepath, gc_pool);
@@ -728,11 +728,10 @@ static int chksum_cmp(const void *chksum1, const void *chksum2)
     const ft_chksum_t *chk2 = chksum2;
     int i;
 
-    if (0 == (i = memcmp(chk1->val_array, chk2->val_array, HASHSTATE))) {
+    i = memcmp(&chk1->hash_value, &chk2->hash_value, sizeof(ft_hash_t));
+
+    if (0 == i) {
 	return chk1->file->prioritized - chk2->file->prioritized;
-    }
-    else {
-	i <<= 1;
     }
 
     return i;
@@ -918,7 +917,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 		    continue;
 		already_printed = 0;
 		for (j = i + 1; j < fsize->nb_files; j++) {
-		    if (0 == memcmp(fsize->chksum_array[i].val_array, fsize->chksum_array[j].val_array, HASHSTATE)) {
+		    if (0 == memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
 			char *fpathi, *fpathj;
 #if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {

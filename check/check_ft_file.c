@@ -49,32 +49,31 @@ static const char *fname3 = CHECK_DIR "/tests/testrand";
 START_TEST(test_checksum_file)
 {
     apr_status_t status;
-    apr_uint32_t val_array[HASHSTATE];
-    apr_uint32_t val_array2[HASHSTATE];
+    ft_hash_t hash1, hash2;
     int rv;
 
-    status = checksum_file(fname1, size1, 2 * size1, val_array, pool);
+    status = checksum_file(fname1, size1, 2 * size1, &hash1, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    status = checksum_file(fname2, size1, 2 * size1, val_array2, pool);
+    status = checksum_file(fname2, size1, 2 * size1, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    rv = memcmp(val_array, val_array2, HASHSTATE);
+    rv = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_eq(rv, 0);
 
-    status = checksum_file(fname3, size1, 2 * size1, val_array2, pool);
+    status = checksum_file(fname3, size1, 2 * size1, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    rv = memcmp(val_array, val_array2, HASHSTATE);
+    rv = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_ne(rv, 0);
 
-    status = checksum_file(fname1, size1, size1 / 2, val_array, pool);
+    status = checksum_file(fname1, size1, size1 / 2, &hash1, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    status = checksum_file(fname2, size1, size1 / 2, val_array2, pool);
+    status = checksum_file(fname2, size1, size1 / 2, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    rv = memcmp(val_array, val_array2, HASHSTATE);
+    rv = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_eq(rv, 0);
 
-    status = checksum_file(fname3, size1, size1 / 2, val_array2, pool);
+    status = checksum_file(fname3, size1, size1 / 2, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    rv = memcmp(val_array, val_array2, HASHSTATE);
+    rv = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_ne(rv, 0);
 }
 /* *INDENT-OFF* */
