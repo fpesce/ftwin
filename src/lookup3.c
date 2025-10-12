@@ -1014,7 +1014,7 @@ void driver2()
 		    if (k == MAXPAIR) {
 			printf("Some bit didn't change: ");
 			printf("%.8x %.8x %.8x %.8x %.8x %.8x  ", e[0], f[0], g[0], h[0], x[0], y[0]);
-			printf("i %d j %d m %d len %d\n", i, j, m, hlen);
+			printf("i %u j %u m %u len %u\n", i, j, m, hlen);
 		    }
 		    if (z == MAXPAIR)
 			goto done;
@@ -1023,8 +1023,8 @@ void driver2()
 	}
       done:
 	if (z < MAXPAIR) {
-	    printf("Mix success  %2d bytes  %2d initvals  ", i, m);
-	    printf("required  %d  trials\n", z / 2);
+	    printf("Mix success  %2u bytes  %2u initvals  ", i, m);
+	    printf("required  %u  trials\n", z / 2);
 	}
     }
     printf("\n");
@@ -1111,7 +1111,7 @@ void driver3()
 	    x = hashlittle(b, len, (uint32_t) 1);
 	    y = hashlittle(b, len, (uint32_t) 1);
 	    if ((ref != x) || (ref != y)) {
-		printf("alignment error: %.8x %.8x %.8x %d %d\n", ref, x, y, h, i);
+		printf("alignment error: %.8x %.8x %.8x %u %u\n", ref, x, y, h, i);
 	    }
 	}
     }
@@ -1130,7 +1130,7 @@ void driver4()
     printf("These should all be different\n");
     for (i = 0, h = 0; i < 8; ++i) {
 	h = hashlittle(buf, 0, h);
-	printf("%2d  0-byte strings, hash is  %.8x\n", i, h);
+	printf("%2u  0-byte strings, hash is  %.8x\n", i, h);
     }
 }
 

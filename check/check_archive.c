@@ -46,16 +46,15 @@ START_TEST(test_archive_regex)
     /* Simple test to verify ftwin_main can be called with archive options
      * More comprehensive output testing would require additional infrastructure
      */
-    const char *argv[] = {"ftwin", "-h", NULL};
+    const char *argv[] = { "ftwin", "-h", NULL };
     int argc = 2;
     int result = ftwin_main(argc, argv);
 
     /* -h should return 0 (success) */
     ck_assert_int_eq(result, 0);
 }
-END_TEST
 
-Suite *make_archive_suite(void)
+END_TEST Suite * make_archive_suite(void)
 {
     Suite *s;
     TCase *tc_core;

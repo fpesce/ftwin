@@ -347,7 +347,7 @@ void driver2()
 			    if (e[l] | f[l] | g[l] | h[l] | x[l] | y[l])
 				break;
 			}
-			bob = e[l] ? e : f[l] ? f : g[l] ? g : h[l] ? h : x[l] ? x : y;
+			bob = (l < HASHSTATE) ? (e[l] ? e : f[l] ? f : g[l] ? g : h[l] ? h : x[l] ? x : y) : y;
 			printf("Some bit didn't change: ");
 			for (l = 0; l < HASHSTATE; ++l)
 			    printf("%.8x ", bob[l]);
