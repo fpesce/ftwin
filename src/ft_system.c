@@ -41,5 +41,6 @@ unsigned int ft_get_cpu_cores(void)
 #endif
 
     /* Fallback to a reasonable default */
+    // cppcheck-suppress duplicateBreak
     return 4;
 }
