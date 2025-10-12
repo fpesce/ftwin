@@ -53,8 +53,11 @@ START_TEST(test_archive_regex)
     /* -h should return 0 (success) */
     ck_assert_int_eq(result, 0);
 }
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
 
-END_TEST Suite * make_archive_suite(void)
+Suite *make_archive_suite(void)
 {
     Suite *s;
     TCase *tc_core;

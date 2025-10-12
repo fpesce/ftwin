@@ -15,7 +15,12 @@ ftwin \- find duplicate files
 .PP
 ftwin reports two files if they are duplicates from each other.
 .PP
+By default ftwin will recurse in subdirectories and ignore hidden files.
+.PP
 Mandatory arguments to long options are mandatory for short options too.
+.TP
+\fB\-a\fR, \fB\-\-hidden\fR
+do not ignore hidden files.
 .TP
 \fB\-c\fR, \fB\-\-case-unsensitive\fR
 this option applies to regex match, \fB\-e\fR or \fB\-w\fR.
@@ -52,7 +57,10 @@ reduce memory usage, but increase process time. (This option is not implemented 
 file in this path are displayed first when duplicates are reported.
 .TP
 \fB\-r\fR, \fB\-\-recurse-subdir\fR
-recurse subdirectories.
+recurse subdirectories (default: on).
+.TP
+\fB\-R\fR, \fB\-\-no-recurse\fR
+do not recurse in subdirectories.
 .TP
 \fB\-s\fR, \fB\-\-separator\fR \fIcharacter\fR
 separator character between twins, default: \\n.
