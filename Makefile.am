@@ -112,10 +112,18 @@ coverage:
 	genhtml $(REPORTS_DIR)/coverage.info --output-directory $(REPORTS_DIR)/coverage
 	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
 
-.PHONY: benchmark junit coverage setup build-subdirs
+.PHONY: benchmark junit coverage setup build-subdirs cppcheck
 
 setup:
 	./setup.sh
+
+cppcheck:
+	@echo "--- Running cppcheck static analysis ---"
+	@if [ ! -f scripts/run-cppcheck.sh ]; then \
+		echo "Error: scripts/run-cppcheck.sh not found"; \
+		exit 1; \
+	fi
+	@./scripts/run-cppcheck.sh
 
 # Define a phony target to ensure subdirectories are built (make all)
 build-subdirs:

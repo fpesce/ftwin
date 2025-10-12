@@ -215,7 +215,9 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
 	napr_hash_search(hash, tmp, strlen(tmp), &hash_value);
 	napr_hash_set(hash, tmp, hash_value);
 
-	filename = end + 1;
+	if (NULL != end) {
+	    filename = end + 1;
+	}
     } while ((NULL != end) && ('\0' != *filename));
 }
 
@@ -1039,10 +1041,10 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
 }
 
 static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg,
-                                 const char *arg)
+				 const char *arg)
 {
     if (error_msg) {
-        fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
+	fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
     }
     usage(name, opt_option);
     exit(EXIT_FAILURE);

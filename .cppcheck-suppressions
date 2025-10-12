@@ -1,0 +1,43 @@
+# Suppress unused function warnings for library code
+# These functions are part of the public API and may be used by external code
+unusedFunction:src/checksum.c:156
+unusedFunction:src/lookup3.c:745
+unusedFunction:src/napr_hash.c:267
+unusedFunction:src/napr_hash.c:302
+unusedFunction:src/napr_hash.c:292
+unusedFunction:src/napr_hash.c:287
+unusedFunction:src/napr_hash.c:336
+unusedFunction:src/napr_heap.c:104
+unusedFunction:src/napr_heap.c:346
+unusedFunction:src/napr_heap.c:312
+unusedFunction:src/napr_heap.c:55
+unusedFunction:src/napr_list.c:44
+unusedFunction:src/napr_list.c:125
+unusedFunction:src/napr_list.c:172
+unusedFunction:src/napr_list.c:177
+unusedFunction:src/napr_list.c:183
+
+# Suppress unread variable warnings in ftwin.c for intentionally unused variables
+unreadVariable:src/ftwin.c:240
+unreadVariable:src/ftwin.c:389
+
+# Suppress variable scope warnings - these are style preferences
+variableScope:src/ftwin.c:495
+variableScope:src/ftwin.c:1081
+variableScope:src/napr_heap.c:183
+
+# Suppress bitwise on boolean warning - this is intentional for optimization
+bitwiseOnBoolean:src/napr_hash.c:241
+
+# Suppress function argument name difference warnings
+funcArgNamesDifferent:src/napr_hash.c:316
+
+# Suppress variable scope warnings for test code in lookup3.c
+unreadVariable:src/lookup3.c:967
+unassignedVariable:src/lookup3.c:1036
+
+# Suppress unassigned variable in checksum.c test code - buf is used via pointer b
+unassignedVariable:src/checksum.c
+
+# Missinginclude warning is expected as we're not providing all system headers
+missingInclude

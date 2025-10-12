@@ -56,7 +56,9 @@ START_TEST(test_ftwin_size_options)
 
     system("cp check/tests/5K_file check/tests/5K_file_copy");
 
-    const char *argv[] = {"ftwin", "-m", "2K", "-M", "8K", "check/tests/1K_file", "check/tests/5K_file", "check/tests/10K_file", "check/tests/5K_file_copy"};
+    const char *argv[] =
+	{ "ftwin", "-m", "2K", "-M", "8K", "check/tests/1K_file", "check/tests/5K_file", "check/tests/10K_file",
+"check/tests/5K_file_copy" };
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     ftwin_main(argc, argv);
@@ -76,9 +78,8 @@ START_TEST(test_ftwin_size_options)
 
     remove("check/tests/5K_file_copy");
 }
-END_TEST
 
-Suite *make_ftwin_suite(void)
+END_TEST Suite * make_ftwin_suite(void)
 {
     Suite *s = suite_create("Ftwin");
     TCase *tc_core = tcase_create("Core");
@@ -133,13 +134,13 @@ int main(int argc, char **argv)
 	srunner_add_suite(sr, make_ft_file_suite());
 
     if (!num || num == 4)
-    srunner_add_suite(sr, make_archive_suite());
+	srunner_add_suite(sr, make_archive_suite());
 
     if (!num || num == 5)
-    srunner_add_suite(sr, make_human_size_suite());
+	srunner_add_suite(sr, make_human_size_suite());
 
-if (!num || num == 6)
-srunner_add_suite(sr, make_ftwin_suite());
+    if (!num || num == 6)
+	srunner_add_suite(sr, make_ftwin_suite());
 
     srunner_set_fork_status(sr, CK_NOFORK);
     srunner_set_xml(sr, "check_log.xml");
