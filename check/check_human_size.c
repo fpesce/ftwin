@@ -36,7 +36,9 @@ START_TEST(test_format_human_size)
     // Test TiB
     ck_assert_str_eq(format_human_size(1024LL * 1024LL * 1024LL * 1024LL, pool), "1.0 TiB");
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 START_TEST(test_parse_human_size_valid)
 {

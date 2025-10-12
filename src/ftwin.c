@@ -996,8 +996,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 #if HAVE_ARCHIVE
 			    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
 				printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path,
-				       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[j].file->subpath,
-				       color_reset);
+				       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[j].file->subpath, color_reset);
 			    else
 #endif
 				printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);

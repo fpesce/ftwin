@@ -7,19 +7,20 @@
 
 const char *format_human_size(apr_off_t size, apr_pool_t *pool)
 {
-    const char *units[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+    const char *units[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
     int i = 0;
-    double readable_size = (double)size;
+    double readable_size = (double) size;
 
     while (readable_size >= 1024.0 && i < (sizeof(units) / sizeof(units[0]) - 1)) {
-        readable_size /= 1024.0;
-        i++;
+	readable_size /= 1024.0;
+	i++;
     }
 
     if (i == 0) {
-        return apr_psprintf(pool, "%d %s", (int)readable_size, units[i]);
-    } else {
-        return apr_psprintf(pool, "%.1f %s", readable_size, units[i]);
+	return apr_psprintf(pool, "%d %s", (int) readable_size, units[i]);
+    }
+    else {
+	return apr_psprintf(pool, "%.1f %s", readable_size, units[i]);
     }
 }
 
