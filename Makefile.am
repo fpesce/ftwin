@@ -39,6 +39,7 @@ noinst_HEADERS = src/debug.h \
 		  src/lookup3.h \
 		  src/ft_file.h \
 		  src/ftwin.h \
+		  src/human_size.h \
 		  src/napr_threadpool.h
 
 ftwin_SOURCES = src/ftwin.c \
@@ -47,12 +48,14 @@ ftwin_SOURCES = src/ftwin.c \
 		   src/checksum.c \
 		   src/lookup3.c \
 		   src/ft_file.c \
+		   src/human_size.c \
 		   src/napr_threadpool.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
 		      src/checksum.c check/check_archive.c src/ftwin.c \
-		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c
+		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c \
+		      check/check_human_size.c src/human_size.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@

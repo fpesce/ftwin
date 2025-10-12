@@ -44,6 +44,7 @@
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
+#include "human_size.h"
 #include "napr_heap.h"
 #include "napr_threadpool.h"
 
@@ -110,6 +111,7 @@ typedef struct ft_gid_t
 typedef struct ft_conf_t
 {
     apr_off_t minsize;
+    apr_off_t maxsize;
     apr_off_t excess_size;	/* Switch off mmap behavior */
 #if HAVE_PUZZLE
     double threshold;
@@ -408,7 +410,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 
 	do {
 #endif
-	    if (finfosize >= conf->minsize
+	    if (finfosize >= conf->minsize && (conf->maxsize == 0 || finfosize <= conf->maxsize)
 #if HAVE_ARCHIVE
 		&& ((NULL == a) || ((NULL != entry) && !(AE_IFDIR & archive_entry_filetype(entry))))
 #endif
@@ -1036,6 +1038,16 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     }
 }
 
+static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg,
+                                 const char *arg)
+{
+    if (error_msg) {
+        fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
+    }
+    usage(name, opt_option);
+    exit(EXIT_FAILURE);
+}
+
 static apr_status_t ft_pcre_free_cleanup(void *pcre_space)
 {
     pcre_free(pcre_space);
@@ -1111,6 +1123,7 @@ int ftwin_main(int argc, const char **argv)
 #endif
 	{"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
 	{"minimal-length", 'm', TRUE, "minimum size of file to process."},
+	{"max-size", 'M', TRUE, "maximum size of file to process."},
 	{"optimize-memory", 'o', FALSE, "reduce memory usage, but increase process time."},
 	{"priority-path", 'p', TRUE, "\tfile in this path are displayed first when\n\t\t\t\tduplicates are reported."},
 	{"recurse-subdir", 'r', FALSE, "recurse subdirectories."},
@@ -1167,6 +1180,7 @@ int ftwin_main(int argc, const char **argv)
     conf.p_path = NULL;
     conf.p_path_len = 0;
     conf.minsize = 0;
+    conf.maxsize = 0;
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
     conf.mask = 0x0000;
@@ -1226,11 +1240,15 @@ int ftwin_main(int argc, const char **argv)
 	    break;
 #endif
 	case 'm':
-	    conf.minsize = strtoul(optarg, NULL, 10);
-	    if (ULONG_MAX == conf.minsize) {
-		DEBUG_ERR("can't parse %s for -m / --minimal-length", optarg);
-		apr_terminate();
-		return -1;
+	    conf.minsize = parse_human_size(optarg);
+	    if (conf.minsize < 0) {
+		print_usage_and_exit(argv[0], opt_option, "Invalid size for --minimal-length:", optarg);
+	    }
+	    break;
+	case 'M':
+	    conf.maxsize = parse_human_size(optarg);
+	    if (conf.maxsize < 0) {
+		print_usage_and_exit(argv[0], opt_option, "Invalid size for --max-size:", optarg);
 	    }
 	    break;
 	case 'o':
