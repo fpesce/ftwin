@@ -190,3 +190,22 @@ void *napr_list_get(napr_cell_t *cell)
 {
     return cell->data;
 }
+
+int napr_list_count(const napr_list_t *list)
+{
+    return list->nb_cells;
+}
+
+void **napr_list_to_array(apr_pool_t *p, const napr_list_t *list)
+{
+    void **array = apr_palloc(p, sizeof(void *) * list->nb_cells);
+    napr_cell_t *cell = list->head;
+    int i = 0;
+
+    while (cell) {
+        array[i++] = cell->data;
+        cell = cell->next;
+    }
+
+    return array;
+}

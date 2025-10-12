@@ -19,6 +19,7 @@
 
 #include <apr.h>
 #include <apr_pools.h>
+
 typedef struct napr_hash_t napr_hash_t;
 typedef struct napr_hash_index_t napr_hash_index_t;
 

@@ -38,6 +38,8 @@ noinst_HEADERS = src/debug.h \
 		  src/checksum.h \
 		  src/lookup3.h \
 		  src/ft_file.h \
+		  src/ft_file_types.h \
+		  src/ft_hashing.h \
 		  src/ftwin.h \
 		  src/human_size.h \
 		  src/napr_threadpool.h
@@ -48,8 +50,10 @@ ftwin_SOURCES = src/ftwin.c \
 		   src/vendor/xxhash/xxhash.c \
 		   src/lookup3.c \
 		   src/ft_file.c \
+		   src/ft_hashing.c \
 		   src/human_size.c \
-		   src/napr_threadpool.c
+		   src/napr_threadpool.c \
+		   src/napr_list.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \

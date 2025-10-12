@@ -249,3 +249,54 @@ extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fn
 
     return big_filecmp(pool, fname1, fname2, size, i);
 }
+
+apr_status_t checksum_file_optimized(const char *fname, apr_off_t size, apr_off_t max_size, ft_hash_t *hash, apr_pool_t *pool)
+{
+    apr_file_t *file = NULL;
+    apr_status_t status;
+    apr_off_t read_size = (max_size > 0 && max_size < size) ? max_size : size;
+
+    status = apr_file_open(&file, fname, APR_READ | APR_BINARY, APR_OS_DEFAULT, pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    if (read_size > 0) {
+        apr_mmap_t *mmap;
+        if (apr_mmap_create(&mmap, file, 0, (apr_size_t)read_size, APR_MMAP_READ, pool) == APR_SUCCESS) {
+            *hash = XXH3_128bits(mmap->mm, (size_t)read_size);
+            apr_mmap_delete(mmap);
+            apr_file_close(file);
+            return APR_SUCCESS;
+        }
+    }
+
+    /* Fallback to buffered I/O */
+    XXH3_state_t *const state = XXH3_createState();
+    if (state == NULL) {
+        apr_file_close(file);
+        return APR_ENOMEM;
+    }
+
+    XXH3_128bits_reset(state);
+    char *buffer = apr_palloc(pool, HUGE_LEN);
+    apr_size_t bytes_read;
+
+    while (read_size > 0) {
+        bytes_read = (apr_size_t)FTWIN_MIN((apr_off_t)HUGE_LEN, read_size);
+        status = apr_file_read_full(file, buffer, bytes_read, NULL);
+        if (status != APR_SUCCESS) {
+            XXH3_freeState(state);
+            apr_file_close(file);
+            return status;
+        }
+        XXH3_128bits_update(state, buffer, bytes_read);
+        read_size -= bytes_read;
+    }
+
+    *hash = XXH3_128bits_digest(state);
+    XXH3_freeState(state);
+    apr_file_close(file);
+
+    return APR_SUCCESS;
+}

@@ -27,6 +27,8 @@
 /* hash result is not the same for a same file whether it is considered as big or small, so use carefully */
 apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out,
 			   apr_pool_t *gc_pool);
+apr_status_t checksum_file_optimized(const char *fname, apr_off_t size, apr_off_t max_size, ft_hash_t *hash,
+				     apr_pool_t *pool);
 
 apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
 		     int *i);

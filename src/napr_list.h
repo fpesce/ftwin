@@ -129,4 +129,20 @@ napr_cell_t *napr_list_prev(napr_cell_t *cell);
  * @return The content of an element of type cell_t, NULL if cell is empty.
  */
 void *napr_list_get(napr_cell_t *cell);
+
+/**
+ * Get the number of elements in a list.
+ * @param napr_list The list you are working on.
+ * @return The number of elements in the list.
+ */
+int napr_list_count(const napr_list_t *list);
+
+/**
+ * Convert a list to an array.
+ * @param p The pool to use for the array allocation.
+ * @param list The list to convert.
+ * @return A pointer to the newly allocated array.
+ */
+void **napr_list_to_array(apr_pool_t *p, const napr_list_t *list);
+
 #endif /* NAPR_LIST_H */
