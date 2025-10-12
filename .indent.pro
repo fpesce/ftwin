@@ -21,6 +21,7 @@
 -T ft_conf_t
 -T ft_file_t
 -T ft_fsize_t
+-T ft_hash_t
 -T function_callback_fn_t
 -T get_key_callback_fn_t
 -T get_key_len_callback_fn_t
@@ -42,3 +43,4 @@
 -T uint16_t
 -T uint32_t
 -T uint8_t
+-T XXH3_state_t

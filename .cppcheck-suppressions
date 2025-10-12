@@ -39,3 +39,9 @@ unassignedVariable:src/checksum.c
 
 # Missinginclude warning is expected as we're not providing all system headers
 missingInclude
+
+# Suppress warnings for vendor/third-party code (xxhash library)
+# These are style warnings in well-established third-party code that we don't modify
+toomanyconfigs:src/vendor/xxhash/*
+bitwiseOnBoolean:src/vendor/xxhash/*
+funcArgNamesDifferent:src/vendor/xxhash/*

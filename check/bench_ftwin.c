@@ -38,25 +38,23 @@ int main(int argc, const char *const *argv)
 
 static void run_hash_benchmark(apr_pool_t *pool)
 {
-    ub1 *buffer = malloc(BUFFER_SIZE);
+    unsigned char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
 	fprintf(stderr, "Failed to allocate buffer for hash benchmark.\n");
 	return;
     }
 
     for (size_t i = 0; i < BUFFER_SIZE; ++i) {
-	buffer[i] = (ub1) (i % 256);
+	buffer[i] = (unsigned char) (i % 256);
     }
-    apr_uint32_t state[HASHSTATE];
 
     apr_time_t start_time = apr_time_now();
 
+    volatile ft_hash_t hash_result;
     for (int i = 0; i < ITERATIONS; ++i) {
-	for (int j = 0; j < HASHSTATE; ++j) {
-	    state[j] = 0;
-	}
-	hash(buffer, BUFFER_SIZE, state);
+	hash_result = XXH3_128bits(buffer, BUFFER_SIZE);
     }
+    (void)hash_result;  // Suppress unused variable warning while preventing optimization
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
@@ -99,15 +97,12 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     free(buffer);
     apr_file_close(file);
 
-    apr_uint32_t state[HASHSTATE];
+    ft_hash_t hash_result;
 
     apr_time_t start_time = apr_time_now();
 
     for (int i = 0; i < ITERATIONS; ++i) {
-	for (int j = 0; j < HASHSTATE; ++j) {
-	    state[j] = 0;
-	}
-	checksum_file(filename, FILE_SIZE, EXCESS_SIZE, state, pool);
+	checksum_file(filename, FILE_SIZE, EXCESS_SIZE, &hash_result, pool);
     }
 
     apr_time_t end_time = apr_time_now();

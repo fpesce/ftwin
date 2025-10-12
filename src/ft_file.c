@@ -22,20 +22,17 @@
 #include "debug.h"
 #include "ft_file.h"
 
-static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool);
+static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool);
 static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i);
 
-/*#define HUGE_LEN 8192*/
-#define HUGE_LEN 4096
+#define HUGE_LEN (64 * 1024)
 
-static apr_status_t checksum_small_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
+static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {
     char errbuf[128];
     apr_file_t *fd = NULL;
     apr_mmap_t *mm;
     apr_status_t status;
-    apr_uint32_t i;
-    apr_off_t rbytes;
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
@@ -45,18 +42,10 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
     status = apr_mmap_create(&mm, fd, 0, (apr_size_t) size, APR_MMAP_READ, gc_pool);
     if (APR_SUCCESS != status) {
 	apr_file_close(fd);
-	return checksum_big_file(filename, size, state, gc_pool);
+	return checksum_big_file(filename, size, hash_out, gc_pool);
     }
 
-    for (i = 0; i < HASHSTATE; ++i)
-	state[i] = 1;
-
-    rbytes = 0;
-    do {
-	hash(mm->mm + rbytes, FTWIN_MIN(HUGE_LEN, size), state);
-	rbytes += FTWIN_MIN(HUGE_LEN, size);
-	size -= HUGE_LEN;
-    } while (size > 0);
+    *hash_out = XXH3_128bits(mm->mm, (size_t) size);
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
@@ -71,35 +60,48 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ap
     return APR_SUCCESS;
 }
 
-static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_uint32_t *state, apr_pool_t *gc_pool)
+static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {
     unsigned char data_chunk[HUGE_LEN];
     char errbuf[128];
     apr_size_t rbytes;
     apr_file_t *fd = NULL;
     apr_status_t status;
-    apr_uint32_t i;
+    XXH3_state_t *const state = XXH3_createState();
+
+    if (state == NULL) {
+	return APR_ENOMEM;
+    }
+    XXH3_128bits_reset(state);
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
+	XXH3_freeState(state);
 	return status;
     }
-
-    for (i = 0; i < HASHSTATE; ++i)
-	state[i] = 1;
 
     do {
 	rbytes = HUGE_LEN;
 	status = apr_file_read(fd, data_chunk, &rbytes);
-	if (APR_SUCCESS == status) {
-	    hash(data_chunk, rbytes, state);
+	if ((APR_SUCCESS == status || (APR_EOF == status && rbytes > 0))) {
+	    if (XXH3_128bits_update(state, data_chunk, rbytes) == XXH_ERROR) {
+		DEBUG_ERR("Error during hash update for file: %s", filename);
+		XXH3_freeState(state);
+		apr_file_close(fd);
+		return APR_EGENERAL;
+	    }
 	}
     } while (APR_SUCCESS == status);
+
     if (APR_EOF != status) {
 	DEBUG_ERR("unable to read(%s, O_RDONLY), skipping: %s", filename, apr_strerror(status, errbuf, 128));
+	XXH3_freeState(state);
 	apr_file_close(fd);
 	return status;
     }
+
+    *hash_out = XXH3_128bits_digest(state);
+    XXH3_freeState(state);
 
     if (APR_SUCCESS != (status = apr_file_close(fd))) {
 	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
@@ -109,13 +111,13 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, apr_
     return APR_SUCCESS;
 }
 
-extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, apr_uint32_t *state,
+extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out,
 				  apr_pool_t *gc_pool)
 {
     if (size < excess_size)
-	return checksum_small_file(filename, size, state, gc_pool);
+	return checksum_small_file(filename, size, hash_out, gc_pool);
 
-    return checksum_big_file(filename, size, state, gc_pool);
+    return checksum_big_file(filename, size, hash_out, gc_pool);
 }
 
 static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
