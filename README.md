@@ -43,8 +43,43 @@ sudo make install
 ftwin [OPTION]... [FILES or DIRECTORIES]...
 ```
 
+## Examples
+
+### Find duplicate pictures
+
+The following command will find duplicate pictures in your home directory, with a minimum size of 8192 bytes, and display the progress:
+
+```bash
+ftwin -m 8192 -v -I ${HOME} | less
+```
+
+### Find duplicate text files, ignoring `.svn` directories
+
+This command will find all `.txt` files in your home directory while ignoring any files in `.svn` directories:
+
+```bash
+ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v ${HOME}
+```
+
+### Clean up imported pictures
+
+If you have imported pictures into a temporary directory and want to remove duplicates, you can use the following commands:
+
+```bash
+mkdir "${HOME}/tmppix"
+cp /media/SDCARD/*JPG "${HOME}/tmppix"
+ftwin -v -w ".*\.(jpe?g)$" -c -p "${HOME}/tmppix" -s "," "${HOME}" | tee log
+```
+
+This will find all JPG files in your home directory, prioritize the ones in `tmppix`, and save the list of duplicates to a file named `log`. You can then use the following command to remove the duplicates from `tmppix`:
+
+```bash
+cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; done
+```
+
 ### Options
 
+  - **-a, --hidden:** Do not ignore hidden files.
   - **-c, --case-unsensitive:** Make regex matching case-insensitive.
   - **-d, --display-size:** Display the size of the files before listing duplicates.
   - **-e, --regex-ignore-file `REGEX`:** Ignore files with names that match the given regular expression.
@@ -56,47 +91,14 @@ ftwin [OPTION]... [FILES or DIRECTORIES]...
   - **-m, --minimal-length `SIZE`:** The minimum size of files to process.
   - **-o, --optimize-memory:** Reduce memory usage at the cost of increased processing time.
   - **-p, --priority-path `PATH`:** Prioritize files from this path in the duplicate report.
-  - **-r, --recurse-subdir:** Recursively search subdirectories.
+  - **-r, --recurse-subdir:** Recursively search subdirectories (default: on).
+  - **-R, --no-recurse:** Do not recurse in subdirectories.
   - **-s, --separator `CHAR`:** The character to use as a separator between duplicate file paths (default is `\n`).
   - **-t, --tar-cmp:** Process files within `.tar`, `.gz`, and `.bz2` archives (requires `libarchive`).
   - **-v, --verbose:** Display a progress bar.
   - **-V, --version:** Display the version information.
   - **-w, --whitelist-regex-file `REGEX`:** Only process files with names that match the given regular expression.
   - **-x, --excessive-size `SIZE`:** The file size at which to switch off `mmap` usage.
-
-## Examples
-
-### Find duplicate pictures
-
-The following command will find duplicate pictures in your home directory, with a minimum size of 8192 bytes, and display the progress:
-
-```bash
-ftwin -m 8192 -v -r -I ${HOME} | less
-```
-
-### Find duplicate text files, ignoring `.svn` directories
-
-This command will find all `.txt` files in your home directory while ignoring any files in `.svn` directories:
-
-```bash
-ftwin -e ".*/\.svn/.*" -w ".*\.txt$" -v -r ${HOME}
-```
-
-### Clean up imported pictures
-
-If you have imported pictures into a temporary directory and want to remove duplicates, you can use the following commands:
-
-```bash
-mkdir "${HOME}/tmppix"
-cp /media/SDCARD/*JPG "${HOME}/tmppix"
-ftwin -r -v -w ".*\.(jpe?g)$" -c -p "${HOME}/tmppix" -s "," "${HOME}" | tee log
-```
-
-This will find all JPG files in your home directory, prioritize the ones in `tmppix`, and save the list of duplicates to a file named `log`. You can then use the following command to remove the duplicates from `tmppix`:
-
-```bash
-cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; done
-```
 
 ## Contributing
 

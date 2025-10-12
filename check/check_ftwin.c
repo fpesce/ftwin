@@ -78,13 +78,108 @@ START_TEST(test_ftwin_size_options)
 
     remove("check/tests/5K_file_copy");
 }
+END_TEST
 
-END_TEST Suite * make_ftwin_suite(void)
+START_TEST(test_ftwin_no_recurse)
+{
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    const char *argv[] = { "ftwin", "-R", "check/tests/recurse" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    ftwin_main(argc, argv);
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+
+    char *output = capture_output(stdout_pipe[0]);
+
+    ck_assert_ptr_eq(strstr(output, "file2"), NULL);
+}
+END_TEST
+
+START_TEST(test_ftwin_hidden_files)
+{
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    const char *argv[] = { "ftwin", "check/tests/recurse" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    ftwin_main(argc, argv);
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+
+    char *output = capture_output(stdout_pipe[0]);
+
+    ck_assert_ptr_eq(strstr(output, ".hidden_file"), NULL);
+}
+END_TEST
+
+START_TEST(test_ftwin_show_hidden_files)
+{
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    const char *argv[] = { "ftwin", "-a", "check/tests/recurse" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+
+    ftwin_main(argc, argv);
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+
+    char *output = capture_output(stdout_pipe[0]);
+
+    ck_assert_ptr_ne(strstr(output, ".hidden_file"), NULL);
+}
+END_TEST
+
+
+Suite * make_ftwin_suite(void)
 {
     Suite *s = suite_create("Ftwin");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_ftwin_size_options);
+    tcase_add_test(tc_core, test_ftwin_no_recurse);
+    tcase_add_test(tc_core, test_ftwin_hidden_files);
+    tcase_add_test(tc_core, test_ftwin_show_hidden_files);
 
     suite_add_tcase(s, tc_core);
 

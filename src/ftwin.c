@@ -66,13 +66,14 @@
 #define OPTION_OPMEM 0x0010
 #define OPTION_REGEX 0x0020
 #define OPTION_SIZED 0x0040
+#define OPTION_SHOW_HIDDEN 0x0080
 
 #if HAVE_PUZZLE
-#define OPTION_PUZZL 0x0080
+#define OPTION_PUZZL 0x0100
 #endif
 
 #if HAVE_ARCHIVE
-#define OPTION_UNTAR 0x0100
+#define OPTION_UNTAR 0x0200
 #endif
 
 typedef struct ft_file_t
@@ -322,6 +323,9 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    struct stats const *ancestor;
 
 	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
+		continue;
+
+	    if ('.' == finfo.name[0] && !is_option_set(conf->mask, OPTION_SHOW_HIDDEN))
 		continue;
 
 	    if (APR_DIR == finfo.filetype && !is_option_set(conf->mask, OPTION_RECSD))
@@ -1113,6 +1117,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
 int ftwin_main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
+	{"hidden", 'a', FALSE, "do not ignore hidden files."},
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
 	{"display-size", 'd', FALSE, "\tdisplay size before duplicates."},
 	{"regex-ignore-file", 'e', TRUE, "filenames that match this are ignored."},
@@ -1128,7 +1133,8 @@ int ftwin_main(int argc, const char **argv)
 	{"max-size", 'M', TRUE, "maximum size of file to process."},
 	{"optimize-memory", 'o', FALSE, "reduce memory usage, but increase process time."},
 	{"priority-path", 'p', TRUE, "\tfile in this path are displayed first when\n\t\t\t\tduplicates are reported."},
-	{"recurse-subdir", 'r', FALSE, "recurse subdirectories."},
+	{"recurse-subdir", 'r', FALSE, "recurse subdirectories (default: on)."},
+	{"no-recurse", 'R', FALSE, "do not recurse in subdirectories."},
 	{"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
 #if HAVE_ARCHIVE
 	{"tar-cmp", 't', FALSE, "\twill process files archived in .tar default: off."},
@@ -1185,13 +1191,16 @@ int ftwin_main(int argc, const char **argv)
     conf.maxsize = 0;
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
-    conf.mask = 0x0000;
+    conf.mask = OPTION_RECSD;
 #if HAVE_PUZZLE
     conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
 #endif
 
     while (APR_SUCCESS == (status = apr_getopt_long(os, opt_option, &optch, &optarg))) {
 	switch (optch) {
+	case 'a':
+	    set_option(&conf.mask, OPTION_SHOW_HIDDEN, 1);
+	    break;
 	case 'c':
 	    set_option(&conf.mask, OPTION_ICASE, 1);
 	    break;
@@ -1262,6 +1271,9 @@ int ftwin_main(int argc, const char **argv)
 	    break;
 	case 'r':
 	    set_option(&conf.mask, OPTION_RECSD, 1);
+	    break;
+	case 'R':
+	    set_option(&conf.mask, OPTION_RECSD, 0);
 	    break;
 	case 's':
 	    conf.sep = *optarg;
