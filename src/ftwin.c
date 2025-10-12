@@ -1096,7 +1096,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     return APR_SUCCESS;
 }
 
-int main(int argc, const char **argv)
+int ftwin_main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
@@ -1249,7 +1249,7 @@ int main(int argc, const char **argv)
 #if HAVE_ARCHIVE
 	case 't':
 	    set_option(&conf.mask, OPTION_UNTAR, 1);
-	    arregex = apr_pstrdup(pool, ".*(\\.tar)?\\.(gz|Z|bz2)$");
+	    arregex = apr_pstrdup(pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
 	    break;
 #endif
 	case 'v':
@@ -1368,3 +1368,10 @@ int main(int argc, const char **argv)
 
     return 0;
 }
+
+#ifndef FTWIN_TEST_BUILD
+int main(int argc, const char **argv)
+{
+    return ftwin_main(argc, argv);
+}
+#endif

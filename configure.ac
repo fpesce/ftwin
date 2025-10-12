@@ -25,10 +25,8 @@ PATH_DOXYGEN
 PATH_DOT
 
 # Allow running test suites if check was found on system
-PKG_CHECK_MODULES(CHECK, check >= 0.9.4,
-                  AM_CONDITIONAL(HAVE_CHECK, true),
-                  AM_CONDITIONAL(HAVE_CHECK, false)
-                  )
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [have_check=yes], [have_check=no])
+AM_CONDITIONAL([HAVE_CHECK], [test "x$have_check" = "xyes"])
 
 AM_PROG_LIBTOOL
 AC_CONFIG_SUBDIRS([third-party/libpuzzle third-party/libarchive])

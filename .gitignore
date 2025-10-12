@@ -16,6 +16,7 @@ ltmain.sh
 missing
 test-driver
 stamp-h1
+libtool
 
 # Doxygen
 Doxyfile
