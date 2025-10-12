@@ -199,6 +199,7 @@ Suite *make_apr_hash_suite(void);
 Suite *make_ft_file_suite(void);
 Suite *make_archive_suite(void);
 Suite *make_human_size_suite(void);
+Suite *make_ft_system_suite(void);
 
 int main(int argc, char **argv)
 {
@@ -244,6 +245,9 @@ int main(int argc, char **argv)
 
     if (!num || num == 6)
 	srunner_add_suite(sr, make_ftwin_suite());
+
+    if (!num || num == 7)
+	srunner_add_suite(sr, make_ft_system_suite());
 
     srunner_set_fork_status(sr, CK_NOFORK);
     srunner_set_xml(sr, "check_log.xml");
