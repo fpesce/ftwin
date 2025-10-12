@@ -58,7 +58,8 @@ START_TEST(test_ftwin_size_options)
 
     const char *argv[] =
 	{ "ftwin", "-m", "2K", "-M", "8K", "check/tests/1K_file", "check/tests/5K_file", "check/tests/10K_file",
-"check/tests/5K_file_copy" };
+	"check/tests/5K_file_copy"
+    };
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     ftwin_main(argc, argv);
@@ -78,7 +79,9 @@ START_TEST(test_ftwin_size_options)
 
     remove("check/tests/5K_file_copy");
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 START_TEST(test_ftwin_no_recurse)
 {
@@ -108,7 +111,9 @@ START_TEST(test_ftwin_no_recurse)
 
     ck_assert_ptr_eq(strstr(output, "file2"), NULL);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 START_TEST(test_ftwin_hidden_files)
 {
@@ -138,7 +143,9 @@ START_TEST(test_ftwin_hidden_files)
 
     ck_assert_ptr_eq(strstr(output, ".hidden_file"), NULL);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 START_TEST(test_ftwin_show_hidden_files)
 {
@@ -168,10 +175,11 @@ START_TEST(test_ftwin_show_hidden_files)
 
     ck_assert_ptr_ne(strstr(output, ".hidden_file"), NULL);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
-
-Suite * make_ftwin_suite(void)
+Suite *make_ftwin_suite(void)
 {
     Suite *s = suite_create("Ftwin");
     TCase *tc_core = tcase_create("Core");
