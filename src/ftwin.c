@@ -76,6 +76,8 @@
 #define OPTION_UNTAR 0x0200
 #endif
 
+#define OPTION_DRY_RUN 0x0400
+
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_BOLD    "\x1b[1m"
@@ -973,6 +975,10 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			}
 
 			if (0 == rv) {
+			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
+				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
+					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
+			    }
 			    if (!already_printed) {
 				if (is_option_set(conf->mask, OPTION_SIZED)) {
 				    const char *human_size = format_human_size(fsize->val, conf->pool);
@@ -1134,6 +1140,7 @@ int ftwin_main(int argc, const char **argv)
 	{"hidden", 'a', FALSE, "do not ignore hidden files."},
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
 	{"display-size", 'd', FALSE, "\tdisplay size before duplicates (human-readable)."},
+	{"dry-run", 'n', FALSE, "\tonly print the operations that would be done."},
 	{"regex-ignore-file", 'e', TRUE, "filenames that match this are ignored."},
 	{"follow-symlink", 'f', FALSE, "follow symbolic links."},
 	{"help", 'h', FALSE, "\t\tdisplay usage."},
@@ -1220,6 +1227,9 @@ int ftwin_main(int argc, const char **argv)
 	    break;
 	case 'd':
 	    set_option(&conf.mask, OPTION_SIZED, 1);
+	    break;
+	case 'n':
+	    set_option(&conf.mask, OPTION_DRY_RUN, 1);
 	    break;
 	case 'e':
 	    regex = apr_pstrdup(pool, optarg);
