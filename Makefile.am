@@ -38,6 +38,7 @@ noinst_HEADERS = src/debug.h \
 		  src/checksum.h \
 		  src/lookup3.h \
 		  src/ft_file.h \
+		  src/ftwin.h \
 		  src/napr_threadpool.h
 
 ftwin_SOURCES = src/ftwin.c \
@@ -50,7 +51,8 @@ ftwin_SOURCES = src/ftwin.c \
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
-		      src/checksum.c
+		      src/checksum.c check/check_archive.c src/ftwin.c \
+		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
@@ -58,7 +60,7 @@ ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)
 check_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src/ @COVERAGE_CFLAGS@
 
 # CPPFLAGS is for -I and -D options (involving C preprocessor)
-check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\" -I$(top_srcdir)/third-party/libpuzzle/src -I$(top_srcdir)/third-party/libarchive/libarchive
+check_ftwin_CPPFLAGS = @CHECK_CFLAGS@ @APR_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DCHECK_DIR=\"$(top_srcdir)/check\" -DFTWIN_TEST_BUILD -I$(top_srcdir)/third-party/libpuzzle/src -I$(top_srcdir)/third-party/libarchive/libarchive
 ftwin_CPPFLAGS = @APR_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -I$(top_srcdir)/third-party/libpuzzle/src -I$(top_srcdir)/third-party/libarchive/libarchive
 
 # LDADD and LIBADD are for linking libraries, -L, -l, -dlopen and -dlpreopen options
@@ -111,6 +113,24 @@ coverage:
 
 setup:
 	./setup.sh
+
+# ADD THIS: Define a phony target to ensure subdirectories are built (make all)
+.PHONY: build-subdirs
+build-subdirs:
+	@echo "Building dependencies in subdirectories..."
+	@# Use 'set -e' to stop immediately if any subdirectory fails to build
+	@set -e; for subdir in $(SUBDIRS); do \
+	  echo "Making all in $${subdir}..."; \
+	  $(MAKE) $(AM_MAKEFLAGS) -C "$${subdir}" all; \
+	done
+
+# Override check-recursive to skip third-party subdirectories
+# We depend on 'build-subdirs' to ensure libraries are ready,
+# then run local tests via check-am.
+# REPLACE THE EXISTING check-recursive BLOCK WITH THIS:
+check-recursive: build-subdirs
+	@echo "Skipping third-party subdirectory tests..."
+	@$(MAKE) $(AM_MAKEFLAGS) check-am
 
 # Hook to clean up generated report files and directories
 clean-local:

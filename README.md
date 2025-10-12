@@ -100,7 +100,7 @@ cut -d"," -f1 -s < log | grep "tmppix" | while read FILE; do rm -f "${FILE}" ; d
 
 ## Contributing
 
-Please report any bugs or feature requests on the [GitHub issue tracker](https://www.google.com/search?q=https://github.com/fpesce/ftwin/issues).
+Please report any bugs or feature requests on the [GitHub issue tracker](https://github.com/fpesce/ftwin/issues).
 
 ## License
 
