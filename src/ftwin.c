@@ -1096,7 +1096,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     return APR_SUCCESS;
 }
 
-int main(int argc, const char **argv)
+int ftwin_main(int argc, const char **argv)
 {
     static const apr_getopt_option_t opt_option[] = {
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
@@ -1368,3 +1368,10 @@ int main(int argc, const char **argv)
 
     return 0;
 }
+
+#ifndef FTWIN_TEST_BUILD
+int main(int argc, const char **argv)
+{
+    return ftwin_main(argc, argv);
+}
+#endif
