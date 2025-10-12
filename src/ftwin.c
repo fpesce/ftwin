@@ -976,7 +976,8 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 
 			if (0 == rv) {
 			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-				fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
+				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
+					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
 			    }
 			    if (!already_printed) {
 				if (is_option_set(conf->mask, OPTION_SIZED)) {
