@@ -109,14 +109,23 @@ coverage:
 	genhtml $(REPORTS_DIR)/coverage.info --output-directory $(REPORTS_DIR)/coverage
 	@echo "HTML coverage report generated in $(REPORTS_DIR)/coverage/"
 
-.PHONY: benchmark junit coverage setup
+.PHONY: benchmark junit coverage setup build-subdirs
 
 setup:
 	./setup.sh
 
-# Override check-recursive to skip third-party subdirectories
-# but still run local tests via check-am
-check-recursive:
+# Define a phony target to ensure subdirectories are built (make all)
+build-subdirs:
+	@echo "Building dependencies in subdirectories..."
+	@set -e; for subdir in $(SUBDIRS); do \
+	  echo "Making all in $$subdir..."; \
+	  $(MAKE) $(AM_MAKEFLAGS) -C "$$subdir" all; \
+	done
+
+# Override check-recursive to skip third-party subdirectory tests
+# We depend on 'build-subdirs' to ensure libraries are ready,
+# then run local tests via check-am.
+check-recursive: build-subdirs
 	@echo "Skipping third-party subdirectory tests..."
 	@$(MAKE) $(AM_MAKEFLAGS) check-am
 
