@@ -45,7 +45,7 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ft
 	return checksum_big_file(filename, size, hash_out, gc_pool);
     }
 
-    *hash_out = XXH3_128bits(mm->mm, (size_t)size);
+    *hash_out = XXH3_128bits(mm->mm, (size_t) size);
 
     if (APR_SUCCESS != (status = apr_mmap_delete(mm))) {
 	DEBUG_ERR("error calling apr_mmap_delete: %s", apr_strerror(status, errbuf, 128));
@@ -67,16 +67,16 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_h
     apr_size_t rbytes;
     apr_file_t *fd = NULL;
     apr_status_t status;
-    XXH3_state_t* const state = XXH3_createState();
+    XXH3_state_t *const state = XXH3_createState();
 
     if (state == NULL) {
-        return APR_ENOMEM;
+	return APR_ENOMEM;
     }
     XXH3_128bits_reset(state);
 
     status = apr_file_open(&fd, filename, APR_READ | APR_BINARY, APR_OS_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
-        XXH3_freeState(state);
+	XXH3_freeState(state);
 	return status;
     }
 

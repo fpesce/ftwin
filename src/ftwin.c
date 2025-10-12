@@ -917,7 +917,8 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 		    continue;
 		already_printed = 0;
 		for (j = i + 1; j < fsize->nb_files; j++) {
-		    if (0 == memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
+		    if (0 ==
+			memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
 			char *fpathi, *fpathj;
 #if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {

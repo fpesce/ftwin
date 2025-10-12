@@ -54,6 +54,7 @@ static void run_hash_benchmark(apr_pool_t *pool)
     for (int i = 0; i < ITERATIONS; ++i) {
 	hash_result = XXH3_128bits(buffer, BUFFER_SIZE);
     }
+    (void)hash_result;  // Suppress unused variable warning while preventing optimization
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
