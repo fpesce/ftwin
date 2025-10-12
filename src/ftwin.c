@@ -76,6 +76,11 @@
 #define OPTION_UNTAR 0x0200
 #endif
 
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_BOLD    "\x1b[1m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 typedef struct ft_file_t
 {
     apr_off_t size;
@@ -890,6 +895,10 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
     apr_status_t status;
     unsigned char already_printed;
     apr_uint32_t chksum_array_sz = 0U;
+    int use_color = isatty(STDOUT_FILENO);
+    const char *color_size = use_color ? ANSI_COLOR_CYAN ANSI_COLOR_BOLD : "";
+    const char *color_path = use_color ? ANSI_COLOR_BLUE ANSI_COLOR_BOLD : "";
+    const char *color_reset = use_color ? ANSI_COLOR_RESET : "";
 
     if (is_option_set(conf->mask, OPTION_VERBO))
 	fprintf(stderr, "Reporting duplicate files:\n");
@@ -965,16 +974,20 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 
 			if (0 == rv) {
 			    if (!already_printed) {
-				if (is_option_set(conf->mask, OPTION_SIZED))
-				    printf("size [%" APR_OFF_T_FMT "]:\n", fsize->val);
+				if (is_option_set(conf->mask, OPTION_SIZED)) {
+				    const char *human_size = format_human_size(fsize->val, conf->pool);
+				    printf("%sSize: %s%s\n", color_size, human_size, color_reset);
+				}
 #if HAVE_ARCHIVE
 				if (is_option_set(conf->mask, OPTION_UNTAR)
 				    && (NULL != fsize->chksum_array[i].file->subpath))
-				    printf("%s%c%s%c", fsize->chksum_array[i].file->path, (':' != conf->sep) ? ':' : '|',
-					   fsize->chksum_array[i].file->subpath, conf->sep);
+				    printf("%s%s%c%s%s%c", color_path, fsize->chksum_array[i].file->path,
+					   (':' != conf->sep) ? ':' : '|', fsize->chksum_array[i].file->subpath,
+					   color_reset, conf->sep);
 				else
 #endif
-				    printf("%s%c", fsize->chksum_array[i].file->path, conf->sep);
+				    printf("%s%s%s%c", color_path, fsize->chksum_array[i].file->path, color_reset,
+					   conf->sep);
 				already_printed = 1;
 			    }
 			    else {
@@ -982,11 +995,11 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			    }
 #if HAVE_ARCHIVE
 			    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
-				printf("%s%c%s", fsize->chksum_array[j].file->path, (':' != conf->sep) ? ':' : '|',
-				       fsize->chksum_array[j].file->subpath);
+				printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path,
+				       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[j].file->subpath, color_reset);
 			    else
 #endif
-				printf("%s", fsize->chksum_array[j].file->path);
+				printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
 			    /* mark j as a twin ! */
 			    fsize->chksum_array[j].file = NULL;
 			    fflush(stdout);
@@ -997,8 +1010,9 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 			break;
 		    }
 		}
-		if (already_printed)
+		if (already_printed) {
 		    printf("\n\n");
+		}
 	    }
 	}
 	else {
@@ -1119,7 +1133,7 @@ int ftwin_main(int argc, const char **argv)
     static const apr_getopt_option_t opt_option[] = {
 	{"hidden", 'a', FALSE, "do not ignore hidden files."},
 	{"case-unsensitive", 'c', FALSE, "this option applies to regex match."},
-	{"display-size", 'd', FALSE, "\tdisplay size before duplicates."},
+	{"display-size", 'd', FALSE, "\tdisplay size before duplicates (human-readable)."},
 	{"regex-ignore-file", 'e', TRUE, "filenames that match this are ignored."},
 	{"follow-symlink", 'f', FALSE, "follow symbolic links."},
 	{"help", 'h', FALSE, "\t\tdisplay usage."},
