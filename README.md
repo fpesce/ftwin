@@ -43,6 +43,14 @@ sudo make install
 ftwin [OPTION]... [FILES or DIRECTORIES]...
 ```
 
+## Output Format
+
+`ftwin` provides a modernized, easy-to-read output format.
+
+*   **Grouping:** Duplicate files are clearly grouped together, separated by blank lines.
+*   **Human-Readable Sizes:** When using the `-d` option, file sizes are displayed using standard binary prefixes (KiB, MiB, GiB, etc.).
+*   **Automatic Colorization:** When run in an interactive terminal (TTY), the output is colorized to enhance readability (e.g., bold blue paths, bold cyan sizes). Colors are automatically disabled if the output is piped or redirected (e.g., `ftwin . > duplicates.txt`).
+
 ## Examples
 
 ### Find duplicate pictures
