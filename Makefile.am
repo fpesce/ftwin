@@ -115,12 +115,10 @@ setup:
 	./setup.sh
 
 # Override check-recursive to skip third-party subdirectories
-# This prevents running libpuzzle and libarchive tests
+# but still run local tests via check-am
 check-recursive:
 	@echo "Skipping third-party subdirectory tests..."
-	@list='$(SUBDIRS)'; for subdir in $$list; do \
-	  echo "Skipping check in $$subdir"; \
-	done
+	@$(MAKE) $(AM_MAKEFLAGS) check-am
 
 # Hook to clean up generated report files and directories
 clean-local:
