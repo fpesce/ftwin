@@ -48,11 +48,18 @@ apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *ctx, uns
  */
 apr_status_t napr_threadpool_add(napr_threadpool_t *threadpool, void *data);
 
-/** 
+/**
  * This function wait for the pool to process all the data that has been submitted.
  * @param threadpool The opaque threadpool.
  * @return APR_SUCCESS if no error occured.
  */
 apr_status_t napr_threadpool_wait(napr_threadpool_t *threadpool);
+
+/**
+ * Shutdown the threadpool by signaling all threads to exit and joining them.
+ * @param threadpool The opaque threadpool.
+ * @return APR_SUCCESS if no error occured.
+ */
+apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool);
 
 #endif /* NAPR_THREADPOOL_H */

@@ -44,6 +44,7 @@
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
+#include "ft_system.h"
 #include "human_size.h"
 #include "napr_heap.h"
 #include "napr_threadpool.h"
@@ -137,6 +138,7 @@ typedef struct ft_conf_t
     apr_size_t p_path_len;
     apr_uid_t userid;
     apr_gid_t groupid;
+    unsigned int num_threads;	/* Number of threads for parallel hashing */
     unsigned short int mask;
     char sep;
 } ft_conf_t;
@@ -146,6 +148,32 @@ struct stats
     struct stats const *parent;
     apr_finfo_t stat;
 };
+
+/* Parallel hashing data structures */
+
+/**
+ * Task structure passed to worker threads for hashing individual files.
+ */
+typedef struct hashing_task_t
+{
+    ft_fsize_t *fsize;              /* Size bucket this file belongs to */
+    apr_uint32_t index;             /* Index in the checksum array */
+} hashing_task_t;
+
+/**
+ * Shared context for parallel hashing operations.
+ * Protected by mutexes where necessary for thread safety.
+ */
+typedef struct hashing_context_t
+{
+    ft_conf_t *conf;                /* Main configuration */
+    apr_thread_mutex_t *stats_mutex; /* Mutex for progress statistics */
+    apr_pool_t *pool;               /* Parent pool for allocations */
+
+    /* Statistics (protected by stats_mutex) */
+    apr_size_t files_processed;
+    apr_size_t total_files;
+} hashing_context_t;
 
 static int ft_file_cmp(const void *param1, const void *param2)
 {
@@ -614,6 +642,86 @@ static char *ft_untar_file(ft_file_t *file, apr_pool_t *p)
 
 #endif
 
+/**
+ * Worker callback function for parallel hashing.
+ * Each worker thread processes one file, calculating its hash.
+ *
+ * @param ctx Pointer to hashing_context_t
+ * @param data Pointer to hashing_task_t
+ * @return APR_SUCCESS on success, error code otherwise
+ */
+static apr_status_t hashing_worker_callback(void *ctx, void *data)
+{
+    char errbuf[128];
+    hashing_context_t *h_ctx = (hashing_context_t *)ctx;
+    hashing_task_t *task = (hashing_task_t *)data;
+    ft_fsize_t *fsize = task->fsize;
+    ft_file_t *file = fsize->chksum_array[task->index].file;
+    apr_pool_t *subpool;
+    apr_status_t status;
+    char *filepath;
+
+    /* Create temporary subpool for this task */
+    if (APR_SUCCESS != (status = apr_pool_create(&subpool, h_ctx->pool))) {
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+        return status;
+    }
+
+#if HAVE_ARCHIVE
+    /* Extract file from archive if needed */
+    if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
+        filepath = ft_untar_file(file, subpool);
+        if (NULL == filepath) {
+            DEBUG_ERR("error calling ft_untar_file");
+            apr_pool_destroy(subpool);
+            return APR_EGENERAL;
+        }
+    } else {
+        filepath = file->path;
+    }
+#else
+    filepath = file->path;
+#endif
+
+    /* Perform the actual hashing (I/O + CPU intensive) */
+    status = checksum_file(filepath, file->size, h_ctx->conf->excess_size,
+                          &fsize->chksum_array[task->index].hash_value, subpool);
+
+#if HAVE_ARCHIVE
+    /* Clean up extracted archive file */
+    if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
+        apr_file_remove(filepath, subpool);
+    }
+#endif
+
+    /* Update progress statistics (critical section) */
+    if (APR_SUCCESS == status) {
+        apr_status_t lock_status;
+
+        lock_status = apr_thread_mutex_lock(h_ctx->stats_mutex);
+        if (APR_SUCCESS == lock_status) {
+            h_ctx->files_processed++;
+
+            if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+                fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
+                       h_ctx->files_processed, h_ctx->total_files,
+                       (int)((float)h_ctx->files_processed / (float)h_ctx->total_files * 100.0));
+            }
+
+            apr_thread_mutex_unlock(h_ctx->stats_mutex);
+        }
+    } else {
+        if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+            fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, 128));
+        }
+    }
+
+    /* Clean up subpool */
+    apr_pool_destroy(subpool);
+
+    return status;
+}
+
 static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 {
     char errbuf[128];
@@ -623,7 +731,10 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
     apr_pool_t *gc_pool;
     apr_uint32_t hash_value;
     apr_status_t status;
-    apr_size_t nb_processed, nb_files;
+    apr_size_t total_hash_tasks;
+    napr_threadpool_t *threadpool = NULL;
+    hashing_context_t h_ctx;
+    napr_hash_index_t *hi;
 
     if (is_option_set(conf->mask, OPTION_VERBO))
 	fprintf(stderr, "Referencing files and sizes:\n");
@@ -633,10 +744,11 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 	apr_terminate();
 	return -1;
     }
-    nb_processed = 0;
-    nb_files = napr_heap_size(conf->heap);
+    total_hash_tasks = 0;
 
     tmp_heap = napr_heap_make(conf->pool, ft_file_cmp);
+
+    /* First pass: allocate checksum arrays and count tasks */
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
 	    /* More than two files, we will need to checksum because :
@@ -647,7 +759,6 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 	     */
 	    if (1 == fsize->nb_files) {
 		/* No twin possible, remove the entry */
-		/*DEBUG_DBG("only one file of size %"APR_OFF_T_FMT, fsize->val); */
 		napr_hash_remove(conf->sizes, fsize, hash_value);
 	    }
 	    else {
@@ -655,53 +766,18 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 		    fsize->chksum_array = apr_palloc(conf->pool, fsize->nb_files * sizeof(struct ft_chksum_t));
 
 		fsize->chksum_array[fsize->nb_checksumed].file = file;
-		/* no multiple check, just a memcmp will be needed, don't call checksum on 0-length file too */
+
+		/* For files with only 2 duplicates or 0-length files, set hash to zero */
 		if ((2 == fsize->nb_files) || (0 == fsize->val)) {
-		    /*DEBUG_DBG("two files of size %"APR_OFF_T_FMT, fsize->val); */
 		    memset(&fsize->chksum_array[fsize->nb_checksumed].hash_value, 0, sizeof(ft_hash_t));
-		}
-		else {
-		    char *filepath;
-#if HAVE_ARCHIVE
-		    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
-			filepath = ft_untar_file(file, gc_pool);
-			if (NULL == filepath) {
-			    DEBUG_ERR("error calling ft_untar_file");
-			    apr_pool_destroy(gc_pool);
-			    return APR_EGENERAL;
-			}
-		    }
-		    else {
-			filepath = file->path;
-		    }
-#else
-		    filepath = file->path;
-#endif
-		    status =
-			checksum_file(filepath, file->size, conf->excess_size,
-				      &fsize->chksum_array[fsize->nb_checksumed].hash_value, gc_pool);
-#if HAVE_ARCHIVE
-		    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != file->subpath))
-			apr_file_remove(filepath, gc_pool);
-#endif
-		    /*
-		     * no return status if != APR_SUCCESS , because : 
-		     * Fault-check has been removed in case files disappear
-		     * between collecting and comparing or special files (like
-		     * device or /proc) are tried to access
-		     */
-		    if ((APR_SUCCESS != status) && (is_option_set(conf->mask, OPTION_VERBO)))
-			fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, 128));
-		}
-		if (APR_SUCCESS == status) {
 		    fsize->nb_checksumed++;
 		    napr_heap_insert(tmp_heap, file);
 		}
-	    }
-	    if (is_option_set(conf->mask, OPTION_VERBO)) {
-		fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ", nb_processed, nb_files,
-			(int) ((float) nb_processed / (float) nb_files * 100.0));
-		nb_processed++;
+		else {
+		    /* Count this as a hashing task and increment counter */
+		    total_hash_tasks++;
+		    fsize->nb_checksumed++;
+		}
 	    }
 	}
 	else {
@@ -710,10 +786,93 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 	    return APR_EGENERAL;
 	}
     }
-    if (is_option_set(conf->mask, OPTION_VERBO)) {
-	fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ", nb_processed, nb_files,
-		(int) ((float) nb_processed / (float) nb_files * 100.0));
-	fprintf(stderr, "\n");
+
+    /* Initialize thread pool if we have tasks to process */
+    if (total_hash_tasks > 0) {
+	/* Initialize hashing context */
+	h_ctx.conf = conf;
+	h_ctx.pool = gc_pool;
+	h_ctx.files_processed = 0;
+	h_ctx.total_files = total_hash_tasks;
+
+	status = apr_thread_mutex_create(&h_ctx.stats_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, 128));
+	    apr_pool_destroy(gc_pool);
+	    return status;
+	}
+
+	/* Create thread pool with configured number of threads */
+	status = napr_threadpool_init(&threadpool, &h_ctx, conf->num_threads,
+				      hashing_worker_callback, gc_pool);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, 128));
+	    apr_thread_mutex_destroy(h_ctx.stats_mutex);
+	    apr_pool_destroy(gc_pool);
+	    return status;
+	}
+
+	/* Second pass: submit hashing tasks to thread pool */
+	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
+	    napr_hash_this(hi, NULL, NULL, (void **)&fsize);
+
+	    /* Only submit tasks for files that need actual hashing */
+	    if ((fsize->nb_files > 2) && (0 != fsize->val)) {
+		apr_uint32_t i;
+		for (i = 0; i < fsize->nb_files; i++) {
+		    if (NULL != fsize->chksum_array[i].file) {
+			hashing_task_t *task = apr_palloc(gc_pool, sizeof(hashing_task_t));
+			task->fsize = fsize;
+			task->index = i;
+
+			status = napr_threadpool_add(threadpool, task);
+			if (APR_SUCCESS != status) {
+			    DEBUG_ERR("error calling napr_threadpool_add: %s",
+				      apr_strerror(status, errbuf, 128));
+			    napr_threadpool_wait(threadpool);
+			    apr_thread_mutex_destroy(h_ctx.stats_mutex);
+			    apr_pool_destroy(gc_pool);
+			    return status;
+			}
+		    }
+		}
+	    }
+	}
+
+	/* Wait for all hashing tasks to complete */
+	napr_threadpool_wait(threadpool);
+
+	/* Clean up thread pool resources */
+	status = apr_thread_mutex_destroy(h_ctx.stats_mutex);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, 128));
+	}
+
+	if (is_option_set(conf->mask, OPTION_VERBO)) {
+	    fprintf(stderr, "\n");
+	}
+
+	/* Post-processing: insert successfully hashed files into tmp_heap */
+	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
+	    napr_hash_this(hi, NULL, NULL, (void **)&fsize);
+
+	    if ((fsize->nb_files > 2) && (0 != fsize->val)) {
+		apr_uint32_t i;
+		for (i = 0; i < fsize->nb_files; i++) {
+		    if (NULL != fsize->chksum_array[i].file) {
+			/* File was successfully hashed by worker thread */
+			napr_heap_insert(tmp_heap, fsize->chksum_array[i].file);
+		    }
+		}
+	    }
+	}
+
+	/* Shutdown thread pool before destroying pool */
+	status = napr_threadpool_shutdown(threadpool);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling napr_threadpool_shutdown: %s", apr_strerror(status, errbuf, 128));
+	    /* Continue with cleanup even if shutdown fails */
+	}
     }
 
     apr_pool_destroy(gc_pool);
@@ -1160,6 +1319,7 @@ int ftwin_main(int argc, const char **argv)
 #if HAVE_ARCHIVE
 	{"tar-cmp", 't', FALSE, "\twill process files archived in .tar default: off."},
 #endif
+	{"threads", 'j', TRUE, "\tnumber of threads for parallel hashing (default: CPU cores)."},
 	{"verbose", 'v', FALSE, "\tdisplay a progress bar."},
 	{"version", 'V', FALSE, "\tdisplay version."},
 	{"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this are ignored."},
@@ -1212,6 +1372,7 @@ int ftwin_main(int argc, const char **argv)
     conf.maxsize = 0;
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
+    conf.num_threads = ft_get_cpu_cores();  /* Default to number of CPU cores */
     conf.mask = OPTION_RECSD;
 #if HAVE_PUZZLE
     conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
@@ -1249,6 +1410,18 @@ int ftwin_main(int argc, const char **argv)
 	    set_option(&conf.mask, OPTION_PUZZL, 1);
 	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpe?g)$");
 	    break;
+#endif
+	case 'j':
+	    {
+		char *endptr;
+		long threads = strtol(optarg, &endptr, 10);
+		if (*endptr != '\0' || threads < 1 || threads > 256) {
+		    print_usage_and_exit(argv[0], opt_option, "Invalid number of threads (must be 1-256):", optarg);
+		}
+		conf.num_threads = (unsigned int)threads;
+	    }
+	    break;
+#if HAVE_PUZZLE
 	case 'T':
 	    switch (*optarg) {
 	    case '1':
