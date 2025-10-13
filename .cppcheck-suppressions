@@ -3,10 +3,8 @@
 unusedFunction:src/checksum.c:156
 unusedFunction:src/lookup3.c:745
 unusedFunction:src/napr_hash.c:267
-unusedFunction:src/napr_hash.c:302
 unusedFunction:src/napr_hash.c:292
 unusedFunction:src/napr_hash.c:287
-unusedFunction:src/napr_hash.c:336
 unusedFunction:src/napr_heap.c:104
 unusedFunction:src/napr_heap.c:346
 unusedFunction:src/napr_heap.c:312
@@ -39,6 +37,10 @@ unassignedVariable:src/checksum.c
 
 # Missinginclude warning is expected as we're not providing all system headers
 missingInclude
+
+# Suppress ConfigurationNotChecked for platform-specific constants
+# _SC_NPROCESSORS_ONLN is a POSIX constant that varies by platform
+ConfigurationNotChecked:src/ft_system.c
 
 # Suppress warnings for vendor/third-party code (xxhash library)
 # These are style warnings in well-established third-party code that we don't modify
