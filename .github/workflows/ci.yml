@@ -203,9 +203,23 @@ jobs:
             cp -r ./site_staging/benchmark-data/* benchmark-data/
           fi
 
-      # 6. Create the navigation index.html
-      - name: Create index.html
+      # 6. Aggregate benchmark data and create site content
+      - name: Prepare site content
         run: |
+          # Aggregate benchmark data into a single JS file
+          echo "window.BENCHMARK_DATA = [" > ./site_staging/benchmark-data.js
+          for file in ./site_staging/benchmark-data/*.json; do
+            if [ -f "$file" ]; then
+              cat "$file" >> ./site_staging/benchmark-data.js
+              echo "," >> ./site_staging/benchmark-data.js
+            fi
+          done
+          echo "];" >> ./site_staging/benchmark-data.js
+
+          # Copy the new benchmarks page
+          cp site/benchmarks.html ./site_staging/benchmarks.html
+
+          # Create the main index page
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           cat <<EOF > ./site_staging/index.html
           <!DOCTYPE html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Trends</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="benchmark-data.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .chart-container { max-width: 900px; margin: auto; }
+    </style>
+</head>
+<body>
+    <h1>Benchmark Trends</h1>
+    <p>This page displays the performance benchmark history for the `ftwin` project.</p>
+    <div class="chart-container">
+        <canvas id="benchmarkChart"></canvas>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const BENCHMARK_DATA = window.BENCHMARK_DATA;
+
+            function processDataForChart(data) {
+                if (!data || !Array.isArray(data) || data.length === 0) {
+                    return { labels: [], datasets: [] };
+                }
+
+                // Sort entries by date to ensure chronological order
+                data.sort((a, b) => a.date - b.date);
+
+                const labels = data.map(entry => entry.commit.id.substring(0, 7));
+                const datasets = {};
+
+                // First, iterate through all benchmarks to populate the datasets
+                data.forEach(entry => {
+                    entry.benches.forEach(result => {
+                        if (!datasets[result.name]) {
+                            datasets[result.name] = {
+                                label: `${result.name} (${result.unit})`,
+                                data: [],
+                                fill: false,
+                                borderColor: getRandomColor(),
+                                tension: 0.1
+                            };
+                        }
+                    });
+                });
+
+                // Then, populate the data for each dataset
+                for (const name in datasets) {
+                    datasets[name].data = data.map(entry => {
+                        const result = entry.benches.find(r => r.name === name);
+                        return result ? result.value : null;
+                    });
+                }
+
+                return { labels, datasets: Object.values(datasets) };
+            }
+
+            function getRandomColor() {
+                const letters = '0123456789ABCDEF';
+                let color = '#';
+                for (let i = 0; i < 6; i++) {
+                    color += letters[Math.floor(Math.random() * 16)];
+                }
+                return color;
+            }
+
+            function renderChart() {
+                if (!BENCHMARK_DATA) {
+                    const chartElement = document.getElementById('benchmarkChart');
+                    const ctx = chartElement.getContext('2d');
+                    ctx.font = '16px Arial';
+                    ctx.fillText('Could not load benchmark data.', 10, 50);
+                    return;
+                }
+
+                const { labels, datasets } = processDataForChart(BENCHMARK_DATA);
+
+                const ctx = document.getElementById('benchmarkChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Benchmark Performance Over Time'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(context) {
+                                        const dataIndex = context[0].dataIndex;
+                                        const commit = BENCHMARK_DATA[dataIndex].commit;
+                                        return `Commit: ${commit.id.substring(0, 7)}`;
+                                    },
+                                    afterTitle: function(context) {
+                                         const dataIndex = context[0].dataIndex;
+                                         const commit = BENCHMARK_DATA[dataIndex].commit;
+                                         return `${commit.message}\nAuthor: ${commit.author}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Commit'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'MB/s (Bigger is Better)'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            renderChart();
+        });
+    </script>
+</body>
+</html>
