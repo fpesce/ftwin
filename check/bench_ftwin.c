@@ -196,46 +196,28 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
     const char *bench_dir = "/tmp/ftwin_bench";
     const unsigned int thread_counts[] = { 1, 2, 4, 8, 12, 16, 24 };
     int num_thread_configs;
-
     num_thread_configs = sizeof(thread_counts) / sizeof(unsigned int);
-    /* Ensure all previous output is flushed before we start */
     fflush(stdout);
     fflush(stderr);
-
-    /* Create benchmark files */
     fprintf(stderr, "Creating benchmark files...\n");
     create_bench_files(bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
-
-    printf("  {\n");
-    printf("    \"name\": \"parallel_hashing_scalability\",\n");
-    printf("    \"unit\": \"MB/s\",\n");
-    printf("    \"thread_results\": [\n");
 
     for (int t = 0; t < num_thread_configs; t++) {
 	unsigned int num_threads = thread_counts[t];
 
-	/* Flush stdout/stderr before redirecting to avoid losing buffered data */
 	fflush(stdout);
 	fflush(stderr);
-
-	/* Redirect output to /dev/null */
 	int stdout_save = dup(STDOUT_FILENO);
 	int stderr_save = dup(STDERR_FILENO);
 	int devnull = open("/dev/null", O_WRONLY);
 	dup2(devnull, STDOUT_FILENO);
 	dup2(devnull, STDERR_FILENO);
-
 	apr_time_t start_time = apr_time_now();
-
-	/* Run ftwin with specified thread count */
 	char threads_str[16];
 	snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
 	const char *argv[] = { "ftwin", "-j", threads_str, bench_dir };
 	ftwin_main(4, argv);
-
 	apr_time_t end_time = apr_time_now();
-
-	/* Restore output */
 	dup2(stdout_save, STDOUT_FILENO);
 	dup2(stderr_save, STDERR_FILENO);
 	close(devnull);
@@ -247,23 +229,19 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	double total_mb = (double) (NUM_BENCH_FILES * BENCH_FILE_SIZE) / (1024.0 * 1024.0);
 	double throughput_mb_s = total_mb / time_seconds;
 
-	printf("      {\n");
-	printf("        \"threads\": %u,\n", num_threads);
-	printf("        \"throughput\": %.2f,\n", throughput_mb_s);
-	printf("        \"time_seconds\": %.3f\n", time_seconds);
-	printf("      }");
-
-	if (t < num_thread_configs - 1) {
-	    printf(",");
+	if (t > 0) {
+	    printf(",\n");
 	}
-	printf("\n");
+	printf("  {\n");
+	printf("    \"name\": \"parallel_hashing (%u threads)\",\n", num_threads);
+	printf("    \"unit\": \"MB/s\",\n");
+	printf("    \"value\": %.2f,\n", throughput_mb_s);
+	printf("    \"extra\": \"time_seconds=%.3f\"\n", time_seconds);
+	printf("  }");
+
 	fflush(stdout);
     }
 
-    printf("    ]\n");
-    printf("  }");
-
-    /* Cleanup */
     cleanup_bench_files(bench_dir, NUM_BENCH_FILES);
     fprintf(stderr, "Benchmark complete.\n");
 }
