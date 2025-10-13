@@ -17,6 +17,11 @@ ftwin reports two files if they are duplicates from each other.
 .PP
 By default ftwin will recurse in subdirectories and ignore hidden files.
 .PP
+ftwin automatically respects .gitignore files in the directory tree and includes
+sensible default ignore patterns for common VCS directories (.git/, .svn/),
+build artifacts (*.o, build/), dependency directories (node_modules/),
+and OS/editor artifacts (.DS_Store, *.swp).
+.PP
 Mandatory arguments to long options are mandatory for short options too.
 .TP
 \fB\-a\fR, \fB\-\-hidden\fR
@@ -86,6 +91,41 @@ files that exceed this limit won't be read using mmap.
 Try
 .EM ftwin -h
 for more info.
+.SH GITIGNORE SUPPORT
+.PP
+ftwin automatically discovers and loads .gitignore files throughout the directory
+tree, applying ignore patterns hierarchically. This feature helps avoid scanning
+files that are typically not useful for duplicate detection.
+.PP
+.B Default Ignore Patterns
+.PP
+By default, ftwin ignores:
+.IP \(bu 2
+VCS directories: .git/, .hg/, .svn/
+.IP \(bu 2
+Build artifacts: build/, dist/, out/, target/, bin/, *.o, *.class, *.pyc, *.pyo
+.IP \(bu 2
+Dependency directories: node_modules/, vendor/, .venv/
+.IP \(bu 2
+OS & editor files: .DS_Store, Thumbs.db, *.swp, *~, .idea/, .vscode/
+.PP
+.B Custom Patterns
+.PP
+You can place .gitignore files in any directory to define custom patterns.
+Supported patterns include:
+.IP \(bu 2
+*.ext \- Wildcard matching
+.IP \(bu 2
+**/\fB*\fR.ext \- Recursive wildcard matching
+.IP \(bu 2
+/pattern \- Patterns rooted at the directory containing the .gitignore
+.IP \(bu 2
+dir/ \- Directory-only patterns (trailing slash)
+.IP \(bu 2
+!exception \- Negation patterns to whitelist files
+.PP
+Patterns in subdirectories inherit and extend patterns from parent directories,
+with later patterns overriding earlier ones (last match wins).
 .SH EXAMPLES
 .ED
 .PP

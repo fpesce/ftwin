@@ -48,6 +48,7 @@
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
+#include "ft_ignore.h"
 #include "ft_system.h"
 #include "human_size.h"
 #include "napr_heap.h"
@@ -145,6 +146,8 @@ typedef struct ft_conf_t
     apr_uid_t userid;
     apr_gid_t groupid;
     unsigned int num_threads;	/* Number of threads for parallel hashing */
+    ft_ignore_context_t *global_ignores;	/* Root context for ignore patterns */
+    int respect_gitignore;	/* Flag: 1 (default) to respect .gitignore, 0 otherwise */
     unsigned short int mask;
     char sep;
 } ft_conf_t;
@@ -237,6 +240,29 @@ static apr_uint32_t apr_uint32_key_hash(const void *key, apr_size_t klen)
     return i;
 }
 
+/* Default ignore patterns */
+static const char *default_ignores[] = {
+    /* VCS */
+    ".git/", ".hg/", ".svn/",
+    /* Build Artifacts */
+    "build/", "dist/", "out/", "target/", "bin/",
+    "*.o", "*.class", "*.pyc", "*.pyo",
+    /* Dependency Caches */
+    "node_modules/", "vendor/", ".venv/",
+    /* OS & Editor Artifacts */
+    ".DS_Store", "Thumbs.db", "*.swp", "*~", ".idea/", ".vscode/",
+    NULL
+};
+
+static void ft_load_defaults(ft_conf_t *conf)
+{
+    int i;
+
+    for (i = 0; default_ignores[i] != NULL; i++) {
+	ft_ignore_add_pattern_str(conf->global_ignores, default_ignores[i]);
+    }
+}
+
 static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
 {
     const char *filename, *end;
@@ -268,10 +294,13 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
  * @param conf Configuration structure.
  * @param filename name of a file or directory to add to the list of twinchecker.
  * @param gc_pool garbage collecting pool, will be cleaned by the caller.
+ * @param stats Pointer to stats structure for loop detection.
+ * @param parent_ctx Parent ignore context for hierarchical matching.
  * @return APR_SUCCESS if no error occured.
  */
 #define MATCH_VECTOR_SIZE 210
-static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats)
+static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats,
+				     ft_ignore_context_t * parent_ctx)
 {
     int ovector[MATCH_VECTOR_SIZE];
     char errbuf[128];
@@ -303,7 +332,18 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	return status;
     }
 
-    /* Step 1-bis, if we don't own the right to read it, skip it */
+    /* Step 1-bis: Check ignore patterns (hierarchical .gitignore support) */
+    if (conf->respect_gitignore && parent_ctx) {
+	ft_ignore_match_result_t match = ft_ignore_match(parent_ctx, filename, finfo.filetype == APR_DIR);
+	if (match == FT_IGNORE_MATCH_IGNORED) {
+	    /* Path is ignored - prune it */
+	    if (is_option_set(conf->mask, OPTION_VERBO))
+		fprintf(stderr, "Ignoring (gitignore): [%s]\n", filename);
+	    return APR_SUCCESS;
+	}
+    }
+
+    /* Step 1-ter, if we don't own the right to read it, skip it */
     if (0 != conf->userid) {
 	if (finfo.user == conf->userid) {
 	    if (!(APR_UREAD & finfo.protection)) {
@@ -355,6 +395,23 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    return status;
 	}
 	fname_len = strlen(filename);
+
+	/* Discover and load .gitignore in this directory */
+	ft_ignore_context_t *current_ctx = parent_ctx;
+	if (conf->respect_gitignore) {
+	    const char *gitignore_path = apr_pstrcat(gc_pool, filename, "/.gitignore", NULL);
+	    apr_finfo_t gitignore_finfo;
+
+	    if (APR_SUCCESS == apr_stat(&gitignore_finfo, gitignore_path, APR_FINFO_TYPE, gc_pool)
+		&& gitignore_finfo.filetype == APR_REG) {
+		ft_ignore_context_t *local_ctx = ft_ignore_context_create(gc_pool, parent_ctx, filename);
+		if (APR_SUCCESS == ft_ignore_load_file(local_ctx, gitignore_path)) {
+		    current_ctx = local_ctx;
+		    if (is_option_set(conf->mask, OPTION_VERBO))
+			fprintf(stderr, "Loaded .gitignore from: [%s]\n", filename);
+		}
+	    }
+	}
 	while ((APR_SUCCESS == (status = apr_dir_read(&finfo, APR_FINFO_NAME | APR_FINFO_TYPE, dir)))
 	       && (NULL != finfo.name)) {
 	    /* Check if it has to be ignored */
@@ -397,7 +454,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 	    child.parent = stats;
 	    child.stat = finfo;
 
-	    status = ft_conf_add_file(conf, fullname, gc_pool, &child);
+	    status = ft_conf_add_file(conf, fullname, gc_pool, &child, current_ctx);
 
 	    if (APR_SUCCESS != status) {
 		DEBUG_ERR("error recursively calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
@@ -1071,8 +1128,8 @@ static const char *ft_format_time_iso8601_utc(apr_time_t t, apr_pool_t *pool)
 /* Converts XXH128 hash to a hex string. Assumes XXH128_hash_t has high64/low64 members. */
 static char *ft_hash_to_hex(ft_hash_t hash, apr_pool_t *pool)
 {
-    // Based on src/checksum.h defining ft_hash_t as XXH128_hash_t
-    return apr_psprintf(pool, "%016llx%016llx", (unsigned long long) hash.high64, (unsigned long long) hash.low64);
+    /* Use APR's format macro for 64-bit hex (expands to PRIx64) with zero-padding */
+    return apr_psprintf(pool, "%016" APR_UINT64_T_HEX_FMT "%016" APR_UINT64_T_HEX_FMT, hash.high64, hash.low64);
 }
 
 /* Helper to create a JSON object for a file entry */
@@ -1571,6 +1628,9 @@ int ftwin_main(int argc, const char **argv)
     conf.sep = '\n';
     conf.excess_size = 50 * 1024 * 1024;
     conf.num_threads = ft_get_cpu_cores();	/* Default to number of CPU cores */
+    conf.respect_gitignore = 1;	/* Respect .gitignore by default */
+    conf.global_ignores = ft_ignore_context_create(pool, NULL, "/");	/* Initialize global ignores */
+    ft_load_defaults(&conf);	/* Load default ignore patterns */
     conf.mask = OPTION_RECSD;
 #if HAVE_PUZZLE
     conf.threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
@@ -1776,7 +1836,7 @@ int ftwin_main(int argc, const char **argv)
 	    }
 	}
 
-	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, resolved_path, gc_pool, NULL))) {
+	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, resolved_path, gc_pool, NULL, conf.global_ignores))) {
 	    DEBUG_ERR("error calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
 	    apr_terminate();
 	    return -1;

@@ -9,6 +9,7 @@
 - **Find duplicate files by content:** `ftwin` can recursively scan directories and identify files with the same content.
 - **Find similar images:** Using `libpuzzle`, `ftwin` can find images that are visually similar, even if they have been resized, recompressed, or slightly modified.
 - **Flexible filtering:** You can include or exclude files based on regular expressions, file size, and more.
+- **Git-compatible ignore support:** `ftwin` automatically respects `.gitignore` files in your directory tree and includes sensible default ignore patterns for common VCS directories, build artifacts, and temporary files.
 - **Customizable output:** The output format can be adjusted to suit your needs, making it easy to pipe the results to other scripts for further processing.
 - **Priority path:** You can prioritize a specific path to ensure that files from that location are listed first in the duplicate report, which is useful for cleaning up newly imported files.
 - **Archive support:** `ftwin` can search for duplicates within `.tar`, `.gz`, and `.bz2` archives.
@@ -41,6 +42,42 @@ sudo make install
 
 ```bash
 ftwin [OPTION]... [FILES or DIRECTORIES]...
+```
+
+## .gitignore Support
+
+`ftwin` automatically respects `.gitignore` files in your directory tree, providing intelligent filtering of files that you typically don't want to scan for duplicates. This feature works hierarchically, meaning that `.gitignore` files in subdirectories inherit and extend patterns from parent directories.
+
+### Default Ignore Patterns
+
+By default, `ftwin` ignores common files and directories that are rarely useful for duplicate detection:
+
+- **Version Control Systems:** `.git/`, `.hg/`, `.svn/`
+- **Build Artifacts:** `build/`, `dist/`, `out/`, `target/`, `bin/`, `*.o`, `*.class`, `*.pyc`, `*.pyo`
+- **Dependency Directories:** `node_modules/`, `vendor/`, `.venv/`
+- **OS & Editor Files:** `.DS_Store`, `Thumbs.db`, `*.swp`, `*~`, `.idea/`, `.vscode/`
+
+### Custom .gitignore Files
+
+Place `.gitignore` files in any directory to define custom ignore patterns. `ftwin` supports standard Git glob patterns including:
+
+- `*.ext` - Wildcard matching
+- `**/*.ext` - Recursive wildcard matching
+- `/pattern` - Patterns rooted at the directory containing the `.gitignore`
+- `dir/` - Directory-only patterns
+- `!exception` - Negation patterns to whitelist files
+
+Example `.gitignore`:
+```gitignore
+# Ignore all logs except important ones
+*.log
+!important.log
+
+# Ignore build directory at this level only
+/build/
+
+# Ignore all temporary files recursively
+**/*.tmp
 ```
 
 ## Output Format
