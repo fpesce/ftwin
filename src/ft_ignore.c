@@ -73,6 +73,11 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 
     /* Convert pattern to regex */
     while (*p) {
+	/* Skip trailing slash for directory-only patterns */
+	if (*p == '/' && *flags & FT_IGNORE_DIR_ONLY && *(p + 1) == '\0') {
+	    break;
+	}
+
 	if (*p == '\\' && *(p + 1)) {
 	    /* Escaped character */
 	    p++;
@@ -268,8 +273,8 @@ ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *
 	    continue;
 	}
 
-	/* Check patterns in reverse order (last match wins) */
-	for (i = current_ctx->patterns->nelts - 1; i >= 0; i--) {
+	/* Check patterns in order (last match wins) */
+	for (i = 0; i < current_ctx->patterns->nelts; i++) {
 	    ft_ignore_pattern_t *pattern = APR_ARRAY_IDX(current_ctx->patterns, i, ft_ignore_pattern_t *);
 	    int match;
 

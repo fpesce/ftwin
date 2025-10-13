@@ -60,7 +60,8 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      src/vendor/xxhash/xxhash.c check/check_archive.c src/ftwin.c \
 		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c \
 		      check/check_human_size.c src/human_size.c src/ft_system.c \
-		      check/check_ft_system.c check/check_parallel_hashing.c src/ft_ignore.c
+		      check/check_ft_system.c check/check_parallel_hashing.c src/ft_ignore.c \
+		      check/check_ft_ignore.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@

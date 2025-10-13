@@ -232,7 +232,19 @@ START_TEST(test_ftwin_json_output_validation)
     json_t *set = json_array_get(root, 0);
     // Validate metadata (5K file size is 5120 bytes)
     ck_assert_int_eq(json_integer_value(json_object_get(set, "size_bytes")), 5120);
-    ck_assert(json_is_string(json_object_get(set, "hash_xxh128")));
+
+    // Validate hash format
+    const char *hash = json_string_value(json_object_get(set, "hash_xxh128"));
+    ck_assert_ptr_ne(hash, NULL);
+    ck_assert_int_eq(strlen(hash), 32);	// XXH128 = 32 hex chars (128 bits)
+
+    // Ensure hash contains only valid hex characters and no format specifiers
+    for (int i = 0; i < 32; i++) {
+	ck_assert_msg((hash[i] >= '0' && hash[i] <= '9') || (hash[i] >= 'a' && hash[i] <= 'f'),
+		      "Hash contains invalid character '%c' at position %d", hash[i], i);
+    }
+    ck_assert_msg(strstr(hash, "%") == NULL, "Hash contains format specifier");
+    ck_assert_msg(strstr(hash, " ") == NULL, "Hash contains spaces");
 
     json_t *duplicates = json_object_get(set, "duplicates");
     ck_assert_int_eq(json_array_size(duplicates), 2);
@@ -258,8 +270,10 @@ START_TEST(test_ftwin_json_output_validation)
     json_decref(root);
     remove("check/tests/5K_file_copy");
 }
-
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
+
 #endif
 Suite *make_ftwin_suite(void)
 {
@@ -286,6 +300,7 @@ Suite *make_archive_suite(void);
 Suite *make_human_size_suite(void);
 Suite *make_ft_system_suite(void);
 Suite *make_parallel_hashing_suite(void);
+Suite *make_ft_ignore_suite(void);
 
 int main(int argc, char **argv)
 {
@@ -337,6 +352,9 @@ int main(int argc, char **argv)
 
     if (!num || num == 8)
 	srunner_add_suite(sr, make_parallel_hashing_suite());
+
+    if (!num || num == 9)
+	srunner_add_suite(sr, make_ft_ignore_suite());
 
     srunner_set_fork_status(sr, CK_NOFORK);
     srunner_set_xml(sr, "check_log.xml");

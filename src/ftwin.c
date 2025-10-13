@@ -1128,8 +1128,8 @@ static const char *ft_format_time_iso8601_utc(apr_time_t t, apr_pool_t *pool)
 /* Converts XXH128 hash to a hex string. Assumes XXH128_hash_t has high64/low64 members. */
 static char *ft_hash_to_hex(ft_hash_t hash, apr_pool_t *pool)
 {
-    // Based on src/checksum.h defining ft_hash_t as XXH128_hash_t
-    return apr_psprintf(pool, "%016llx%016llx", (unsigned long long) hash.high64, (unsigned long long) hash.low64);
+    /* Use APR's format macro for 64-bit hex (expands to PRIx64) with zero-padding */
+    return apr_psprintf(pool, "%016" APR_UINT64_T_HEX_FMT "%016" APR_UINT64_T_HEX_FMT, hash.high64, hash.low64);
 }
 
 /* Helper to create a JSON object for a file entry */
