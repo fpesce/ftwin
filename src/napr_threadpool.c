@@ -187,6 +187,7 @@ struct napr_threadpool_t
 
     unsigned int run:1;
     unsigned int ended:1;
+    unsigned int shutdown:1;
 };
 
 static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec);
@@ -221,6 +222,7 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
     (*threadpool)->process_data = process_data;
     (*threadpool)->run &= 0x0;
     (*threadpool)->ended &= 0x0;
+    (*threadpool)->shutdown &= 0x0;
 
     for (l = 0; l < nb_thread; l++) {
 	if (APR_SUCCESS !=
@@ -316,8 +318,8 @@ static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 	return NULL;
     }
 
-    /* do forever.... */
-    while (1) {
+    /* do forever.... (unless shutdown is requested) */
+    while (!(threadpool->shutdown & 0x1)) {
 	/* DEBUG_DBG("list_size: %lu", napr_list_size(threadpool->list)); */
 	if ((0 < napr_list_size(threadpool->list)) && !(threadpool->ended & 0x1)) {
 	    napr_cell_t *cell;
@@ -371,4 +373,49 @@ static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 	    threadpool->nb_waiting -= 1UL;
 	}
     }
+
+    /* Unlock mutex before exiting thread */
+    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
+	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
+    }
+
+    return NULL;
+}
+
+extern apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool)
+{
+    char errbuf[128];
+    apr_status_t status, rv;
+    unsigned long l;
+
+    /* Lock mutex to set shutdown flag */
+    if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
+	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
+	return status;
+    }
+
+    /* Signal all threads to shutdown */
+    threadpool->shutdown |= 0x1;
+
+    /* Broadcast to wake up all waiting threads */
+    if (APR_SUCCESS != (status = apr_thread_cond_broadcast(threadpool->threadpool_update))) {
+	DEBUG_ERR("error calling apr_thread_cond_broadcast: %s", apr_strerror(status, errbuf, 128));
+	apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+	return status;
+    }
+
+    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
+	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
+	return status;
+    }
+
+    /* Join all threads to wait for them to exit */
+    for (l = 0; l < threadpool->nb_thread; l++) {
+	if (APR_SUCCESS != (status = apr_thread_join(&rv, threadpool->thread[l]))) {
+	    DEBUG_ERR("error calling apr_thread_join: %s", apr_strerror(status, errbuf, 128));
+	    return status;
+	}
+    }
+
+    return APR_SUCCESS;
 }

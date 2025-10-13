@@ -40,7 +40,8 @@ noinst_HEADERS = src/debug.h \
 		  src/ft_file.h \
 		  src/ftwin.h \
 		  src/human_size.h \
-		  src/napr_threadpool.h
+		  src/napr_threadpool.h \
+		  src/ft_system.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/napr_hash.c \
@@ -49,13 +50,15 @@ ftwin_SOURCES = src/ftwin.c \
 		   src/lookup3.c \
 		   src/ft_file.c \
 		   src/human_size.c \
-		   src/napr_threadpool.c
+		   src/napr_threadpool.c \
+		   src/ft_system.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
 		      src/vendor/xxhash/xxhash.c check/check_archive.c src/ftwin.c \
 		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c \
-		      check/check_human_size.c src/human_size.c
+		      check/check_human_size.c src/human_size.c src/ft_system.c \
+		      check/check_ft_system.c check/check_parallel_hashing.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
@@ -74,10 +77,16 @@ ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @ZLIB_LDADD@ @BZ2_LDADD@ @COVERA
 check_ftwin_LDFLAGS = @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 ftwin_LDFLAGS = @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 
-bench_ftwin_SOURCES = check/bench_ftwin.c src/vendor/xxhash/xxhash.c src/ft_file.c
-bench_ftwin_CFLAGS = @APR_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src
-bench_ftwin_CPPFLAGS = @APR_CPPFLAGS@ -I$(top_srcdir)/src/vendor/xxhash
-bench_ftwin_LDADD = @APR_LIBS@ @APU_LIBS@
+bench_ftwin_SOURCES = check/bench_ftwin.c src/vendor/xxhash/xxhash.c src/ft_file.c \
+		      src/ftwin.c src/napr_hash.c src/napr_heap.c src/lookup3.c \
+		      src/napr_threadpool.c src/human_size.c src/ft_system.c
+bench_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ -Wall -g -ggdb -I$(top_srcdir)/src
+bench_ftwin_CPPFLAGS = @APR_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DFTWIN_TEST_BUILD \
+		       -I$(top_srcdir)/src/vendor/xxhash -I$(top_srcdir)/third-party/libpuzzle/src \
+		       -I$(top_srcdir)/third-party/libarchive/libarchive
+bench_ftwin_LDADD = @APR_LIBS@ @APU_LIBS@ @PCRE_LIBS@ @ZLIB_LDADD@ @BZ2_LDADD@ -lgd \
+		    third-party/libpuzzle/src/libpuzzle.la third-party/libarchive/.libs/libarchive.la
+bench_ftwin_LDFLAGS = @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 
 # --- CI/CD Targets ---
 
