@@ -1606,7 +1606,8 @@ int ftwin_main(int argc, const char **argv)
     conf.pool = pool;
     conf.heap = napr_heap_make(pool, ft_file_cmp);
     conf.ig_files = napr_hash_str_make(pool, 32, 8);
-    conf.sizes = napr_hash_make(pool, 4096, 8, ft_fsize_get_key, ft_fsize_get_key_len, apr_off_t_key_cmp, apr_off_t_key_hash);
+    conf.sizes =
+	napr_hash_make(pool, 4096, 8, ft_fsize_get_key, ft_fsize_get_key_len, apr_off_t_key_cmp, apr_off_t_key_hash);
     conf.gids = napr_hash_make(pool, 4096, 8, ft_gids_get_key, ft_gid_get_key_len, gid_t_key_cmp, gid_t_key_hash);
     /* To avoid endless loop, ignore looping directory ;) */
     napr_hash_search(conf.ig_files, ".", 1, &hash_value);

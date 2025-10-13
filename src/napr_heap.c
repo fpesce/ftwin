@@ -45,7 +45,6 @@ struct napr_heap_t
 #endif
     void **tree;
     napr_heap_cmp_callback_fn_t *cmp;
-    napr_heap_display_callback_fn_t *display;
 #ifndef HAVE_APR		/* !HAVE_APR */
     /* Then we may specify a function to deallocate data */
     napr_heap_del_callback_fn_t *del;
@@ -57,10 +56,6 @@ struct napr_heap_t
 
 #ifdef HAVE_APR
 /* APR_POOL_IMPLEMENT_ACCESSOR(heap); */
-apr_pool_t *napr_heap_get_allocator(const napr_heap_t *heap)
-{
-    return heap->pool;
-}
 #endif
 
 napr_heap_t *napr_heap_make(
@@ -104,24 +99,6 @@ napr_heap_t *napr_heap_make(
     }
 
     return heap;
-}
-
-void napr_heap_destroy(napr_heap_t *heap)
-{
-#ifdef HAVE_APR
-    apr_pool_destroy(heap->pool);
-#else /* !HAVE_APR */
-    if (NULL != heap) {
-	if (NULL != heap->del && NULL != heap->tree) {
-	    unsigned int i;
-	    for (i = 0; i < heap->count; i++) {
-		heap->del(heap->tree[i]);
-	    }
-	}
-	free(heap->tree);
-	free(heap);
-    }
-#endif
 }
 
 int napr_heap_insert(napr_heap_t *heap, void *datum)
@@ -312,54 +289,4 @@ int napr_heap_insert_r(napr_heap_t *heap, void *datum)
 	rc = -1;
 
     return rc;
-}
-
-void *napr_heap_extract_r(napr_heap_t *heap)
-{
-    void *result;
-
-    result = NULL;
-    if (1 == heap->mutex_set) {
-#ifdef HAVE_APR
-	if (APR_SUCCESS == apr_thread_mutex_lock(heap->mutex)) {
-	    if (NULL != (result = napr_heap_extract(heap)))
-		if (APR_SUCCESS != apr_thread_mutex_unlock(heap->mutex)) {
-		    DEBUG_ERR("unlocking failed");
-		    result = NULL;
-		}
-	}
-	else {
-	    DEBUG_ERR("locking failed");
-	}
-#else
-	if (0 == pthread_mutex_lock(&heap->mutex)) {
-	    if (NULL != (result = napr_heap_extract(heap)))
-		if (0 != pthread_mutex_unlock(&heap->mutex))
-		    result = NULL;
-	}
-#endif
-    }
-
-    return result;
-}
-
-void napr_heap_set_display_cb(napr_heap_t *heap, napr_heap_display_callback_fn_t display)
-{
-    heap->display = display;
-}
-
-void napr_heap_display(const napr_heap_t *heap)
-{
-    unsigned int i;
-
-    for (i = 0; i < heap->count; i++) {
-	if (((i - 1) % 2) == 0) {
-	    printf("\n");
-	}
-	printf("%u:", i);
-	heap->display(heap->tree[i]);
-	printf("\t");
-    }
-    printf("\n");
-    fflush(stdout);
 }
