@@ -24,7 +24,7 @@ jobs:
           enable: all
           inconclusive: enable
           # Optional: Add other options like 'exclude_check' or 'suppress'
-          exclude: ./third-party/
+          exclude_check: ./third-party/
           other_options: --suppressions-list=.cppcheck-suppressions
 
   clang-tidy:

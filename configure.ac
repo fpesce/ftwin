@@ -56,11 +56,6 @@ PWD=`pwd`
 ABS_TOP_SRCDIR=$PWD$top_srcdir
 AC_SUBST(ABS_TOP_SRCDIR)
 
-case $host in
-x86_64-*-*) CFLAGS="-march=nocona -mfpmath=sse,387 -DCPU=64" ;;
-i686-*-*)   CFLAGS="-march=i686 -malign-double -DCPU=686" ;;
-*)          CFLAGS= ;;
-esac
 
 AC_MSG_RESULT([
 ** Configuration summary for $PACKAGE $VERSION:
