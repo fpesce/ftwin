@@ -221,33 +221,7 @@ static const void *ft_gids_get_key(const void *opaque)
 }
 
 
-static apr_size_t get_one(const void *opaque)
-{
-    return 1;
-}
-
-static int apr_uint32_key_cmp(const void *key1, const void *key2, apr_size_t len)
-{
-    apr_uint32_t i1 = *(apr_uint32_t *) key1;
-    apr_uint32_t i2 = *(apr_uint32_t *) key2;
-
-    return (i1 == i2) ? 0 : 1;
-}
-
-/* http://www.burtleburtle.net/bob/hash/integer.html */
-static apr_uint32_t apr_uint32_key_hash(const void *key, apr_size_t klen)
-{
-    apr_uint32_t i = *(apr_uint32_t *) key;
-
-    i = (i + 0x7ed55d16) + (i << 12);
-    i = (i ^ 0xc761c23c) ^ (i >> 19);
-    i = (i + 0x165667b1) + (i << 5);
-    i = (i + 0xd3a2646c) ^ (i << 9);
-    i = (i + 0xfd7046c5) + (i << 3);
-    i = (i ^ 0xb55a4f09) ^ (i >> 16);
-
-    return i;
-}
+#include "key_hash.h"
 
 /* Default ignore patterns */
 static const char *default_ignores[] = {
@@ -361,7 +335,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		return APR_SUCCESS;
 	    }
 	}
-	else if (NULL != napr_hash_search(conf->gids, &finfo.group, 1, &hash_value)) {
+	else if (NULL != napr_hash_search(conf->gids, &finfo.group, sizeof(gid_t), &hash_value)) {
 	    if (!(APR_GREAD & finfo.protection)) {
 		if (is_option_set(conf->mask, OPTION_VERBO))
 		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
@@ -385,7 +359,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		    return APR_SUCCESS;
 		}
 	    }
-	    else if (NULL != napr_hash_search(conf->gids, &finfo.group, 1, &hash_value)) {
+	    else if (NULL != napr_hash_search(conf->gids, &finfo.group, sizeof(gid_t), &hash_value)) {
 		if (!(APR_GEXECUTE & finfo.protection)) {
 		    if (is_option_set(conf->mask, OPTION_VERBO))
 			fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
@@ -559,7 +533,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 #endif
 		napr_heap_insert(conf->heap, file);
 
-		if (NULL == (fsize = napr_hash_search(conf->sizes, &finfosize, 1, &hash_value))) {
+		if (NULL == (fsize = napr_hash_search(conf->sizes, &finfosize, sizeof(apr_off_t), &hash_value))) {
 		    fsize = apr_palloc(conf->pool, sizeof(struct ft_fsize_t));
 		    fsize->val = finfosize;
 		    fsize->chksum_array = NULL;
@@ -829,7 +803,7 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 
     /* First pass: allocate checksum arrays and count tasks */
     while (NULL != (file = napr_heap_extract(conf->heap))) {
-	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
+	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
 	    /* More than two files, we will need to checksum because :
 	     * - 1 file of a size means no twin.
 	     * - 2 files of a size means that anyway we must read the both, so
@@ -1193,7 +1167,7 @@ static apr_status_t ft_conf_json_report(ft_conf_t *conf)
 	    continue;
 	old_size = file->size;
 
-	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
+	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
 	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), chksum_cmp);
 
@@ -1341,7 +1315,7 @@ static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 	    continue;
 
 	old_size = file->size;
-	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
+	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
 	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), chksum_cmp);
 	    for (i = 0; i < fsize->nb_files; i++) {
@@ -1555,7 +1529,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     }
 
     for (i = 0; i < nb_gid; i++) {
-	gid = napr_hash_search(gids, &(list[i]), 1, &hash_value);
+	gid = napr_hash_search(gids, &(list[i]), sizeof(gid_t), &hash_value);
 	if (NULL == gid) {
 	    gid = apr_palloc(p, sizeof(struct ft_gid_t));
 	    gid->val = list[i];
@@ -1632,8 +1606,9 @@ int ftwin_main(int argc, const char **argv)
     conf.pool = pool;
     conf.heap = napr_heap_make(pool, ft_file_cmp);
     conf.ig_files = napr_hash_str_make(pool, 32, 8);
-    conf.sizes = napr_hash_make(pool, 4096, 8, ft_fsize_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);
-    conf.gids = napr_hash_make(pool, 4096, 8, ft_gids_get_key, get_one, apr_uint32_key_cmp, apr_uint32_key_hash);
+    conf.sizes =
+	napr_hash_make(pool, 4096, 8, ft_fsize_get_key, ft_fsize_get_key_len, apr_off_t_key_cmp, apr_off_t_key_hash);
+    conf.gids = napr_hash_make(pool, 4096, 8, ft_gids_get_key, ft_gid_get_key_len, gid_t_key_cmp, gid_t_key_hash);
     /* To avoid endless loop, ignore looping directory ;) */
     napr_hash_search(conf.ig_files, ".", 1, &hash_value);
     napr_hash_set(conf.ig_files, ".", hash_value);

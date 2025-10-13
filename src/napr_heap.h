@@ -38,12 +38,6 @@ typedef struct napr_heap_t napr_heap_t;
 typedef int (napr_heap_cmp_callback_fn_t) (const void *, const void *);
 
 /**
- * @brief Optional callback function to display an element (for debugging).
- * @param[in] data The element to display.
- */
-typedef void (napr_heap_display_callback_fn_t) (const void *);
-
-/**
  * @brief Optional callback function to delete/deallocate an element when not using APR pools.
  * @param[in] data The element to delete.
  */
@@ -52,17 +46,6 @@ typedef void (napr_heap_del_callback_fn_t) (void *);
 
 #ifdef HAVE_APR
 #include <apr_pools.h>
-/**
- * @brief Get the APR pool associated with a heap.
- *
- * This allows elements to be allocated from the same pool as the heap,
- * ensuring they are automatically cleaned up when the heap is destroyed.
- *
- * @param[in] heap The heap.
- * @return A pointer to the APR pool.
- */
-apr_pool_t *napr_heap_get_allocator(const napr_heap_t *heap);
-
 /**
  * @brief Creates a new heap.
  *
@@ -105,16 +88,6 @@ napr_heap_t *napr_heap_make_r(napr_heap_cmp_callback_fn_t *cmp, napr_heap_del_ca
 #endif /* HAVE_APR */
 
 /**
- * @brief Destroys the heap and deallocates its memory.
- *
- * If using APR, elements allocated from the heap's pool are also destroyed.
- * If not using APR, the provided `del` function is called on each remaining element.
- *
- * @param[in] heap The heap to destroy.
- */
-void napr_heap_destroy(napr_heap_t *heap);
-
-/**
  * @brief Inserts an element into the heap, maintaining the heap property.
  * @param[in] heap The heap.
  * @param[in] datum The data item to insert.
@@ -154,23 +127,4 @@ unsigned int napr_heap_size(const napr_heap_t *heap);
  */
 int napr_heap_insert_r(napr_heap_t *heap, void *datum);
 
-/**
- * @brief Extracts the top element from a thread-safe heap.
- * @param[in] heap The thread-safe heap.
- * @return A pointer to the top element, or NULL if the heap is empty.
- */
-void *napr_heap_extract_r(napr_heap_t *heap);
-
-/**
- * @brief Attaches a callback function to display the heap's contents for debugging.
- * @param[in] heap The heap.
- * @param[in] display The callback function.
- */
-void napr_heap_set_display_cb(napr_heap_t *heap, napr_heap_display_callback_fn_t display);
-
-/**
- * @brief Displays the heap's binary tree structure using the registered display callback.
- * @param[in] heap The heap to display.
- */
-void napr_heap_display(const napr_heap_t *heap);
 #endif /* NAPR_HEAP_H */

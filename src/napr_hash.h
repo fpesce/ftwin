@@ -68,14 +68,6 @@ typedef int (key_cmp_callback_fn_t) (const void *, const void *, apr_size_t);
 typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_size_t);
 
 /**
- * @brief Callback function to apply to each element in the hash table.
- * @param[in] data A pointer to the data item.
- * @param[in] param A user-provided parameter.
- * @return APR_SUCCESS to continue iteration, or another status to stop.
- */
-typedef apr_status_t (function_callback_fn_t) (const void *, void *);
-
-/**
  * @brief Create a hash table with custom key handling and hashing functions.
  * @param[in] pool The pool to allocate the hash table from.
  * @param[in] nel The desired number of pre-allocated buckets (will be rounded up to the next power of 2).
@@ -125,29 +117,6 @@ void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
  * @return APR_SUCCESS on success.
  */
 apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
-
-/**
- * @brief Applies a function to every item in the hash table.
- * @param[in] hash The hash table.
- * @param[in] function The function to apply.
- * @param[in] param A parameter to pass to the function.
- * @return APR_SUCCESS if the function was applied to all items, or the error code returned by the function.
- */
-apr_status_t napr_hash_apply_function(const napr_hash_t *hash, function_callback_fn_t function, void *param);
-
-/**
- * @brief Gets the number of items currently stored in the hash table.
- * @param[in] hash The hash table.
- * @return The number of items.
- */
-apr_size_t napr_hash_get_size(const napr_hash_t *hash);
-
-/**
- * @brief Gets the number of buckets in the hash table.
- * @param[in] hash The hash table.
- * @return The number of buckets.
- */
-apr_size_t napr_hash_get_nel(const napr_hash_t *hash);
 
 /**
  * @brief Get a pointer to the pool from which the hash table was allocated.

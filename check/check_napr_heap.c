@@ -63,13 +63,6 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     return 0;
 }
 
-static void check_heap_numbers_display(const void *param)
-{
-    const check_heap_numbers_t *number = param;
-
-    printf("%" APR_OFF_T_FMT, number->size);
-}
-
 START_TEST(test_napr_heap_unordered_bug)
 {
     apr_off_t array[] = { 6298, 43601, 193288, 30460, 193288 };
@@ -78,7 +71,6 @@ START_TEST(test_napr_heap_unordered_bug)
     int i;
 
     heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
-    napr_heap_set_display_cb(heap, check_heap_numbers_display);
 
     for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
 	number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));

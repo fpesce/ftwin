@@ -201,10 +201,10 @@ START_TEST(test_ftwin_json_output_validation)
     system("cp check/tests/5K_file check/tests/5K_file_copy");
 
     // Determine expected absolute paths dynamically for portability
-    char cwd[4096];
+    char cwd[1024];
     ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
-    char expected_abs_path1[4096];
-    char expected_abs_path2[4096];
+    char expected_abs_path1[2048];
+    char expected_abs_path2[2048];
     snprintf(expected_abs_path1, sizeof(expected_abs_path1), "%s/check/tests/5K_file", cwd);
     snprintf(expected_abs_path2, sizeof(expected_abs_path2), "%s/check/tests/5K_file_copy", cwd);
 

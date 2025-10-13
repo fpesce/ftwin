@@ -19,9 +19,11 @@
  * limitations under the License.
  */
 
-#include "lookup3.h"
 #include "debug.h"
 #include "napr_hash.h"
+
+#define XXH_STATIC_LINKING_ONLY
+#include "xxhash.h"
 
 #define hashsize(n) ((apr_size_t)1<<(n))
 #define hashmask(n) (hashsize(n)-1)
@@ -47,7 +49,8 @@ static int str_key_cmp(const void *opaque1, const void *opaque2, apr_size_t len)
 
 static apr_uint32_t str_hash(register const void *opaque, register apr_size_t len)
 {
-    return hashlittle(opaque, len, 0x1337cafe);
+    /* Use XXH32 for string hashing - faster and more consistent with file hashing */
+    return XXH32(opaque, len, 0x1337cafe);
 }
 
 struct napr_hash_index_t
@@ -243,7 +246,7 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 
     bucket = hash_value & hash->mask;
 
-    if ((0 == (nel = hash->filling_table[bucket])) & (NULL == hash->table[bucket])) {
+    if ((0 == (nel = hash->filling_table[bucket])) && (NULL == hash->table[bucket])) {
 	hash->table[bucket] = (void **) apr_pcalloc(hash->own_pool, hash->ffactor * sizeof(void *));
     }
     // DEBUG_DBG( "set data %.*s in bucket %u at nel %u", hash->datum_get_key_len(data), hash->datum_get_key(data), bucket, nel);
@@ -269,36 +272,6 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
     return APR_SUCCESS;
 }
 
-extern apr_status_t napr_hash_apply_function(const napr_hash_t *hash, function_callback_fn_t function, void *param)
-{
-    apr_size_t i, j;
-    apr_status_t status;
-
-    if (NULL != hash) {
-	for (i = 0; i < hash->size; i++) {
-	    for (j = 0; j < hash->filling_table[i]; j++) {
-		if (APR_SUCCESS != (status = function(hash->table[i][j], param))) {
-		    char errbuf[128];
-		    DEBUG_ERR("error calling function: %s", apr_strerror(status, errbuf, 128));
-		    return status;
-		}
-	    }
-	}
-    }
-
-    return APR_SUCCESS;
-}
-
-extern apr_size_t napr_hash_get_size(const napr_hash_t *hash)
-{
-    return hash->size;
-}
-
-extern apr_size_t napr_hash_get_nel(const napr_hash_t *hash)
-{
-    return hash->nel;
-}
-
 apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash)
 {
     return thehash->pool;
@@ -318,21 +291,21 @@ napr_hash_index_t *napr_hash_first(apr_pool_t *pool, napr_hash_t *hash)
     return napr_hash_next(hash_index);
 }
 
-napr_hash_index_t *napr_hash_next(napr_hash_index_t *hash_index)
+napr_hash_index_t *napr_hash_next(napr_hash_index_t *index)
 {
-    if ((0 != hash_index->hash->filling_table[hash_index->bucket])
-	&& (hash_index->element < (hash_index->hash->filling_table[hash_index->bucket] - 1))) {
-	hash_index->element++;
-	return hash_index;
+    if ((0 != index->hash->filling_table[index->bucket])
+	&& (index->element < (index->hash->filling_table[index->bucket] - 1))) {
+	index->element++;
+	return index;
     }
     else {
-	hash_index->element = 0;
-	for (hash_index->bucket += 1; hash_index->bucket < hash_index->hash->size; hash_index->bucket++) {
-	    if (0 != hash_index->hash->filling_table[hash_index->bucket])
+	index->element = 0;
+	for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
+	    if (0 != index->hash->filling_table[index->bucket])
 		break;
 	}
-	if (hash_index->bucket < hash_index->hash->size)
-	    return hash_index;
+	if (index->bucket < index->hash->size)
+	    return index;
     }
 
     return NULL;

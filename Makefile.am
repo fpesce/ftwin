@@ -36,32 +36,32 @@ noinst_HEADERS = src/debug.h \
 		  src/napr_hash.h \
 		  src/napr_heap.h \
 		  src/checksum.h \
-		  src/lookup3.h \
 		  src/ft_file.h \
 		  src/ftwin.h \
 		  src/human_size.h \
 		  src/napr_threadpool.h \
 		  src/ft_system.h \
-		  src/ft_ignore.h
+		  src/ft_ignore.h \
+		  src/key_hash.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/napr_hash.c \
 		   src/napr_heap.c \
 		   src/vendor/xxhash/xxhash.c \
-		   src/lookup3.c \
 		   src/ft_file.c \
 		   src/human_size.c \
 		   src/napr_threadpool.c \
 		   src/ft_system.c \
-		   src/ft_ignore.c
+		   src/ft_ignore.c \
+		   src/key_hash.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
 		      check/check_apr_hash.c check/check_ft_file.c src/ft_file.c \
 		      src/vendor/xxhash/xxhash.c check/check_archive.c src/ftwin.c \
-		      src/napr_hash.c src/lookup3.c src/napr_threadpool.c \
+		      src/napr_hash.c src/napr_threadpool.c \
 		      check/check_human_size.c src/human_size.c src/ft_system.c \
 		      check/check_ft_system.c check/check_parallel_hashing.c src/ft_ignore.c \
-		      check/check_ft_ignore.c
+		      check/check_ft_ignore.c src/key_hash.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
@@ -81,8 +81,9 @@ check_ftwin_LDFLAGS = @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 ftwin_LDFLAGS = @ZLIB_LDFLAGS@ @BZ2_LDFLAGS@
 
 bench_ftwin_SOURCES = check/bench_ftwin.c src/vendor/xxhash/xxhash.c src/ft_file.c \
-		      src/ftwin.c src/napr_hash.c src/napr_heap.c src/lookup3.c \
-		      src/napr_threadpool.c src/human_size.c src/ft_system.c src/ft_ignore.c
+		      src/ftwin.c src/napr_hash.c src/napr_heap.c \
+		      src/napr_threadpool.c src/human_size.c src/ft_system.c src/ft_ignore.c \
+		      src/key_hash.c
 bench_ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -g -ggdb -I$(top_srcdir)/src
 bench_ftwin_CPPFLAGS = @APR_CPPFLAGS@ @ZLIB_CPPFLAGS@ @BZ2_CPPFLAGS@ -DFTWIN_TEST_BUILD \
 		       -I$(top_srcdir)/src/vendor/xxhash -I$(top_srcdir)/third-party/libpuzzle/src \
