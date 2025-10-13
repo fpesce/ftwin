@@ -142,8 +142,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required for deployment and committing back to master
+      pages: write # pages: write (Needed for deployment)
+      id-token: write # id-token: write (Needed for deployment OIDC token)
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -196,18 +200,22 @@ jobs:
       - name: Save updated benchmark data
         run: |
           if [ -d "./site_staging/benchmark-data" ]; then
-            cp -r ./site_staging/benchmark-data benchmark-data
+            # Ensure the local directory exists and copy updated data back
+            mkdir -p benchmark-data
+            cp -r ./site_staging/benchmark-data/* benchmark-data/
           fi
 
       # 6. Create the navigation index.html
       - name: Create index.html
         run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           cat <<EOF > ./site_staging/index.html
           <!DOCTYPE html>
           <html>
           <head><title>ftwin Project Reports</title></head>
           <body>
             <h1>ftwin Project Artifacts</h1>
+            <p>Last updated: $TIMESTAMP</p>
             <ul>
               <li><a href="docs/">API Documentation (Doxygen)</a></li>
               <li><a href="coverage/">Code Coverage Report (LCOV)</a></li>
@@ -217,14 +225,19 @@ jobs:
           </html>
           EOF
 
-      # 7. Deploy the staged content cleanly to gh-pages
-      - name: Deploy supplemental content
-        uses: peaceiris/actions-gh-pages@v3
+      # 7. Modern Deployment Steps ---
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site_staging
-          # Set keep_files to false to ensure a clean deployment and remove stale files
-          keep_files: false
+        # Upload the entire staging directory
+          path: './site_staging'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       # 8. Commit the updated benchmark data back to the master branch
       - name: Commit benchmark data update
