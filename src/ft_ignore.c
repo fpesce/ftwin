@@ -1,3 +1,8 @@
+/**
+ * @file ft_ignore.c
+ * @brief Implementation of the hierarchical .gitignore-style pattern matching logic.
+ * @ingroup Utilities
+ */
 /*
  * Copyright (C) 2025 François Pesce : francois.pesce (at) gmail (dot) com
  *

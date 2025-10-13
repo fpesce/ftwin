@@ -1,3 +1,8 @@
+/**
+ * @file human_size.c
+ * @brief Implementation of human-readable size parsing and formatting.
+ * @ingroup Utilities
+ */
 #include "human_size.h"
 #include <ctype.h>
 #include <stdio.h>

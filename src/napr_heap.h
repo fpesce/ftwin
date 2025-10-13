@@ -1,12 +1,17 @@
+/**
+ * @file napr_heap.h
+ * @brief A generic binary heap implementation (min-heap or max-heap).
+ * @ingroup DataStructures
+ */
 /*
  * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * 	http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,140 +22,155 @@
 #ifndef NAPR_HEAP_H
 #define NAPR_HEAP_H
 
+/**
+ * @brief Opaque heap structure.
+ */
 typedef struct napr_heap_t napr_heap_t;
+
+/**
+ * @brief Callback function to compare two elements in the heap.
+ * @param[in] a The first element.
+ * @param[in] b The second element.
+ * @return Should return an integer less than, equal to, or greater than zero if the
+ *         first argument is considered to be respectively less than, equal to, or
+ *         greater than the second.
+ */
 typedef int (napr_heap_cmp_callback_fn_t) (const void *, const void *);
+
+/**
+ * @brief Optional callback function to display an element (for debugging).
+ * @param[in] data The element to display.
+ */
 typedef void (napr_heap_display_callback_fn_t) (const void *);
+
+/**
+ * @brief Optional callback function to delete/deallocate an element when not using APR pools.
+ * @param[in] data The element to delete.
+ */
 typedef void (napr_heap_del_callback_fn_t) (void *);
 
 
 #ifdef HAVE_APR
 #include <apr_pools.h>
 /**
- * Return the allocator associated to the heap, thus you can allow elements
- * that will be automatically freed when the heap will be.
- * @param heap The heap you are working with.
- * @return Return a pointer to the allcator of type apr_pool_t.
+ * @brief Get the APR pool associated with a heap.
+ *
+ * This allows elements to be allocated from the same pool as the heap,
+ * ensuring they are automatically cleaned up when the heap is destroyed.
+ *
+ * @param[in] heap The heap.
+ * @return A pointer to the APR pool.
  */
 apr_pool_t *napr_heap_get_allocator(const napr_heap_t *heap);
-/* APR_POOL_DECLARE_ACCESSOR(heap); */
 
 /**
- * Make a new heap structure, a heap is a structure that is able to return the
- * smallest (or highest, according to the way you compare data) element of its
- * set, in a complexity of O(lg n) the same as the complexity to insert a
- * random element.
- * @param pool The associated pool.
- * @param cmp The function that compare two elements to return the smallest.
- * @return Return a pointer to a newly allocated heap NULL if an error occured.
+ * @brief Creates a new heap.
+ *
+ * A heap is a specialized tree-based data structure that satisfies the heap property:
+ * if P is a parent node of C, then the key (the value) of P is either greater than
+ * or equal to (in a max heap) or less than or equal to (in a min heap) the key of C.
+ * This implementation provides O(log n) time complexity for insertions and O(1) for
+ * finding the min/max element.
+ *
+ * @param[in] pool The APR pool to use for allocations.
+ * @param[in] cmp The comparison function that defines the heap order.
+ * @return A pointer to the new heap, or NULL on error.
  */
 napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp);
 
 /**
- * Re-entrant (Thread safe) version of napr_heap_make.
- * @param pool The associated pool.
- * @param cmp The function that compare two elements to return the smallest.
- * @return Return a pointer to a newly allocated heap NULL if an error occured.
+ * @brief Creates a new thread-safe heap.
+ * @param[in] pool The APR pool to use for allocations.
+ * @param[in] cmp The comparison function.
+ * @return A pointer to the new thread-safe heap, or NULL on error.
  */
 napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp);
 
 #else /* !HAVE_APR */
 /**
- * Make a new heap structure, a heap is a structure that is able to return the
- * smallest (or highest, according to the way you compare data) element of its
- * set, in a complexity of O(lg n) the same as the complexity to insert a
- * random element.
- * @param cmp The function that compare two elements to return the smallest.
- * @param del The function that destroy (de-allocate) an element.
- * @return Return a pointer to a newly allocated heap NULL if an error occured.
+ * @brief Creates a new heap (non-APR version).
+ * @param[in] cmp The comparison function.
+ * @param[in] del The function to deallocate an element.
+ * @return A pointer to the new heap, or NULL on error.
  */
 napr_heap_t *napr_heap_make(napr_heap_cmp_callback_fn_t *cmp, napr_heap_del_callback_fn_t *del);
 
 /**
- * Re-entrant (Thread safe) version of napr_heap_make.
- * @param cmp The function that compare two elements to return the smallest.
- * @param del The function that destroy (de-allocate) an element.
- * @return Return a pointer to a newly allocated heap NULL if an error occured.
+ * @brief Creates a new thread-safe heap (non-APR version).
+ * @param[in] cmp The comparison function.
+ * @param[in] del The function to deallocate an element.
+ * @return A pointer to the new thread-safe heap, or NULL on error.
  */
 napr_heap_t *napr_heap_make_r(napr_heap_cmp_callback_fn_t *cmp, napr_heap_del_callback_fn_t *del);
 #endif /* HAVE_APR */
 
 /**
- * Deallocate the heap;(NB: if the heap is using apr_pool_t (HAVE_APR macro
- * defined), then it will deallocate elements that have been allocated using
- * the heap allocator, otherwise the function del is used on each element.
- * @param heap The heap you are working with.
- * @return nothing.
+ * @brief Destroys the heap and deallocates its memory.
+ *
+ * If using APR, elements allocated from the heap's pool are also destroyed.
+ * If not using APR, the provided `del` function is called on each remaining element.
+ *
+ * @param[in] heap The heap to destroy.
  */
 void napr_heap_destroy(napr_heap_t *heap);
 
 /**
- * Insert an element in the heap.
- * @param heap The heap you are working with.
- * @param datum The datum you want to insert.
- * @return 0 if no error occured, -1 otherwise.
+ * @brief Inserts an element into the heap, maintaining the heap property.
+ * @param[in] heap The heap.
+ * @param[in] datum The data item to insert.
+ * @return 0 on success, -1 on failure.
  */
 int napr_heap_insert(napr_heap_t *heap, void *datum);
 
 /**
- * Extract the highest (or the lowest using cmp function) element in the heap,
- * remove it and return it.
- * @param heap The heap you are working with.
- * @return The highest (or lowest according to cmp function) element of the
- * heap, NULL if the heap is empty.
+ * @brief Removes and returns the element at the top of the heap (the min or max element).
+ * @param[in] heap The heap.
+ * @return A pointer to the top element, or NULL if the heap is empty.
  */
 void *napr_heap_extract(napr_heap_t *heap);
 
 /**
- * Get the nth element element in the heap.
- * @param heap The heap you are working with.
- * @param n The index of the tree (take the nth element you encounter in a
- * breadth first traversal of a binary tree)
- * @return A pointer on the nth element of the heap, NULL if there's no
- * such element.
- * @remark if you modify the part of this element that is used in the
- * comparation function, you're doing something really bad!
+ * @brief Gets the element at a specific index in the heap's internal array.
+ * @param[in] heap The heap.
+ * @param[in] n The index.
+ * @return A pointer to the nth element, or NULL if the index is out of bounds.
+ * @warning Modifying the element in a way that changes its comparison order will
+ *          violate the heap property and lead to incorrect behavior.
  */
 void *napr_heap_get_nth(const napr_heap_t *heap, unsigned int n);
 
 /**
- * Get the nth element (to a const pointer because you can't extract it until
- * it is the highest or the lowest using cmp function) element in the heap.
- * @param heap The heap you are working with.
- * @param datum The adress of the datum you want to set.
- * @param n The index of the tree (take the nth element you encounter in a
- * breadth first traversal of a binary tree)
- * @return 0 if no error occured, -1 otherwise.
+ * @brief Gets the current number of elements in the heap.
+ * @param[in] heap The heap.
+ * @return The number of elements.
  */
 unsigned int napr_heap_size(const napr_heap_t *heap);
 
 /**
- * Re-entrant (Thread safe) version of napr_heap_insert, heap must have been
- * initialized with napr_heap_make_r.
- * @param heap The heap you are working with.
- * @param datum The datum you want to insert.
- * @return 0 if no error occured, -1 otherwise.
+ * @brief Inserts an element into a thread-safe heap.
+ * @param[in] heap The thread-safe heap.
+ * @param[in] datum The data item to insert.
+ * @return 0 on success, -1 on failure.
  */
 int napr_heap_insert_r(napr_heap_t *heap, void *datum);
 
 /**
- * Re-entrant (Thread safe) version of napr_heap_extract, heap must have been
- * initialized with napr_heap_make_r.
- * @param heap The heap you are working with.
- * @return The highest (or lowest according to cmp function) element of the
- * heap, NULL if the heap is empty.
+ * @brief Extracts the top element from a thread-safe heap.
+ * @param[in] heap The thread-safe heap.
+ * @return A pointer to the top element, or NULL if the heap is empty.
  */
 void *napr_heap_extract_r(napr_heap_t *heap);
 
-/** 
- * Attach a callback to the heap in order to display the data stored.
- * @param heap The heap you are working with.
- * @param display A callback used to display content of a datum.
+/**
+ * @brief Attaches a callback function to display the heap's contents for debugging.
+ * @param[in] heap The heap.
+ * @param[in] display The callback function.
  */
 void napr_heap_set_display_cb(napr_heap_t *heap, napr_heap_display_callback_fn_t display);
 
-/** 
- * Display the binary tree using the display callback.
- * @param heap The heap you are working with.
+/**
+ * @brief Displays the heap's binary tree structure using the registered display callback.
+ * @param[in] heap The heap to display.
  */
 void napr_heap_display(const napr_heap_t *heap);
 #endif /* NAPR_HEAP_H */

@@ -1,0 +1,12 @@
+/**
+ * @defgroup DataStructures Custom Data Structures
+ * @brief Optimized data structures and thread pool implementation using APR (napr_*).
+ */
+/**
+ * @defgroup CoreLogic Application Core Logic
+ * @brief File traversal, hashing, comparison, and configuration.
+ */
+/**
+ * @defgroup Utilities Helper Utilities
+ * @brief System interaction, size formatting, and ignore pattern handling.
+ */

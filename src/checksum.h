@@ -1,4 +1,8 @@
-/* src/checksum.h */
+/**
+ * @file checksum.h
+ * @brief Defines the core checksum type used throughout the application.
+ * @ingroup CoreLogic
+ */
 #ifndef CHECKSUM_H
 #define CHECKSUM_H
 #include <apr.h>
@@ -6,8 +10,11 @@
 /* Include the vendored header. Assumes -Isrc is set in CFLAGS/CPPFLAGS */
 #include "xxhash.h"
 
-/* Define the application-wide hash type (128-bit) */
+/**
+ * @brief The application-wide hash type, defined as a 128-bit XXH3 hash.
+ *
+ * This type is used to store the result of file content hashing operations.
+ */
 typedef XXH128_hash_t ft_hash_t;
 
-/* Remove legacy definitions: typedef ub1, #define HASHSTATE, hash(), hash2() */
 #endif
