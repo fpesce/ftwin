@@ -183,14 +183,12 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           # Point to the newly downloaded results
-          output-file-path: 'reports/benchmarks.json'
+          output-file-path: './site_staging/reports/benchmarks.json'
           tool: 'customBiggerIsBetter'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Disable auto-push to prevent conflicts; we deploy manually later
           auto-push: false
-          benchmark-data-dir-path: 'benchmark-data'
-        # Run the action inside the staging directory
-        working-directory: ./site_staging
+          benchmark-data-dir-path: './site_staging/benchmark-data'
 
       # 5. Save the updated benchmark data back to the workspace root (for commit to master)
       - name: Save updated benchmark data
