@@ -1,3 +1,8 @@
+/**
+ * @file ft_system.h
+ * @brief System-related utility functions.
+ * @ingroup Utilities
+ */
 /*
  * Copyright (C) 2025 François Pesce : francois.pesce (at) gmail (dot) com
  *
@@ -18,9 +23,12 @@
 #define FT_SYSTEM_H
 
 /**
- * Get the number of available CPU cores for the current system.
+ * @brief Get the number of available CPU cores on the current system.
  *
- * @return Number of CPU cores, or 4 as a fallback if detection fails
+ * This function attempts to determine the number of online processors.
+ * It serves as a sensible default for setting the number of worker threads.
+ *
+ * @return The number of CPU cores, or a reasonable fallback (e.g., 4) if detection fails.
  */
 unsigned int ft_get_cpu_cores(void);
 

@@ -1,0 +1,13 @@
+/**
+ * @mainpage ftwin - The Fast Duplicate File Finder
+ *
+ * @section intro_sec Introduction
+ * ftwin is a high-performance command-line utility designed to find duplicate
+ * files based on content (using XXH128 hashing).
+ *
+ * @section arch_sec Architecture Overview
+ * The application utilizes Apache Portable Runtime (APR) for platform abstraction,
+ * custom high-performance data structures (napr_hash, napr_heap), and a
+ * thread pool for parallel file hashing. It integrates PCRE for flexible
+ * ignore pattern matching, including .gitignore support.
+ */

@@ -1,12 +1,17 @@
+/**
+ * @file napr_hash.h
+ * @brief A high-performance hash table implementation built on APR.
+ * @ingroup DataStructures
+ */
 /*
  * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * 	http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,115 +24,169 @@
 
 #include <apr.h>
 #include <apr_pools.h>
+
+/**
+ * @brief Opaque hash table structure.
+ */
 typedef struct napr_hash_t napr_hash_t;
+
+/**
+ * @brief Opaque hash table iterator structure.
+ */
 typedef struct napr_hash_index_t napr_hash_index_t;
 
+/**
+ * @brief Callback function to extract the key from a stored data item.
+ * @param[in] data A pointer to the stored data item.
+ * @return A pointer to the key.
+ */
 typedef const void *(get_key_callback_fn_t) (const void *);
+
+/**
+ * @brief Callback function to get the length of a key.
+ * @param[in] data A pointer to the stored data item.
+ * @return The length of the key.
+ */
 typedef apr_size_t (get_key_len_callback_fn_t) (const void *);
+
+/**
+ * @brief Callback function to compare two keys.
+ * @param[in] key1 The first key.
+ * @param[in] key2 The second key.
+ * @param[in] len The length to compare (can be ignored if keys are null-terminated).
+ * @return An integer less than, equal to, or greater than zero if key1 is found,
+ *         respectively, to be less than, to match, or be greater than key2.
+ */
 typedef int (key_cmp_callback_fn_t) (const void *, const void *, apr_size_t);
+
+/**
+ * @brief Callback function to compute the hash value of a key.
+ * @param[in] key The key to hash.
+ * @param[in] klen A pointer to the key's length.
+ * @return The computed hash value.
+ */
 typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_size_t);
+
+/**
+ * @brief Callback function to apply to each element in the hash table.
+ * @param[in] data A pointer to the data item.
+ * @param[in] param A user-provided parameter.
+ * @return APR_SUCCESS to continue iteration, or another status to stop.
+ */
 typedef apr_status_t (function_callback_fn_t) (const void *, void *);
 
-/** 
- * Create a hash table with a custom hash function.
- * @param pool The pool to allocate the hash table out of
- * @param nel The desired number of preallocated buckets (the true size will be
- *	      readjusted to a power of 2).
- * @param ffactor The maximum number of collision for a given key (if too low,
- *                structure will make the whole table grow hugely) correct
- *                value around 5-10.
- * @param get_key A custom "extract key from data" function.
- * @param get_key_len A custom "extract len of the key from data" function.
- * @param key_cmp A custom cmp function.
- * @param hash A custom hash function.
- * 
- * @return The hash table just created.
+/**
+ * @brief Create a hash table with custom key handling and hashing functions.
+ * @param[in] pool The pool to allocate the hash table from.
+ * @param[in] nel The desired number of pre-allocated buckets (will be rounded up to the next power of 2).
+ * @param[in] ffactor The maximum number of collisions for a given key before resizing.
+ * @param[in] get_key A callback to extract the key from a data item.
+ * @param[in] get_key_len A callback to get the length of the key.
+ * @param[in] key_cmp A callback to compare two keys.
+ * @param[in] hash A callback to compute the hash of a key.
+ * @return A pointer to the newly created hash table.
  */
 napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
 			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash);
 
-/** 
- * Create an hash table to store strings.
- * @param pool The pool to allocate the hash table out of
- * @param nel The desired number of preallocated buckets (the true size will be
- *	      readjusted to a power of 2).
- * @param ffactor The maximum number of collision for a given key (if too low,
- *                structure will make the whole table grow hugely) correct
- *                value around 5-10.
- * @return The hash table just created.
+/**
+ * @brief Create a hash table optimized for storing C strings as keys.
+ * @param[in] pool The pool to allocate the hash table from.
+ * @param[in] nel The desired number of pre-allocated buckets.
+ * @param[in] ffactor The maximum number of collisions for a given key.
+ * @return A pointer to the newly created string-keyed hash table.
  */
 napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor);
 
-/** 
- * searches the hash table for an item with the same key than provided as
- * parameter.
- * @param hash The hash table your working on.
- * @param key The key to hash.
- * @param key_len The length of the key.
- * @param hash_value A pointer that will be filled with the hash(key) result.
- * @return If a matching key is found, returns a pointer to the datum, else
- *         store the hash value in hash, to not re-hash datum if this is a
- *         napr_hash_search  before a  napr_hash_set.
- * @remark hash_value may be null.
+/**
+ * @brief Searches the hash table for an item.
+ * @param[in] hash The hash table to search.
+ * @param[in] key The key to search for.
+ * @param[in] key_len The length of the key.
+ * @param[out] hash_value A pointer to store the computed hash of the key. Can be NULL.
+ * @return A pointer to the found data item, or NULL if not found. If an item is not found,
+ *         the computed hash value is stored in `hash_value` for efficient subsequent insertion.
  */
 void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value);
 
+/**
+ * @brief Removes an item from the hash table.
+ * @param[in] hash The hash table.
+ * @param[in] data The data item to remove.
+ * @param[in] hash_value The pre-computed hash of the item's key.
+ */
 void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
+
+/**
+ * @brief Inserts or updates an item in the hash table.
+ * @param[in] hash The hash table.
+ * @param[in] data The data item to insert.
+ * @param[in] hash_value The pre-computed hash of the item's key.
+ * @return APR_SUCCESS on success.
+ */
 apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
+
+/**
+ * @brief Applies a function to every item in the hash table.
+ * @param[in] hash The hash table.
+ * @param[in] function The function to apply.
+ * @param[in] param A parameter to pass to the function.
+ * @return APR_SUCCESS if the function was applied to all items, or the error code returned by the function.
+ */
 apr_status_t napr_hash_apply_function(const napr_hash_t *hash, function_callback_fn_t function, void *param);
+
+/**
+ * @brief Gets the number of items currently stored in the hash table.
+ * @param[in] hash The hash table.
+ * @return The number of items.
+ */
 apr_size_t napr_hash_get_size(const napr_hash_t *hash);
+
+/**
+ * @brief Gets the number of buckets in the hash table.
+ * @param[in] hash The hash table.
+ * @return The number of buckets.
+ */
 apr_size_t napr_hash_get_nel(const napr_hash_t *hash);
 
 /**
- * Get a pointer to the pool which the hash table was created in.
+ * @brief Get a pointer to the pool from which the hash table was allocated.
+ * @param[in] thehash The hash table.
+ * @return The APR pool.
  */
 apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
 
 /**
- * Start iterating over the entries in a hash table.
- * @param p The pool to allocate the napr_hash_index_t iterator. If this
- *          pool is NULL, then an internal, non-thread-safe iterator is used.
- * @param ht The hash table
- * @remark  There is no restriction on adding or deleting hash entries during
- * an iteration (although the results may be unpredictable unless all you do
- * is delete the current entry) and multiple iterations can be in
- * progress at the same time.
- *          * @example
- */
-/**
- * <PRE>
- * 
- * int sum_values(apr_pool_t *p, napr_hash_t *ht)
- * {
- *     napr_hash_index_t *hi;
- *     void *val;
- *     int sum = 0;
- *     for (hi = napr_hash_first(p, ht); hi; hi = napr_hash_next(hi)) {
- *         napr_hash_this(hi, NULL, NULL, &val);
- *         sum += *(int *)val;
- *     }
- *     return sum;
+ * @brief Start iterating over the entries in a hash table.
+ * @param[in] pool The pool to allocate the iterator from. If NULL, a non-thread-safe internal iterator is used.
+ * @param[in] hash The hash table to iterate over.
+ * @return A pointer to the iterator.
+ * @remark There is no restriction on adding or deleting hash entries during
+ * an iteration, but the results may be unpredictable unless only deleting the current entry.
+ * @code
+ * napr_hash_index_t *hi;
+ * void *val;
+ * for (hi = napr_hash_first(p, ht); hi; hi = napr_hash_next(hi)) {
+ *     napr_hash_this(hi, NULL, NULL, &val);
+ *     // process val
  * }
- * </PRE> .
+ * @endcode
  */
 napr_hash_index_t *napr_hash_first(apr_pool_t *pool, napr_hash_t *hash);
 
 /**
- * Continue iterating over the entries in a hash table.
- * @param hi The iteration state
- * @return a pointer to the updated iteration state.  NULL if there are no more  
- *         entries.
+ * @brief Continue iterating over the entries in a hash table.
+ * @param[in] index The current iteration state.
+ * @return A pointer to the next iteration state, or NULL if there are no more entries.
  */
 napr_hash_index_t *napr_hash_next(napr_hash_index_t *index);
 
 /**
- * Get the current entry's details from the iteration state.
- * @param hi The iteration state
- * @param key Return pointer for the pointer to the key.
- * @param klen Return pointer for the key length.
- * @param val Return pointer for the associated value.
- * @remark The return pointers should point to a variable that will be set to the
- *         corresponding data, or they may be NULL if the data isn't interesting.
+ * @brief Get the current entry's details from the iteration state.
+ * @param[in] hi The iteration state.
+ * @param[out] key Pointer to store the key. Can be NULL.
+ * @param[out] klen Pointer to store the key length. Can be NULL.
+ * @param[out] val Pointer to store the value (the data item). Can be NULL.
  */
 void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val);
 

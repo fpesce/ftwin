@@ -1,3 +1,8 @@
+/**
+ * @file ftwin.c
+ * @brief Main application logic for ftwin, including argument parsing, file traversal, and duplicate reporting.
+ * @ingroup CoreLogic
+ */
 /*
  *
  * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
@@ -124,32 +129,36 @@ typedef struct ft_gid_t
     gid_t val;
 } ft_gid_t;
 
+/**
+ * @brief Main configuration structure for the ftwin application.
+ * @ingroup CoreLogic
+ */
 typedef struct ft_conf_t
 {
-    apr_off_t minsize;
-    apr_off_t maxsize;
-    apr_off_t excess_size;	/* Switch off mmap behavior */
+    apr_off_t minsize;           /**< Minimum file size threshold. */
+    apr_off_t maxsize;           /**< Maximum file size threshold. */
+    apr_off_t excess_size;       /**< Threshold to switch from mmap to buffered reading for large files. */
 #if HAVE_PUZZLE
-    double threshold;
+    double threshold;            /**< Similarity threshold for image comparison. */
 #endif
-    apr_pool_t *pool;		/* Always needed somewhere ;) */
-    napr_heap_t *heap;		/* Will holds the files */
-    napr_hash_t *sizes;		/* will holds the sizes hashed with http://www.burtleburtle.net/bob/hash/integer.html */
-    napr_hash_t *gids;		/* will holds the gids hashed with http://www.burtleburtle.net/bob/hash/integer.html */
-    napr_hash_t *ig_files;
-    pcre *ig_regex;
-    pcre *wl_regex;
-    pcre *ar_regex;		/* archive regex */
-    char *p_path;		/* priority path */
-    char *username;
-    apr_size_t p_path_len;
-    apr_uid_t userid;
-    apr_gid_t groupid;
-    unsigned int num_threads;	/* Number of threads for parallel hashing */
-    ft_ignore_context_t *global_ignores;	/* Root context for ignore patterns */
-    int respect_gitignore;	/* Flag: 1 (default) to respect .gitignore, 0 otherwise */
-    unsigned short int mask;
-    char sep;
+    apr_pool_t *pool;            /**< Main APR memory pool for the application. */
+    napr_heap_t *heap;           /**< Heap to store all candidate files. */
+    napr_hash_t *sizes;          /**< Hash table mapping file sizes to file lists. */
+    napr_hash_t *gids;           /**< Hash table of group IDs for permission checks. */
+    napr_hash_t *ig_files;       /**< Hash table of explicitly ignored filenames. */
+    pcre *ig_regex;              /**< Compiled PCRE for ignore patterns. */
+    pcre *wl_regex;              /**< Compiled PCRE for whitelist patterns. */
+    pcre *ar_regex;              /**< Compiled PCRE for archive file matching. */
+    char *p_path;                /**< Priority path for duplicate reporting. */
+    char *username;              /**< Name of the current user. */
+    apr_size_t p_path_len;       /**< Length of the priority path string. */
+    apr_uid_t userid;            /**< User ID of the current user. */
+    apr_gid_t groupid;           /**< Group ID of the current user. */
+    unsigned int num_threads;    /**< Number of worker threads for parallel hashing. */
+    ft_ignore_context_t *global_ignores; /**< Root context for hierarchical ignore patterns (e.g., .gitignore). */
+    int respect_gitignore;       /**< Flag to enable/disable .gitignore file processing. */
+    unsigned short int mask;     /**< Bitmask holding runtime options (e.g., OPTION_RECSD). */
+    char sep;                    /**< Separator character for output. */
 } ft_conf_t;
 
 struct stats

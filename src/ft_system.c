@@ -1,3 +1,8 @@
+/**
+ * @file ft_system.c
+ * @brief Implementation of system-related utility functions.
+ * @ingroup Utilities
+ */
 /*
  * Copyright (C) 2025 François Pesce : francois.pesce (at) gmail (dot) com
  *
