@@ -20,6 +20,15 @@ APR_UTIL_CONFIG_CHECK
 # PCRE Checking
 PCRE_CONFIG_CHECK
 
+# Check for Jansson library
+PKG_CHECK_MODULES([JANSSON], [jansson >= 2.7], [have_jansson=yes], [have_jansson=no])
+if test "x$have_jansson" = "xyes"; then
+    AC_DEFINE([HAVE_JANSSON], 1, [Define if Jansson library is available])
+else
+    AC_MSG_WARN([Jansson library not found. JSON output support will be disabled.])
+fi
+AM_CONDITIONAL([HAVE_JANSSON], [test "x$have_jansson" = "xyes"])
+
 # Checking doxygen argument and presence
 PATH_DOXYGEN
 PATH_DOT
@@ -60,6 +69,7 @@ AC_MSG_RESULT([
    Support for archive library:      yes (vendored)
    Support for zlib library:         $with_zlib
    Support for bz2 library:          $with_bz2
+   Support for JSON output:          $have_jansson
 ])
 
 # Coverage
