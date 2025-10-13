@@ -51,17 +51,17 @@ napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
     apr_pool_t *local_pool;
 
     if (APR_SUCCESS == (apr_pool_create(&local_pool, pool))) {
-        heap = apr_palloc(local_pool, sizeof(napr_heap_t));
-        heap->pool = local_pool;
-        heap->tree = (void **) apr_pcalloc(local_pool, sizeof(void *) * INITIAL_MAX);
+	heap = apr_palloc(local_pool, sizeof(napr_heap_t));
+	heap->pool = local_pool;
+	heap->tree = (void **) apr_pcalloc(local_pool, sizeof(void *) * INITIAL_MAX);
     }
 
     if (NULL != heap) {
-        heap->max = INITIAL_MAX;
-        heap->count = 0;
-        heap->cmp = cmp;
-        heap->mutex_set = 0;
-        heap->mutex = NULL;
+	heap->max = INITIAL_MAX;
+	heap->count = 0;
+	heap->cmp = cmp;
+	heap->mutex_set = 0;
+	heap->mutex = NULL;
     }
 
     return heap;
@@ -73,25 +73,25 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
     unsigned int ipos, ppos;
 
     if (heap->max <= heap->count) {
-        /*
-         * reallocation by power of 2:
-         */
-        unsigned int new_max;
+	/*
+	 * reallocation by power of 2:
+	 */
+	unsigned int new_max;
 
-        for (new_max = 1; new_max <= heap->max; new_max *= 2);
+	for (new_max = 1; new_max <= heap->max; new_max *= 2);
 
-        tmp = apr_palloc(heap->pool, new_max * sizeof(void *));
-        if (NULL != tmp) {
-            memcpy(tmp, (heap->tree), (heap->count) * sizeof(void *));
-            memset((tmp + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
-            heap->tree = tmp;
-            heap->max = new_max;
-        }
-        else {
-            heap->tree = NULL;
-            DEBUG_ERR("allocation failed");
-            return -1;
-        }
+	tmp = apr_palloc(heap->pool, new_max * sizeof(void *));
+	if (NULL != tmp) {
+	    memcpy(tmp, (heap->tree), (heap->count) * sizeof(void *));
+	    memset((tmp + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
+	    heap->tree = tmp;
+	    heap->max = new_max;
+	}
+	else {
+	    heap->tree = NULL;
+	    DEBUG_ERR("allocation failed");
+	    return -1;
+	}
     }
 
     /*
@@ -191,12 +191,12 @@ napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp
     napr_heap_t *heap;
 
     if (NULL != (heap = napr_heap_make(pool, cmp))) {
-        if (APR_SUCCESS != apr_thread_mutex_create(&(heap->mutex), APR_THREAD_MUTEX_DEFAULT, pool))
-            heap = NULL;
+	if (APR_SUCCESS != apr_thread_mutex_create(&(heap->mutex), APR_THREAD_MUTEX_DEFAULT, pool))
+	    heap = NULL;
     }
 
     if (NULL != heap)
-        heap->mutex_set = 1;
+	heap->mutex_set = 1;
 
     return heap;
 }
@@ -206,16 +206,16 @@ int napr_heap_insert_r(napr_heap_t *heap, void *datum)
     int rc;
 
     if (1 == heap->mutex_set) {
-        if (APR_SUCCESS == (rc = apr_thread_mutex_lock(heap->mutex))) {
-            if (0 == (rc = napr_heap_insert(heap, datum)))
-                rc = apr_thread_mutex_unlock(heap->mutex);
-        }
-        else {
-            DEBUG_ERR("locking failed");
-        }
+	if (APR_SUCCESS == (rc = apr_thread_mutex_lock(heap->mutex))) {
+	    if (0 == (rc = napr_heap_insert(heap, datum)))
+		rc = apr_thread_mutex_unlock(heap->mutex);
+	}
+	else {
+	    DEBUG_ERR("locking failed");
+	}
     }
     else
-        rc = -1;
+	rc = -1;
 
     return rc;
 }
