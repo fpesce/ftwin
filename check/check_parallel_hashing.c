@@ -145,8 +145,8 @@ START_TEST(test_thread_counts)
     system("cp check/tests/thread_test/a.dat check/tests/thread_test/c.dat");
 
     /* Test with various thread counts: 1, 2, 4, 8 */
-    const char *thread_counts[] = { "1", "2", "4", "8" };
-    for (int i = 0; i < 4; i++) {
+    const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
+    for (int i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
 	pipe(stdout_pipe);
 	pipe(stderr_pipe);
 

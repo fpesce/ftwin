@@ -43,4 +43,5 @@
 -T uint16_t
 -T uint32_t
 -T uint8_t
+-T Suite
 -T XXH3_state_t

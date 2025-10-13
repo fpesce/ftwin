@@ -201,10 +201,10 @@ START_TEST(test_ftwin_json_output_validation)
     system("cp check/tests/5K_file check/tests/5K_file_copy");
 
     // Determine expected absolute paths dynamically for portability
-    char cwd[1024];
+    char cwd[4096];
     ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
-    char expected_abs_path1[1024];
-    char expected_abs_path2[1024];
+    char expected_abs_path1[4096];
+    char expected_abs_path2[4096];
     snprintf(expected_abs_path1, sizeof(expected_abs_path1), "%s/check/tests/5K_file", cwd);
     snprintf(expected_abs_path2, sizeof(expected_abs_path2), "%s/check/tests/5K_file_copy", cwd);
 
@@ -227,7 +227,7 @@ START_TEST(test_ftwin_json_output_validation)
 
     ck_assert_msg(root != NULL, "JSON parsing failed: %s at line %d\nOutput:\n%s", error.text, error.line, output);
     ck_assert(json_is_array(root));
-    ck_assert_int_eq(json_array_size(root), 1); // Expect 1 set (the 5K files)
+    ck_assert_int_eq(json_array_size(root), 1);	// Expect 1 set (the 5K files)
 
     json_t *set = json_array_get(root, 0);
     // Validate metadata (5K file size is 5120 bytes)
@@ -243,7 +243,7 @@ START_TEST(test_ftwin_json_output_validation)
     // Check for UTC timestamp (ends with Z)
     const char *mtime1 = json_string_value(json_object_get(dup1, "mtime_utc"));
     ck_assert_ptr_ne(mtime1, NULL);
-    ck_assert_msg(mtime1[strlen(mtime1)-1] == 'Z', "Timestamp is not in UTC format (missing Z)");
+    ck_assert_msg(mtime1[strlen(mtime1) - 1] == 'Z', "Timestamp is not in UTC format (missing Z)");
 
     // Check paths (must be absolute)
     const char *path1 = json_string_value(json_object_get(dup1, "path"));
@@ -258,9 +258,9 @@ START_TEST(test_ftwin_json_output_validation)
     json_decref(root);
     remove("check/tests/5K_file_copy");
 }
+
 END_TEST
 #endif
-
 Suite *make_ftwin_suite(void)
 {
     Suite *s = suite_create("Ftwin");
