@@ -194,8 +194,13 @@ static void cleanup_bench_files(const char *dir, int num_files)
 static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 {
     const char *bench_dir = "/tmp/ftwin_bench";
-    const unsigned int thread_counts[] = { 1, 2, 4, 8 };
-    const int num_thread_configs = 4;
+    const unsigned int thread_counts[] = { 1, 2, 4, 8, 12, 16, 24 };
+    int num_thread_configs;
+
+    num_thread_configs = sizeof(thread_counts) / sizeof(unsigned int);
+    /* Ensure all previous output is flushed before we start */
+    fflush(stdout);
+    fflush(stderr);
 
     /* Create benchmark files */
     fprintf(stderr, "Creating benchmark files...\n");
@@ -208,6 +213,10 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 
     for (int t = 0; t < num_thread_configs; t++) {
 	unsigned int num_threads = thread_counts[t];
+
+	/* Flush stdout/stderr before redirecting to avoid losing buffered data */
+	fflush(stdout);
+	fflush(stderr);
 
 	/* Redirect output to /dev/null */
 	int stdout_save = dup(STDOUT_FILENO);

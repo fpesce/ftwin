@@ -36,6 +36,10 @@
 #include <puzzle.h>
 #endif
 
+#if HAVE_JANSSON
+#include <jansson.h>
+#endif
+
 #if HAVE_ARCHIVE
 #include <archive.h>
 #include <archive_entry.h>
@@ -78,6 +82,7 @@
 #endif
 
 #define OPTION_DRY_RUN 0x0400
+#define OPTION_JSON    0x0800	/* New option flag */
 
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_BLUE    "\x1b[34m"
@@ -87,6 +92,7 @@
 typedef struct ft_file_t
 {
     apr_off_t size;
+    apr_time_t mtime;		// Add modification time
     char *path;
 #if HAVE_ARCHIVE
     char *subpath;
@@ -272,7 +278,8 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     apr_finfo_t finfo;
     apr_dir_t *dir;
     apr_int32_t statmask =
-	APR_FINFO_SIZE | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
+	APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT |
+	APR_FINFO_GPROT;
     apr_size_t fname_len = 0;
     apr_uint32_t hash_value;
     apr_status_t status;
@@ -409,6 +416,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
     }
     else if (APR_REG == finfo.filetype || ((APR_LNK == finfo.filetype) && (is_option_set(conf->mask, OPTION_FSYML)))) {
 	apr_off_t finfosize;
+	apr_time_t finfomtime;	// New variable
 	char *fname;
 #if HAVE_ARCHIVE
 	const char *subpath;
@@ -420,6 +428,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 
 	fname = apr_pstrdup(conf->pool, filename);
 	finfosize = finfo.size;
+	finfomtime = finfo.mtime;	// Store initial mtime
 #if HAVE_ARCHIVE
 	subpath = NULL;
 	fname_len = strlen(filename);
@@ -462,6 +471,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
 		file->path = fname;
 		file->size = finfosize;
+		file->mtime = finfomtime;	// Assign the collected mtime
 #if HAVE_ARCHIVE
 		if (subpath) {
 		    file->subpath = apr_pstrdup(conf->pool, subpath);
@@ -499,6 +509,7 @@ static apr_status_t ft_conf_add_file(ft_conf_t *conf, const char *filename, apr_
 		if (ARCHIVE_EOF != rv) {
 		    if (ARCHIVE_OK == rv) {
 			finfosize = archive_entry_size(entry);
+			finfomtime = archive_entry_mtime(entry);	// Get mtime from archive
 			subpath = archive_entry_pathname(entry);
 		    }
 		    else {
@@ -1043,6 +1054,190 @@ static apr_status_t ft_conf_image_twin_report(ft_conf_t *conf)
 }
 #endif
 
+#if HAVE_JANSSON
+/* Formats apr_time_t to ISO 8601 UTC string (YYYY-MM-DDTHH:MM:SSZ). */
+static const char *ft_format_time_iso8601_utc(apr_time_t t, apr_pool_t *pool)
+{
+    apr_time_exp_t exploded;
+    // Use apr_time_exp_gmt to get the time in UTC (GMT).
+    if (apr_time_exp_gmt(&exploded, t) != APR_SUCCESS) {
+	return apr_pstrdup(pool, "UNKNOWN_TIME");
+    }
+    return apr_psprintf(pool, "%04d-%02d-%02dT%02d:%02d:%02dZ",
+			exploded.tm_year + 1900, exploded.tm_mon + 1, exploded.tm_mday,
+			exploded.tm_hour, exploded.tm_min, exploded.tm_sec);
+}
+
+/* Converts XXH128 hash to a hex string. Assumes XXH128_hash_t has high64/low64 members. */
+static char *ft_hash_to_hex(ft_hash_t hash, apr_pool_t *pool)
+{
+    // Based on src/checksum.h defining ft_hash_t as XXH128_hash_t
+    return apr_psprintf(pool, "%016llx%016llx", (unsigned long long) hash.high64, (unsigned long long) hash.low64);
+}
+
+/* Helper to create a JSON object for a file entry */
+static json_t *create_file_json_object(ft_file_t *file, ft_conf_t *conf)
+{
+    json_t *obj = json_object();
+    const char *mtime_str = ft_format_time_iso8601_utc(file->mtime, conf->pool);
+
+    json_object_set_new(obj, "path", json_string(file->path));
+#if HAVE_ARCHIVE
+    if (is_option_set(conf->mask, OPTION_UNTAR)) {
+	json_object_set_new(obj, "archive_subpath", file->subpath ? json_string(file->subpath) : json_null());
+    }
+#endif
+    json_object_set_new(obj, "mtime_utc", json_string(mtime_str));
+    json_object_set_new(obj, "prioritized", json_boolean(file->prioritized));
+    return obj;
+}
+
+static apr_status_t ft_conf_json_report(ft_conf_t *conf)
+{
+    // Variable declarations (mirroring ft_conf_twin_report)
+    char errbuf[128];
+    apr_off_t old_size = -1;
+    ft_file_t *file;
+    ft_fsize_t *fsize;
+    apr_uint32_t hash_value;
+    apr_size_t i, j;
+    int rv;
+    apr_status_t status;
+    apr_uint32_t chksum_array_sz = 0U;
+
+    json_t *root_array = json_array();
+    if (!root_array)
+	return APR_ENOMEM;
+
+    // Iterate through the heap (logic adapted from ft_conf_twin_report)
+    while (NULL != (file = napr_heap_extract(conf->heap))) {
+	if (file->size == old_size)
+	    continue;
+	old_size = file->size;
+
+	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, 1, &hash_value))) {
+	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
+	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), chksum_cmp);
+
+	    for (i = 0; i < fsize->nb_files; i++) {
+		if (NULL == fsize->chksum_array[i].file)
+		    continue;
+
+		json_t *current_set_obj = NULL;
+		json_t *duplicates_array = NULL;
+
+		for (j = i + 1; j < fsize->nb_files; j++) {
+		    if (0 ==
+			memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
+
+			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
+			char *fpathi, *fpathj;
+#if HAVE_ARCHIVE
+			if (is_option_set(conf->mask, OPTION_UNTAR)) {
+			    if (NULL != fsize->chksum_array[i].file->subpath) {
+				fpathi = ft_untar_file(fsize->chksum_array[i].file, conf->pool);
+				if (NULL == fpathi) {
+				    DEBUG_ERR("error calling ft_untar_file");
+				    return APR_EGENERAL;
+				}
+			    }
+			    else {
+				fpathi = fsize->chksum_array[i].file->path;
+			    }
+			    if (NULL != fsize->chksum_array[j].file->subpath) {
+				fpathj = ft_untar_file(fsize->chksum_array[j].file, conf->pool);
+				if (NULL == fpathj) {
+				    DEBUG_ERR("error calling ft_untar_file");
+				    return APR_EGENERAL;
+				}
+			    }
+			    else {
+				fpathj = fsize->chksum_array[j].file->path;
+			    }
+			}
+			else {
+			    fpathi = fsize->chksum_array[i].file->path;
+			    fpathj = fsize->chksum_array[j].file->path;
+			}
+#else
+			fpathi = fsize->chksum_array[i].file->path;
+			fpathj = fsize->chksum_array[j].file->path;
+#endif
+			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
+
+#if HAVE_ARCHIVE
+			if (is_option_set(conf->mask, OPTION_UNTAR)) {
+			    if (NULL != fsize->chksum_array[i].file->subpath)
+				apr_file_remove(fpathi, conf->pool);
+			    if (NULL != fsize->chksum_array[j].file->subpath)
+				apr_file_remove(fpathj, conf->pool);
+			}
+#endif
+			if (APR_SUCCESS != status) {
+			    if (is_option_set(conf->mask, OPTION_VERBO))
+				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
+					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
+					apr_strerror(status, errbuf, 128));
+			    rv = 1;
+			}
+			// -------------------------------------------------------------
+
+			if (0 == rv) {
+			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
+				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
+					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
+			    }
+
+			    // Initialize JSON set if first match for file[i]
+			    if (NULL == current_set_obj) {
+				current_set_obj = json_object();
+				duplicates_array = json_array();
+
+				// Add metadata
+				json_object_set_new(current_set_obj, "size_bytes", json_integer(fsize->val));
+				char *hex_hash = ft_hash_to_hex(fsize->chksum_array[i].hash_value, conf->pool);
+				json_object_set_new(current_set_obj, "hash_xxh128", json_string(hex_hash));
+				json_object_set_new(current_set_obj, "duplicates", duplicates_array);
+
+				// Add file[i] details
+				json_array_append_new(duplicates_array,
+						      create_file_json_object(fsize->chksum_array[i].file, conf));
+			    }
+
+			    // Add file[j] details
+			    json_array_append_new(duplicates_array,
+						  create_file_json_object(fsize->chksum_array[j].file, conf));
+
+			    fsize->chksum_array[j].file = NULL;	// Mark as processed
+			}
+		    }
+		    else {
+			break;	// Hashes differ
+		    }
+		}
+		// If a set was created, append it to the root array
+		if (NULL != current_set_obj) {
+		    json_array_append_new(root_array, current_set_obj);
+		}
+	    }
+	}
+	else {
+	    DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
+	    return APR_EGENERAL;
+	}
+    }
+
+    // Dump the JSON output to stdout
+    json_dumpf(root_array, stdout, JSON_INDENT(2) | JSON_ENSURE_ASCII);
+    printf("\n");
+    fflush(stdout);
+    // Free the JSON structure
+    json_decref(root_array);
+
+    return APR_SUCCESS;
+}
+#endif
+
 static apr_status_t ft_conf_twin_report(ft_conf_t *conf)
 {
     char errbuf[128];
@@ -1309,6 +1504,9 @@ int ftwin_main(int argc, const char **argv)
 	 "will change the image similarity threshold\n\t\t\t\t (default is [1], accepted [2/3/4/5])."},
 #endif
 	{"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
+#if HAVE_JANSSON
+	{"json", 'J', FALSE, "\t\toutput results in machine-readable JSON format."},
+#endif
 	{"minimal-length", 'm', TRUE, "minimum size of file to process."},
 	{"max-size", 'M', TRUE, "maximum size of file to process."},
 	{"optimize-memory", 'o', FALSE, "reduce memory usage, but increase process time."},
@@ -1411,6 +1609,16 @@ int ftwin_main(int argc, const char **argv)
 	    wregex = apr_pstrdup(pool, ".*\\.(gif|png|jpe?g)$");
 	    break;
 #endif
+#if HAVE_JANSSON
+	case 'J':
+	    set_option(&conf.mask, OPTION_JSON, 1);
+	    // Disable verbose mode as it interferes with JSON output on stdout
+	    if (is_option_set(conf.mask, OPTION_VERBO)) {
+		fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
+		set_option(&conf.mask, OPTION_VERBO, 0);
+	    }
+	    break;
+#endif
 	case 'j':
 	    {
 		char *endptr;
@@ -1482,7 +1690,10 @@ int ftwin_main(int argc, const char **argv)
 	    break;
 #endif
 	case 'v':
-	    set_option(&conf.mask, OPTION_VERBO, 1);
+	    // Prevent enabling verbose if JSON is already set
+	    if (!is_option_set(conf.mask, OPTION_JSON)) {
+		set_option(&conf.mask, OPTION_VERBO, 1);
+	    }
 	    break;
 	case 'V':
 	    version();
@@ -1550,7 +1761,22 @@ int ftwin_main(int argc, const char **argv)
 	return -1;
     }
     for (i = os->ind; i < argc; i++) {
-	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, argv[i], gc_pool, NULL))) {
+	const char *current_arg = argv[i];
+	char *resolved_path = (char *) current_arg;
+
+	// Requirement: JSON output must contain absolute paths.
+	if (is_option_set(conf.mask, OPTION_JSON)) {
+	    // Use apr_filepath_merge with NULL rootpath to resolve the absolute path.
+	    status = apr_filepath_merge(&resolved_path, NULL, current_arg, APR_FILEPATH_TRUENAME, gc_pool);
+	    if (APR_SUCCESS != status) {
+		DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg,
+			  apr_strerror(status, errbuf, 128));
+		apr_terminate();
+		return -1;	// Fail if path resolution fails for JSON mode
+	    }
+	}
+
+	if (APR_SUCCESS != (status = ft_conf_add_file(&conf, resolved_path, gc_pool, NULL))) {
 	    DEBUG_ERR("error calling ft_conf_add_file: %s", apr_strerror(status, errbuf, 128));
 	    apr_terminate();
 	    return -1;
@@ -1561,6 +1787,13 @@ int ftwin_main(int argc, const char **argv)
     if (0 < napr_heap_size(conf.heap)) {
 #if HAVE_PUZZLE
 	if (is_option_set(conf.mask, OPTION_PUZZL)) {
+#if HAVE_JANSSON
+	    if (is_option_set(conf.mask, OPTION_JSON)) {
+		fprintf(stderr, "Error: JSON output is currently not supported in image comparison mode (-I).\n");
+		apr_terminate();
+		return -1;
+	    }
+#endif
 	    /* Step 2: Report the image twins */
 	    if (APR_SUCCESS != (status = ft_conf_image_twin_report(&conf))) {
 		DEBUG_ERR("error calling ft_conf_image_twin_report: %s", apr_strerror(status, errbuf, 128));
@@ -1577,12 +1810,24 @@ int ftwin_main(int argc, const char **argv)
 		return -1;
 	    }
 
-	    /* Step 3: Report the twins */
-	    if (APR_SUCCESS != (status = ft_conf_twin_report(&conf))) {
-		DEBUG_ERR("error calling ft_conf_twin_report: %s", apr_strerror(status, errbuf, 128));
-		apr_terminate();
-		return status;
+#if HAVE_JANSSON
+	    if (is_option_set(conf.mask, OPTION_JSON)) {
+		if (APR_SUCCESS != (status = ft_conf_json_report(&conf))) {
+		    DEBUG_ERR("error calling ft_conf_json_report: %s", apr_strerror(status, errbuf, 128));
+		    apr_terminate();
+		    return status;
+		}
 	    }
+	    else {
+#endif
+		if (APR_SUCCESS != (status = ft_conf_twin_report(&conf))) {
+		    DEBUG_ERR("error calling ft_conf_twin_report: %s", apr_strerror(status, errbuf, 128));
+		    apr_terminate();
+		    return status;
+		}
+#if HAVE_JANSSON
+	    }
+#endif
 #if HAVE_PUZZLE
 	}
 #endif

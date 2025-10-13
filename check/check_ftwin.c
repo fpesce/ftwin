@@ -28,6 +28,9 @@
 #undef PACKAGE_BUGREPORT
 #include "config.h"
 #endif
+#if HAVE_JANSSON
+#include <jansson.h>
+#endif
 #include "ftwin.h"
 #include <unistd.h>
 
@@ -179,6 +182,85 @@ START_TEST(test_ftwin_show_hidden_files)
 END_TEST
 /* *INDENT-ON* */
 
+#if HAVE_JANSSON
+START_TEST(test_ftwin_json_output_validation)
+{
+    // Setup pipes and redirection (boilerplate from existing tests)
+    int stdout_pipe[2];
+    int stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    // Prepare test files
+    system("cp check/tests/5K_file check/tests/5K_file_copy");
+
+    // Determine expected absolute paths dynamically for portability
+    char cwd[4096];
+    ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
+    char expected_abs_path1[4096];
+    char expected_abs_path2[4096];
+    snprintf(expected_abs_path1, sizeof(expected_abs_path1), "%s/check/tests/5K_file", cwd);
+    snprintf(expected_abs_path2, sizeof(expected_abs_path2), "%s/check/tests/5K_file_copy", cwd);
+
+    // Run ftwin with --json using relative input paths (ftwin should resolve them)
+    const char *argv[] = { "ftwin", "-J", "check/tests/5K_file", "check/tests/5K_file_copy", "check/tests/1K_file" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    ftwin_main(argc, argv);
+
+    // Restore stdout/stderr and capture output
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+    char *output = capture_output(stdout_pipe[0]);
+
+    // Parse and Validate JSON
+    json_error_t error;
+    json_t *root = json_loads(output, 0, &error);
+
+    ck_assert_msg(root != NULL, "JSON parsing failed: %s at line %d\nOutput:\n%s", error.text, error.line, output);
+    ck_assert(json_is_array(root));
+    ck_assert_int_eq(json_array_size(root), 1);	// Expect 1 set (the 5K files)
+
+    json_t *set = json_array_get(root, 0);
+    // Validate metadata (5K file size is 5120 bytes)
+    ck_assert_int_eq(json_integer_value(json_object_get(set, "size_bytes")), 5120);
+    ck_assert(json_is_string(json_object_get(set, "hash_xxh128")));
+
+    json_t *duplicates = json_object_get(set, "duplicates");
+    ck_assert_int_eq(json_array_size(duplicates), 2);
+
+    // Validate file entries
+    json_t *dup1 = json_array_get(duplicates, 0);
+
+    // Check for UTC timestamp (ends with Z)
+    const char *mtime1 = json_string_value(json_object_get(dup1, "mtime_utc"));
+    ck_assert_ptr_ne(mtime1, NULL);
+    ck_assert_msg(mtime1[strlen(mtime1) - 1] == 'Z', "Timestamp is not in UTC format (missing Z)");
+
+    // Check paths (must be absolute)
+    const char *path1 = json_string_value(json_object_get(dup1, "path"));
+    const char *path2 = json_string_value(json_object_get(json_array_get(duplicates, 1), "path"));
+
+    // Check if the output paths match the expected absolute paths (order independent)
+    int match1 = (strcmp(path1, expected_abs_path1) == 0) || (strcmp(path1, expected_abs_path2) == 0);
+    int match2 = (strcmp(path2, expected_abs_path1) == 0) || (strcmp(path2, expected_abs_path2) == 0);
+
+    ck_assert_msg(match1 && match2 && strcmp(path1, path2) != 0, "JSON output paths do not match expected absolute paths.");
+
+    json_decref(root);
+    remove("check/tests/5K_file_copy");
+}
+
+END_TEST
+#endif
 Suite *make_ftwin_suite(void)
 {
     Suite *s = suite_create("Ftwin");
@@ -188,6 +270,9 @@ Suite *make_ftwin_suite(void)
     tcase_add_test(tc_core, test_ftwin_no_recurse);
     tcase_add_test(tc_core, test_ftwin_hidden_files);
     tcase_add_test(tc_core, test_ftwin_show_hidden_files);
+#if HAVE_JANSSON
+    tcase_add_test(tc_core, test_ftwin_json_output_validation);
+#endif
 
     suite_add_tcase(s, tc_core);
 

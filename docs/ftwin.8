@@ -47,6 +47,9 @@ will change the image similarity threshold (default is [1], accepted [2/3/4/5]).
 \fB\-i\fR, \fB\-\-ignore-list\fR \fIfile1,file2,...,filen\fR
 comma-separated list of file names to ignore.
 .TP
+.B \-J, \-\-json
+Output the results in a machine-readable JSON format. The output is an array of duplicate sets. Each set includes the file size in bytes (\fBsize_bytes\fR), the XXH128 hash (\fBhash_xxh128\fR), and a list of duplicates containing the absolute path, modification time in UTC (ISO 8601 format, \fBmtime_utc\fR), and prioritization status. Verbose output (\-v) is suppressed. (Requires Jansson library).
+.TP
 \fB\-m\fR, \fB\-\-minimal-length\fR \fIsize in bytes\fR
 minimum size of file to process.
 .TP

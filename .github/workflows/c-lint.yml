@@ -53,6 +53,7 @@ jobs:
             libapr1-dev \
             libaprutil1-dev \
             libpcre3-dev \
+            libjansson-dev \
             check \
             lcov \
             doxygen \
