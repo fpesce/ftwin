@@ -44,7 +44,6 @@ typedef int (napr_heap_cmp_callback_fn_t) (const void *, const void *);
 typedef void (napr_heap_del_callback_fn_t) (void *);
 
 
-#ifdef HAVE_APR
 #include <apr_pools.h>
 /**
  * @brief Creates a new heap.
@@ -68,24 +67,6 @@ napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp);
  * @return A pointer to the new thread-safe heap, or NULL on error.
  */
 napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp);
-
-#else /* !HAVE_APR */
-/**
- * @brief Creates a new heap (non-APR version).
- * @param[in] cmp The comparison function.
- * @param[in] del The function to deallocate an element.
- * @return A pointer to the new heap, or NULL on error.
- */
-napr_heap_t *napr_heap_make(napr_heap_cmp_callback_fn_t *cmp, napr_heap_del_callback_fn_t *del);
-
-/**
- * @brief Creates a new thread-safe heap (non-APR version).
- * @param[in] cmp The comparison function.
- * @param[in] del The function to deallocate an element.
- * @return A pointer to the new thread-safe heap, or NULL on error.
- */
-napr_heap_t *napr_heap_make_r(napr_heap_cmp_callback_fn_t *cmp, napr_heap_del_callback_fn_t *del);
-#endif /* HAVE_APR */
 
 /**
  * @brief Inserts an element into the heap, maintaining the heap property.

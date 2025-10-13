@@ -19,12 +19,7 @@
  * limitations under the License.
  */
 
-#ifndef HAVE_APR
-#include <stdlib.h>
-#include <pthread.h>
-#else
 #include <apr_thread_mutex.h>
-#endif
 #include <string.h>
 
 #include "debug.h"
@@ -37,18 +32,10 @@
 
 struct napr_heap_t
 {
-#ifdef HAVE_APR
     apr_pool_t *pool;
     apr_thread_mutex_t *mutex;
-#else
-    pthread_mutex_t mutex;
-#endif
     void **tree;
     napr_heap_cmp_callback_fn_t *cmp;
-#ifndef HAVE_APR		/* !HAVE_APR */
-    /* Then we may specify a function to deallocate data */
-    napr_heap_del_callback_fn_t *del;
-#endif
     unsigned int count, max;
     int mutex_set;		/* true (i.e. 1) if napr_heap_make_r has been
 				   called instead of non-reentrant function */
@@ -58,18 +45,9 @@ struct napr_heap_t
 /* APR_POOL_IMPLEMENT_ACCESSOR(heap); */
 #endif
 
-napr_heap_t *napr_heap_make(
-#ifdef HAVE_APR
-			       apr_pool_t *pool,
-#endif
-			       napr_heap_cmp_callback_fn_t *cmp
-#ifndef HAVE_APR		/* !HAVE_APR */
-			       , napr_heap_del_callback_fn_t *del
-#endif
-    )
+napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 {
-    napr_heap_t *heap = NULL;;
-#ifdef HAVE_APR
+    napr_heap_t *heap = NULL;
     apr_pool_t *local_pool;
 
     if (APR_SUCCESS == (apr_pool_create(&local_pool, pool))) {
@@ -77,25 +55,13 @@ napr_heap_t *napr_heap_make(
 	heap->pool = local_pool;
 	heap->tree = (void **) apr_pcalloc(local_pool, sizeof(void *) * INITIAL_MAX);
     }
-#else /* !HAVE_APR */
-    if (NULL != (heap = malloc(sizeof(napr_heap_t)))) {
-	heap->del = del;
-	if (NULL == (heap->tree = (void **) calloc(INITIAL_MAX, sizeof(void *)))) {
-	    free(heap);
-	    heap = NULL;
-	}
-    }
-#endif
+
     if (NULL != heap) {
 	heap->max = INITIAL_MAX;
 	heap->count = 0;
 	heap->cmp = cmp;
 	heap->mutex_set = 0;
-#ifdef HAVE_APR
 	heap->mutex = NULL;
-#else
-	memset(&(heap->mutex), 0, sizeof(pthread_mutex_t));
-#endif
     }
 
     return heap;
@@ -114,15 +80,9 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
 
 	for (new_max = 1; new_max <= heap->max; new_max *= 2);
 
-#ifdef HAVE_APR
 	tmp = apr_palloc(heap->pool, new_max * sizeof(void *));
-#else
-	tmp = realloc(heap->tree, new_max * sizeof(void *));
-#endif
 	if (NULL != tmp) {
-#ifdef HAVE_APR
 	    memcpy(tmp, (heap->tree), (heap->count) * sizeof(void *));
-#endif
 	    memset((tmp + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
 	    heap->tree = tmp;
 	    heap->max = new_max;
@@ -226,37 +186,13 @@ unsigned int napr_heap_size(const napr_heap_t *heap)
 /*
  * Reentrant versions of previous functions.
  */
-napr_heap_t *napr_heap_make_r(
-#ifdef HAVE_APR
-				 apr_pool_t *pool,
-#endif
-				 napr_heap_cmp_callback_fn_t *cmp
-#ifndef HAVE_APR		/* !HAVE_APR */
-				 , napr_heap_del_callback_fn_t *del
-#endif
-    )
+napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 {
     napr_heap_t *heap;
 
-    if (NULL != (heap = napr_heap_make(
-#ifdef HAVE_APR
-					  pool,
-#endif
-					  cmp
-#ifndef HAVE_APR		/* !HAVE_APR */
-					  , del
-#endif
-		 ))) {
-#ifdef HAVE_APR
+    if (NULL != (heap = napr_heap_make(pool, cmp))) {
 	if (APR_SUCCESS != apr_thread_mutex_create(&(heap->mutex), APR_THREAD_MUTEX_DEFAULT, pool))
 	    heap = NULL;
-#else
-	if (0 > pthread_mutex_init(&(heap->mutex), NULL)) {
-	    free(heap->tree);
-	    free(heap);
-	    heap = NULL;
-	}
-#endif
     }
 
     if (NULL != heap)
@@ -270,7 +206,6 @@ int napr_heap_insert_r(napr_heap_t *heap, void *datum)
     int rc;
 
     if (1 == heap->mutex_set) {
-#ifdef HAVE_APR
 	if (APR_SUCCESS == (rc = apr_thread_mutex_lock(heap->mutex))) {
 	    if (0 == (rc = napr_heap_insert(heap, datum)))
 		rc = apr_thread_mutex_unlock(heap->mutex);
@@ -278,12 +213,6 @@ int napr_heap_insert_r(napr_heap_t *heap, void *datum)
 	else {
 	    DEBUG_ERR("locking failed");
 	}
-#else
-	if (0 == (rc = pthread_mutex_lock(&heap->mutex))) {
-	    if (0 == (rc = napr_heap_insert(heap, datum)))
-		rc = pthread_mutex_unlock(&heap->mutex);
-	}
-#endif
     }
     else
 	rc = -1;
