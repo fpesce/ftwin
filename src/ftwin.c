@@ -135,30 +135,30 @@ typedef struct ft_gid_t
  */
 typedef struct ft_conf_t
 {
-    apr_off_t minsize;           /**< Minimum file size threshold. */
-    apr_off_t maxsize;           /**< Maximum file size threshold. */
-    apr_off_t excess_size;       /**< Threshold to switch from mmap to buffered reading for large files. */
+    apr_off_t minsize;		 /**< Minimum file size threshold. */
+    apr_off_t maxsize;		 /**< Maximum file size threshold. */
+    apr_off_t excess_size;	 /**< Threshold to switch from mmap to buffered reading for large files. */
 #if HAVE_PUZZLE
-    double threshold;            /**< Similarity threshold for image comparison. */
+    double threshold;		 /**< Similarity threshold for image comparison. */
 #endif
-    apr_pool_t *pool;            /**< Main APR memory pool for the application. */
-    napr_heap_t *heap;           /**< Heap to store all candidate files. */
-    napr_hash_t *sizes;          /**< Hash table mapping file sizes to file lists. */
-    napr_hash_t *gids;           /**< Hash table of group IDs for permission checks. */
-    napr_hash_t *ig_files;       /**< Hash table of explicitly ignored filenames. */
-    pcre *ig_regex;              /**< Compiled PCRE for ignore patterns. */
-    pcre *wl_regex;              /**< Compiled PCRE for whitelist patterns. */
-    pcre *ar_regex;              /**< Compiled PCRE for archive file matching. */
-    char *p_path;                /**< Priority path for duplicate reporting. */
-    char *username;              /**< Name of the current user. */
-    apr_size_t p_path_len;       /**< Length of the priority path string. */
-    apr_uid_t userid;            /**< User ID of the current user. */
-    apr_gid_t groupid;           /**< Group ID of the current user. */
-    unsigned int num_threads;    /**< Number of worker threads for parallel hashing. */
+    apr_pool_t *pool;		 /**< Main APR memory pool for the application. */
+    napr_heap_t *heap;		 /**< Heap to store all candidate files. */
+    napr_hash_t *sizes;		 /**< Hash table mapping file sizes to file lists. */
+    napr_hash_t *gids;		 /**< Hash table of group IDs for permission checks. */
+    napr_hash_t *ig_files;	 /**< Hash table of explicitly ignored filenames. */
+    pcre *ig_regex;		 /**< Compiled PCRE for ignore patterns. */
+    pcre *wl_regex;		 /**< Compiled PCRE for whitelist patterns. */
+    pcre *ar_regex;		 /**< Compiled PCRE for archive file matching. */
+    char *p_path;		 /**< Priority path for duplicate reporting. */
+    char *username;		 /**< Name of the current user. */
+    apr_size_t p_path_len;	 /**< Length of the priority path string. */
+    apr_uid_t userid;		 /**< User ID of the current user. */
+    apr_gid_t groupid;		 /**< Group ID of the current user. */
+    unsigned int num_threads;	 /**< Number of worker threads for parallel hashing. */
     ft_ignore_context_t *global_ignores; /**< Root context for hierarchical ignore patterns (e.g., .gitignore). */
-    int respect_gitignore;       /**< Flag to enable/disable .gitignore file processing. */
-    unsigned short int mask;     /**< Bitmask holding runtime options (e.g., OPTION_RECSD). */
-    char sep;                    /**< Separator character for output. */
+    int respect_gitignore;	 /**< Flag to enable/disable .gitignore file processing. */
+    unsigned short int mask;	 /**< Bitmask holding runtime options (e.g., OPTION_RECSD). */
+    char sep;			 /**< Separator character for output. */
 } ft_conf_t;
 
 struct stats
@@ -846,8 +846,9 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 
 		fsize->chksum_array[fsize->nb_checksumed].file = file;
 
-		/* For files with only 2 duplicates or 0-length files, set hash to zero */
-		if ((2 == fsize->nb_files) || (0 == fsize->val)) {
+		/* For files with only 2 duplicates or 0-length files, set hash to zero
+		 * UNLESS we're in JSON mode where hashes must be accurate */
+		if (((2 == fsize->nb_files) || (0 == fsize->val)) && !is_option_set(conf->mask, OPTION_JSON)) {
 		    memset(&fsize->chksum_array[fsize->nb_checksumed].hash_value, 0, sizeof(ft_hash_t));
 		    fsize->nb_checksumed++;
 		    napr_heap_insert(tmp_heap, file);
@@ -894,8 +895,14 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
 	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
 
-	    /* Only submit tasks for files that need actual hashing */
-	    if ((fsize->nb_files > 2) && (0 != fsize->val)) {
+	    /* Only submit tasks for files that need actual hashing
+	     * In JSON mode, we also hash pairs and zero-length files */
+	    int should_hash = (fsize->nb_files > 2) && (0 != fsize->val);
+	    if (is_option_set(conf->mask, OPTION_JSON)) {
+		should_hash = (fsize->nb_files >= 2);	/* Hash pairs and zero-length in JSON mode */
+	    }
+
+	    if (should_hash) {
 		apr_uint32_t i;
 		for (i = 0; i < fsize->nb_files; i++) {
 		    if (NULL != fsize->chksum_array[i].file) {
@@ -933,7 +940,12 @@ static apr_status_t ft_conf_process_sizes(ft_conf_t *conf)
 	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
 	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
 
-	    if ((fsize->nb_files > 2) && (0 != fsize->val)) {
+	    int should_insert = (fsize->nb_files > 2) && (0 != fsize->val);
+	    if (is_option_set(conf->mask, OPTION_JSON)) {
+		should_insert = (fsize->nb_files >= 2);	/* Include pairs and zero-length in JSON mode */
+	    }
+
+	    if (should_insert) {
 		apr_uint32_t i;
 		for (i = 0; i < fsize->nb_files; i++) {
 		    if (NULL != fsize->chksum_array[i].file) {

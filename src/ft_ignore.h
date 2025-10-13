@@ -35,9 +35,9 @@
  */
 typedef struct
 {
-    pcre *regex;                /**< The compiled PCRE pattern. */
-    const char *pattern_str;    /**< The original, uncompiled pattern string for debugging. */
-    unsigned int flags;         /**< Flags for the pattern (e.g., FT_IGNORE_NEGATE). */
+    pcre *regex;		/**< The compiled PCRE pattern. */
+    const char *pattern_str;	/**< The original, uncompiled pattern string for debugging. */
+    unsigned int flags;		/**< Flags for the pattern (e.g., FT_IGNORE_NEGATE). */
 } ft_ignore_pattern_t;
 
 /**
@@ -49,11 +49,11 @@ typedef struct
  */
 typedef struct ft_ignore_context_t
 {
-    struct ft_ignore_context_t *parent; /**< Pointer to the parent directory's context, or NULL if root. */
-    apr_array_header_t *patterns;       /**< Array of ft_ignore_pattern_t pointers defined at this level. */
-    const char *base_dir;               /**< The absolute path to the directory this context is anchored to. */
-    apr_size_t base_dir_len;            /**< The length of the base directory path. */
-    apr_pool_t *pool;                   /**< The memory pool used for allocations within this context. */
+    struct ft_ignore_context_t *parent;	/**< Pointer to the parent directory's context, or NULL if root. */
+    apr_array_header_t *patterns;	/**< Array of ft_ignore_pattern_t pointers defined at this level. */
+    const char *base_dir;		/**< The absolute path to the directory this context is anchored to. */
+    apr_size_t base_dir_len;		/**< The length of the base directory path. */
+    apr_pool_t *pool;			/**< The memory pool used for allocations within this context. */
 } ft_ignore_context_t;
 
 /**
@@ -61,9 +61,9 @@ typedef struct ft_ignore_context_t
  */
 typedef enum
 {
-    FT_IGNORE_MATCH_NONE,       /**< The path is not matched by any pattern. */
-    FT_IGNORE_MATCH_IGNORED,    /**< The path is matched by an ignore pattern. */
-    FT_IGNORE_MATCH_WHITELISTED /**< The path is matched by a negation (whitelist) pattern. */
+    FT_IGNORE_MATCH_NONE,	/**< The path is not matched by any pattern. */
+    FT_IGNORE_MATCH_IGNORED,	/**< The path is matched by an ignore pattern. */
+    FT_IGNORE_MATCH_WHITELISTED	/**< The path is matched by a negation (whitelist) pattern. */
 } ft_ignore_match_result_t;
 
 /**
