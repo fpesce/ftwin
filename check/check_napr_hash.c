@@ -85,7 +85,7 @@ START_TEST(test_napr_hash_rebuild)
     int i;
 
     /* Create hash with small initial size and low fill factor to trigger rebuild */
-    hash = napr_hash_str_make(pool, 2, 2);  /* 2 buckets, 2 items per bucket */
+    hash = napr_hash_str_make(pool, 2, 2);	/* 2 buckets, 2 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
@@ -121,7 +121,7 @@ START_TEST(test_napr_hash_remove_multiple)
     int i;
 
     /* Create hash with very low fill factor to force collisions */
-    hash = napr_hash_str_make(pool, 1, 10);  /* 1 bucket, 10 items capacity */
+    hash = napr_hash_str_make(pool, 1, 10);	/* 1 bucket, 10 items capacity */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
@@ -171,7 +171,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     napr_hash_index_t *hi;
 
     /* Create hash with configuration that promotes collisions */
-    hash = napr_hash_str_make(pool, 2, 5);  /* 2 buckets, 5 items per bucket */
+    hash = napr_hash_str_make(pool, 2, 5);	/* 2 buckets, 5 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */

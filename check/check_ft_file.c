@@ -61,9 +61,7 @@ START_TEST(test_checksum_empty_file)
     int rv;
 
     /* Create empty file for testing */
-    status = apr_file_open(&empty_file, empty_fname,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&empty_file, empty_fname, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     apr_file_close(empty_file);
 
@@ -188,15 +186,11 @@ START_TEST(test_filecmp_empty)
     const char *empty_fname2 = CHECK_DIR "/tests/empty2";
 
     /* Create two empty files */
-    status = apr_file_open(&empty1, empty_fname1,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&empty1, empty_fname1, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     apr_file_close(empty1);
 
-    status = apr_file_open(&empty2, empty_fname2,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&empty2, empty_fname2, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     apr_file_close(empty2);
 
@@ -232,27 +226,21 @@ START_TEST(test_filecmp_small_files)
     apr_size_t len;
 
     /* Create small test file 1 */
-    status = apr_file_open(&small1, small_fname1,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&small1, small_fname1, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data1) - 1;
     apr_file_write(small1, test_data1, &len);
     apr_file_close(small1);
 
     /* Create small test file 2 (identical content) */
-    status = apr_file_open(&small2, small_fname2,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&small2, small_fname2, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data2) - 1;
     apr_file_write(small2, test_data2, &len);
     apr_file_close(small2);
 
     /* Create small test file 3 (different content) */
-    status = apr_file_open(&small3, small_fname3,
-                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
-                          APR_OS_DEFAULT, pool);
+    status = apr_file_open(&small3, small_fname3, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data3) - 1;
     apr_file_write(small3, test_data3, &len);
