@@ -66,7 +66,8 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *pool)
     result = pcre_compile(regex, options, &errptr, &erroffset, NULL);
     if (NULL == result) {
 	DEBUG_ERR("can't parse %s at [%.*s] for -e / --regex-ignore-file: %s", regex, erroffset, regex, errptr);
-    } else {
+    }
+    else {
 	apr_pool_cleanup_register(pool, result, ft_pcre_free_cleanup, apr_pool_cleanup_null);
     }
 
@@ -274,7 +275,7 @@ static const apr_getopt_option_t opt_option[] = {
     {"version", 'V', FALSE, "\tdisplay version."},
     {"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this are ignored."},
     {"excessive-size", 'x', TRUE, "excessive size of file that switch off mmap use."},
-    {NULL, 0, 0, NULL}, /* end (a.k.a. sentinel) */
+    {NULL, 0, 0, NULL},		/* end (a.k.a. sentinel) */
 };
 
 static void process_options(int optch, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
@@ -321,14 +322,14 @@ static void process_options(int optch, const char *optarg, ft_conf_t *conf, char
 	}
 	break;
 #endif
-    case 'j': {
-	char *endptr = NULL;
-	long threads = strtol(optarg, &endptr, BASE_TEN);
-	if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
-	    print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
-	}
-	conf->num_threads = (unsigned int) threads;
-    } break;
+    case 'j':{
+	    char *endptr = NULL;
+	    long threads = strtol(optarg, &endptr, BASE_TEN);
+	    if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
+		print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
+	    }
+	    conf->num_threads = (unsigned int) threads;
+	} break;
 #if HAVE_PUZZLE
     case 'T':
 	switch (*optarg) {

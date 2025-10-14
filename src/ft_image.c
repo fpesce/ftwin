@@ -86,9 +86,9 @@ static apr_status_t compute_vector(void *ctx, void *data)
 #define MAX_PUZZLE_HEIGHT 5000
 #define PUZZLE_LAMBDAS 13
 
-static void initialize_puzzle_context(PuzzleContext *context);
-static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext *context);
-static void compare_image_vectors(ft_conf_t *conf, PuzzleContext *context);
+static void initialize_puzzle_context(PuzzleContext * context);
+static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * context);
+static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context);
 
 apr_status_t ft_image_twin_report(ft_conf_t *conf)
 {
@@ -110,7 +110,7 @@ apr_status_t ft_image_twin_report(ft_conf_t *conf)
     return APR_SUCCESS;
 }
 
-static void initialize_puzzle_context(PuzzleContext *context)
+static void initialize_puzzle_context(PuzzleContext * context)
 {
     puzzle_init_context(context);
     puzzle_set_max_width(context, MAX_PUZZLE_WIDTH);
@@ -118,7 +118,7 @@ static void initialize_puzzle_context(PuzzleContext *context)
     puzzle_set_lambdas(context, PUZZLE_LAMBDAS);
 }
 
-static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext *context)
+static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 {
     char errbuf[ERROR_BUFFER_SIZE];
     apr_status_t status = APR_SUCCESS;
@@ -167,7 +167,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext *contex
     return APR_SUCCESS;
 }
 
-static void compare_image_vectors(ft_conf_t *conf, PuzzleContext *context)
+static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 {
     unsigned long nb_cmp = napr_heap_size(conf->heap) * (napr_heap_size(conf->heap) - 1) / 2;
     unsigned long cnt_cmp = 0;
@@ -191,7 +191,8 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext *context)
 		if (!already_printed) {
 		    (void) printf("%s%c", file->path, conf->sep);
 		    already_printed = 1;
-		} else {
+		}
+		else {
 		    (void) printf("%c", conf->sep);
 		}
 		(void) printf("%s", file_cmp->path);
