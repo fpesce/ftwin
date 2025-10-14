@@ -34,55 +34,57 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-static int copy_data(struct archive *ar, struct archive *aw)
+#define ARCHIVE_BLOCK_SIZE 10240
+
+static int copy_data(struct archive *archive_read, struct archive *archive_write)
 {
-    const void *buff;
-    off_t offset;
-    size_t size;
+    const void *buff = NULL;
+    off_t offset = 0;
+    size_t size = 0;
 
     for (;;) {
-	int rv = archive_read_data_block(ar, &buff, &size, &offset);
-	if (rv == ARCHIVE_EOF) {
+	int result_value = archive_read_data_block(archive_read, &buff, &size, &offset);
+	if (result_value == ARCHIVE_EOF) {
 	    return ARCHIVE_OK;
 	}
-	if (rv != ARCHIVE_OK) {
-	    DEBUG_ERR("error calling archive_read_data_block(): %s", archive_error_string(ar));
-	    return rv;
+	if (result_value != ARCHIVE_OK) {
+	    DEBUG_ERR("error calling archive_read_data_block(): %s", archive_error_string(archive_read));
+	    return result_value;
 	}
-	rv = archive_write_data_block(aw, buff, size, offset);
-	if (rv != ARCHIVE_OK) {
-	    DEBUG_ERR("error calling archive_write_data_block(): %s", archive_error_string(aw));
-	    return rv;
+	result_value = (int) archive_write_data_block(archive_write, buff, size, offset);
+	if (result_value != ARCHIVE_OK) {
+	    DEBUG_ERR("error calling archive_write_data_block(): %s", archive_error_string(archive_write));
+	    return result_value;
 	}
     }
 }
 
-char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *p)
+char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *pool)
 {
-    struct archive *a = NULL;
+    struct archive *archive_handle = NULL;
     struct archive *ext = NULL;
     struct archive_entry *entry = NULL;
     char *tmpfile = NULL;
-    int rv;
+    int result_value = 0;
 
-    a = archive_read_new();
-    if (NULL == a) {
+    archive_handle = archive_read_new();
+    if (NULL == archive_handle) {
 	DEBUG_ERR("error calling archive_read_new()");
 	return NULL;
     }
-    rv = archive_read_support_filter_all(a);
-    if (0 != rv) {
-	DEBUG_ERR("error calling archive_read_support_filter_all(): %s", archive_error_string(a));
+    result_value = archive_read_support_filter_all(archive_handle);
+    if (0 != result_value) {
+	DEBUG_ERR("error calling archive_read_support_filter_all(): %s", archive_error_string(archive_handle));
 	return NULL;
     }
-    rv = archive_read_support_format_all(a);
-    if (0 != rv) {
-	DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(a));
+    result_value = archive_read_support_format_all(archive_handle);
+    if (0 != result_value) {
+	DEBUG_ERR("error calling archive_read_support_format_all(): %s", archive_error_string(archive_handle));
 	return NULL;
     }
-    rv = archive_read_open_filename(a, file->path, 10240);
-    if (0 != rv) {
-	DEBUG_ERR("error calling archive_read_open_filename(%s): %s", file->path, archive_error_string(a));
+    result_value = archive_read_open_filename(archive_handle, file->path, ARCHIVE_BLOCK_SIZE);
+    if (0 != result_value) {
+	DEBUG_ERR("error calling archive_read_open_filename(%s): %s", file->path, archive_error_string(archive_handle));
 	return NULL;
     }
 
@@ -93,13 +95,13 @@ char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *p)
     }
 
     for (;;) {
-	rv = archive_read_next_header(a, &entry);
-	if (rv == ARCHIVE_EOF) {
+	result_value = archive_read_next_header(archive_handle, &entry);
+	if (result_value == ARCHIVE_EOF) {
 	    DEBUG_ERR("subpath [%s] not found in archive [%s]", file->subpath, file->path);
 	    return NULL;
 	}
-	if (rv != ARCHIVE_OK) {
-	    DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(a));
+	if (result_value != ARCHIVE_OK) {
+	    DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(archive_handle));
 	    return NULL;
 	}
 
@@ -111,29 +113,29 @@ char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *p)
 	     * ugly warning if I use tempnam...
 	     * tmpfile = tempnam("/tmp/", "ftwin");
 	     */
-	    tmpfile = apr_pstrdup(p, "/tmp/ftwinXXXXXX");
-	    rv = mkstemp(tmpfile);
-	    if (rv < 0) {
+	    tmpfile = apr_pstrdup(pool, "/tmp/ftwinXXXXXX");
+	    result_value = mkstemp(tmpfile);
+	    if (result_value < 0) {
 		DEBUG_ERR("error creating tmpfile %s", tmpfile);
 		return NULL;
 	    }
 	    umask(current_mode);
-	    close(rv);
+	    close(result_value);
 
 	    archive_entry_copy_pathname(entry, tmpfile);
 
-	    rv = archive_write_header(ext, entry);
-	    if (rv == ARCHIVE_OK) {
-		rv = copy_data(a, ext);
-		if (rv != ARCHIVE_OK) {
+	    result_value = archive_write_header(ext, entry);
+	    if (result_value == ARCHIVE_OK) {
+		result_value = copy_data(archive_handle, ext);
+		if (result_value != ARCHIVE_OK) {
 		    DEBUG_ERR("error while copying data from archive (%s)", file->path);
-		    apr_file_remove(tmpfile, p);
+		    apr_file_remove(tmpfile, pool);
 		    return NULL;
 		}
 	    }
 	    else {
-		DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(a));
-		apr_file_remove(tmpfile, p);
+		DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(archive_handle));
+		apr_file_remove(tmpfile, pool);
 		return NULL;
 	    }
 
@@ -142,17 +144,17 @@ char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *p)
     }
 
     archive_write_free(ext);
-    archive_read_free(a);
+    archive_read_free(archive_handle);
 
     return tmpfile;
 }
 
 #else /* !HAVE_ARCHIVE */
 
-char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *p)
+char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *pool)
 {
     (void) file;
-    (void) p;
+    (void) pool;
     return NULL;
 }
 
