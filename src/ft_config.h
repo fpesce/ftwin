@@ -48,8 +48,9 @@ ft_conf_t *ft_config_create(apr_pool_t *pool);
  * @param conf The configuration structure to populate.
  * @param argc The number of command-line arguments.
  * @param argv The array of command-line argument strings.
+ * @param first_arg_index Output parameter to store the index of the first non-option argument.
  * @return APR_SUCCESS on success, or an error code.
  */
-apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv);
+apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index);
 
 #endif /* FT_CONFIG_H */

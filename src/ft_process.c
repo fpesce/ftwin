@@ -14,7 +14,7 @@ int ft_file_cmp(const void *param1, const void *param2);
 
 #if HAVE_ARCHIVE
 #include <archive.h>
-#include "ft_archive.h" /* This will be created later */
+#include "ft_archive.h"		/* This will be created later */
 #endif
 
 static apr_status_t hashing_worker_callback(void *ctx, void *data)
@@ -97,7 +97,6 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     apr_size_t total_hash_tasks;
     napr_threadpool_t *threadpool = NULL;
     hashing_context_t h_ctx;
-    napr_hash_index_t *hi;
 
     if (is_option_set(conf->mask, OPTION_VERBO))
 	fprintf(stderr, "Referencing files and sizes:\n");
@@ -160,7 +159,7 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	    return status;
 	}
 
-	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
+	for (napr_hash_index_t *hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
 	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
 
 	    int should_hash = (fsize->nb_files > 2) && (0 != fsize->val);
@@ -200,7 +199,7 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	    fprintf(stderr, "\n");
 	}
 
-	for (hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
+	for (napr_hash_index_t *hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
 	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
 
 	    int should_insert = (fsize->nb_files > 2) && (0 != fsize->val);
