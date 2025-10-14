@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <check.h>
 
+#include <apr_file_io.h>
+
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
@@ -45,6 +47,83 @@ static const char *fname1 = CHECK_DIR "/tests/truerand";
 static apr_off_t size1 = 16384;
 static const char *fname2 = CHECK_DIR "/tests/copyrand";
 static const char *fname3 = CHECK_DIR "/tests/testrand";
+static const char *fname_1k = CHECK_DIR "/tests/1K_file";
+static apr_off_t size_1k = 1024;
+static const char *fname_5k = CHECK_DIR "/tests/5K_file";
+static apr_off_t size_5k = 5120;
+
+START_TEST(test_checksum_empty_file)
+{
+    apr_status_t status;
+    ft_hash_t hash1, hash2;
+    apr_file_t *empty_file;
+    const char *empty_fname = CHECK_DIR "/tests/empty_file";
+    int rv;
+
+    /* Create empty file for testing */
+    status = apr_file_open(&empty_file, empty_fname,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    apr_file_close(empty_file);
+
+    /* Test checksum of empty file with small path */
+    status = checksum_file(empty_fname, 0, 1024, &hash1, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Test checksum of empty file with big path */
+    status = checksum_file(empty_fname, 0, 0, &hash2, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Both should produce same hash */
+    rv = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
+    ck_assert_int_eq(rv, 0);
+
+    /* Clean up */
+    apr_file_remove(empty_fname, pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+START_TEST(test_checksum_small_files)
+{
+    apr_status_t status;
+    ft_hash_t hash_1k_small, hash_1k_big;
+    ft_hash_t hash_5k_small, hash_5k_big;
+    int rv;
+
+    /* Test 1K file with small file path (excess_size > file size) */
+    status = checksum_file(fname_1k, size_1k, size_1k * 2, &hash_1k_small, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Test 1K file with big file path (excess_size < file size) */
+    status = checksum_file(fname_1k, size_1k, size_1k / 2, &hash_1k_big, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Both paths should produce same hash */
+    rv = memcmp(&hash_1k_small, &hash_1k_big, sizeof(ft_hash_t));
+    ck_assert_int_eq(rv, 0);
+
+    /* Test 5K file with small file path */
+    status = checksum_file(fname_5k, size_5k, size_5k * 2, &hash_5k_small, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Test 5K file with big file path */
+    status = checksum_file(fname_5k, size_5k, size_5k / 2, &hash_5k_big, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Both paths should produce same hash */
+    rv = memcmp(&hash_5k_small, &hash_5k_big, sizeof(ft_hash_t));
+    ck_assert_int_eq(rv, 0);
+
+    /* 1K and 5K files should have different hashes */
+    rv = memcmp(&hash_1k_small, &hash_5k_small, sizeof(ft_hash_t));
+    ck_assert_int_ne(rv, 0);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
 
 START_TEST(test_checksum_file)
 {
@@ -100,6 +179,105 @@ START_TEST(test_filecmp)
 END_TEST
 /* *INDENT-ON* */
 
+START_TEST(test_filecmp_empty)
+{
+    int rv;
+    apr_status_t status;
+    apr_file_t *empty1, *empty2;
+    const char *empty_fname1 = CHECK_DIR "/tests/empty1";
+    const char *empty_fname2 = CHECK_DIR "/tests/empty2";
+
+    /* Create two empty files */
+    status = apr_file_open(&empty1, empty_fname1,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    apr_file_close(empty1);
+
+    status = apr_file_open(&empty2, empty_fname2,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    apr_file_close(empty2);
+
+    /* Compare empty files with small path */
+    status = filecmp(pool, empty_fname1, empty_fname2, 0, 1024, &rv);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(rv, 0);
+
+    /* Compare empty files with big path */
+    status = filecmp(pool, empty_fname1, empty_fname2, 0, 0, &rv);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(rv, 0);
+
+    /* Clean up */
+    apr_file_remove(empty_fname1, pool);
+    apr_file_remove(empty_fname2, pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+START_TEST(test_filecmp_small_files)
+{
+    int rv;
+    apr_status_t status;
+    apr_file_t *small1, *small2, *small3;
+    const char *small_fname1 = CHECK_DIR "/tests/small1";
+    const char *small_fname2 = CHECK_DIR "/tests/small2";
+    const char *small_fname3 = CHECK_DIR "/tests/small3";
+    const char test_data1[] = "Hello, World!";
+    const char test_data2[] = "Hello, World!";
+    const char test_data3[] = "Goodbye!";
+    apr_size_t len;
+
+    /* Create small test file 1 */
+    status = apr_file_open(&small1, small_fname1,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    len = sizeof(test_data1) - 1;
+    apr_file_write(small1, test_data1, &len);
+    apr_file_close(small1);
+
+    /* Create small test file 2 (identical content) */
+    status = apr_file_open(&small2, small_fname2,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    len = sizeof(test_data2) - 1;
+    apr_file_write(small2, test_data2, &len);
+    apr_file_close(small2);
+
+    /* Create small test file 3 (different content) */
+    status = apr_file_open(&small3, small_fname3,
+                          APR_CREATE | APR_WRITE | APR_TRUNCATE,
+                          APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    len = sizeof(test_data3) - 1;
+    apr_file_write(small3, test_data3, &len);
+    apr_file_close(small3);
+
+    /* Compare identical small files with small path (mmap) */
+    apr_off_t small_size = sizeof(test_data1) - 1;
+    status = filecmp(pool, small_fname1, small_fname2, small_size, small_size * 2, &rv);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(rv, 0);
+
+    /* Compare different small files with small path (mmap) */
+    status = filecmp(pool, small_fname1, small_fname3, small_size, small_size * 2, &rv);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_ne(rv, 0);
+
+    /* Clean up */
+    apr_file_remove(small_fname1, pool);
+    apr_file_remove(small_fname2, pool);
+    apr_file_remove(small_fname3, pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 Suite *make_ft_file_suite(void)
 {
     Suite *s;
@@ -108,7 +286,11 @@ Suite *make_ft_file_suite(void)
     tc_core = tcase_create("Core Tests");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
+    tcase_add_test(tc_core, test_checksum_empty_file);
+    tcase_add_test(tc_core, test_checksum_small_files);
     tcase_add_test(tc_core, test_checksum_file);
+    tcase_add_test(tc_core, test_filecmp_empty);
+    tcase_add_test(tc_core, test_filecmp_small_files);
     tcase_add_test(tc_core, test_filecmp);
     suite_add_tcase(s, tc_core);
 
