@@ -78,7 +78,6 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *p)
 static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_pool_t *p)
 {
     gid_t list[256];
-    ft_gid_t *gid;
     apr_uint32_t hash_value;
     int i, nb_gid;
 
@@ -99,7 +98,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     }
 
     for (i = 0; i < nb_gid; i++) {
-	gid = napr_hash_search(gids, &(list[i]), sizeof(gid_t), &hash_value);
+	ft_gid_t *gid = napr_hash_search(gids, &(list[i]), sizeof(gid_t), &hash_value);
 	if (NULL == gid) {
 	    gid = apr_palloc(p, sizeof(struct ft_gid_t));
 	    gid->val = list[i];
@@ -228,7 +227,7 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     return conf;
 }
 
-apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv)
+apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index)
 {
     static const apr_getopt_option_t opt_option[] = {
 	{"hidden", 'a', FALSE, "do not ignore hidden files."},
@@ -399,7 +398,7 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv)
 	case 'x':
 	    conf->excess_size = strtoul(optarg, NULL, 10);
 	    if (ULONG_MAX == conf->minsize) {
-                print_usage_and_exit(argv[0], opt_option, "can't parse for -x / --excessive-size", optarg);
+		print_usage_and_exit(argv[0], opt_option, "can't parse for -x / --excessive-size", optarg);
 	    }
 	    break;
 	}
@@ -441,7 +440,10 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv)
 	}
     }
 
-    /* TODO: Return the index of the first non-option argument */
-    /* For now, just return success if we get here */
+    /* Return the index of the first non-option argument */
+    if (first_arg_index != NULL) {
+	*first_arg_index = os->ind;
+    }
+
     return APR_SUCCESS;
 }

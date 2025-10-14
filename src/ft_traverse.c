@@ -10,7 +10,7 @@
 #define MATCH_VECTOR_SIZE 210
 
 static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats,
-				     ft_ignore_context_t * parent_ctx)
+				       ft_ignore_context_t * parent_ctx)
 {
     int ovector[MATCH_VECTOR_SIZE];
     char errbuf[128];
@@ -19,7 +19,7 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     apr_int32_t statmask =
 	APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT |
 	APR_FINFO_GPROT;
-    apr_size_t fname_len = 0;
+    apr_size_t fname_len;
     apr_uint32_t hash_value;
     apr_status_t status;
     int rc;
@@ -222,11 +222,11 @@ apr_status_t ft_traverse_path(ft_conf_t *conf, const char *path)
 {
     apr_pool_t *gc_pool;
     apr_status_t status;
-    char errbuf[128];
 
     if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
-        return status;
+	char errbuf[128];
+	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+	return status;
     }
 
     status = traverse_recursive(conf, path, gc_pool, NULL, conf->global_ignores);
