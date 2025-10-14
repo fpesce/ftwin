@@ -46,9 +46,12 @@ struct compute_vector_ctx_t
 };
 typedef struct compute_vector_ctx_t compute_vector_ctx_t;
 
-#define ERROR_BUFFER_SIZE 128
+enum {
+    ERROR_BUFFER_SIZE = 128,
+    PERCENT_100 = 100
+};
 
-static apr_status_t compute_vector(void *ctx, void *data)
+static apr_status_t compute_vector(void *data, void *ctx)
 {
     char errbuf[ERROR_BUFFER_SIZE];
     compute_vector_ctx_t *cv_ctx = ctx;
@@ -93,7 +96,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context);
 apr_status_t ft_image_twin_report(ft_conf_t *conf)
 {
     PuzzleContext context;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     initialize_puzzle_context(&context);
 
@@ -124,7 +127,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     apr_status_t status = APR_SUCCESS;
     napr_threadpool_t *threadpool = NULL;
     compute_vector_ctx_t cv_ctx;
-    int heap_size = napr_heap_size(conf->heap);
+    int heap_size = (int) napr_heap_size(conf->heap);
 
     cv_ctx.contextp = context;
     cv_ctx.heap_size = heap_size;
@@ -143,7 +146,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
 	return status;
     }
 
-    for (int i = 0; i < heap_size; i++) {
+    for (unsigned int i = 0; i < heap_size; i++) {
 	ft_file_t *file = napr_heap_get_nth(conf->heap, i);
 	status = napr_threadpool_add(threadpool, file);
 	if (APR_SUCCESS != status) {
@@ -160,7 +163,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%d/%d] %d%% ", heap_size, heap_size, 100);
+	(void) fprintf(stderr, "\rProgress [%d/%d] %d%% ", heap_size, heap_size, PERCENT_100);
 	(void) fprintf(stderr, "\n");
     }
 
@@ -171,7 +174,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 {
     unsigned long nb_cmp = napr_heap_size(conf->heap) * (napr_heap_size(conf->heap) - 1) / 2;
     unsigned long cnt_cmp = 0;
-    ft_file_t *file;
+    ft_file_t *file = NULL;
 
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	if (!(file->cvec_ok & 0x1)) {
@@ -179,7 +182,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	}
 
 	unsigned char already_printed = 0;
-	int heap_size = napr_heap_size(conf->heap);
+	int heap_size = (int) napr_heap_size(conf->heap);
 	for (int i = 0; i < heap_size; i++) {
 	    ft_file_t *file_cmp = napr_heap_get_nth(conf->heap, i);
 	    if (!(file_cmp->cvec_ok & 0x1)) {
@@ -199,7 +202,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	    }
 	    if (is_option_set(conf->mask, OPTION_VERBO)) {
 		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
+			       ((double) cnt_cmp / (double) nb_cmp * 100.0));
 	    }
 	    cnt_cmp++;
 	}
