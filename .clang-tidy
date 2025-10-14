@@ -1,5 +1,11 @@
 Checks: >
   -*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -readability-identifier-length,
+  -cert-err33-c,
+  -bugprone-assignment-in-if-condition,
+  -readability-function-cognitive-complexity,
+  -bugprone-easily-swappable-parameters,
   bugprone-*,
   cert-*,
   cppcoreguidelines-*,

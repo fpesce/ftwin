@@ -37,6 +37,7 @@ bench_ftwin
 # Test and coverage artifacts
 check_test_log.xml
 check_log.xml
+*.cov
 *.gcno
 *.gcda
 *.gcov

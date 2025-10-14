@@ -7,11 +7,7 @@ unusedFunction:src/napr_list.c:172
 unusedFunction:src/napr_list.c:177
 unusedFunction:src/napr_list.c:183
 
-# Suppress unread variable warnings in ftwin.c for intentionally unused variables
-unreadVariable:src/ftwin.c
-
 # Suppress variable scope warnings - these are style preferences
-variableScope:src/ftwin.c
 variableScope:src/napr_heap.c
 
 # Suppress unassigned variable in checksum.c test code - buf is used via pointer b
