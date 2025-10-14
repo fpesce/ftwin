@@ -35,7 +35,7 @@
 #include "napr_threadpool.h"
 #include "napr_heap.h"
 
-#define NB_WORKER 4
+static const int NB_WORKER = 4;
 
 struct compute_vector_ctx_t
 {
@@ -45,8 +45,6 @@ struct compute_vector_ctx_t
     int heap_size, nb_processed;
 };
 typedef struct compute_vector_ctx_t compute_vector_ctx_t;
-
-#define ERROR_BUFFER_SIZE 128
 
 static apr_status_t compute_vector(void *ctx, void *data)
 {
@@ -82,9 +80,10 @@ static apr_status_t compute_vector(void *ctx, void *data)
     return APR_SUCCESS;
 }
 
-#define MAX_PUZZLE_WIDTH 5000
-#define MAX_PUZZLE_HEIGHT 5000
-#define PUZZLE_LAMBDAS 13
+static const int MAX_PUZZLE_WIDTH = 5000;
+static const int MAX_PUZZLE_HEIGHT = 5000;
+static const int PUZZLE_LAMBDAS = 13;
+static const int FIX_FOR_CLUSTERING = 0;
 
 static void initialize_puzzle_context(PuzzleContext * context);
 static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * context);
@@ -186,7 +185,8 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 		continue;
 	    }
 
-	    double distance = puzzle_vector_normalized_distance(context, &(file->cvec), &(file_cmp->cvec), 0);
+	    double distance =
+		puzzle_vector_normalized_distance(context, &(file->cvec), &(file_cmp->cvec), FIX_FOR_CLUSTERING);
 	    if (distance < conf->threshold) {
 		if (!already_printed) {
 		    (void) printf("%s%c", file->path, conf->sep);

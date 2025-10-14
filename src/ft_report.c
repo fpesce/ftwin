@@ -54,7 +54,7 @@ int ft_chksum_cmp(const void *chksum1, const void *chksum2)
 
 apr_status_t ft_report_duplicates(ft_conf_t *conf)
 {
-    char errbuf[128];
+    char errbuf[ERROR_BUFFER_SIZE];
     apr_off_t old_size = -1;
     ft_file_t *file;
     ft_fsize_t *fsize;

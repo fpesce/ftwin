@@ -33,7 +33,7 @@ int ft_file_cmp(const void *param1, const void *param2)
 }
 
 /* Default ignore patterns */
-static const char *default_ignores[] = {
+static const char *const default_ignores[] = {
     /* VCS */
     ".git/", ".hg/", ".svn/",
     /* Build Artifacts */
@@ -75,7 +75,7 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *pool)
     return result;
 }
 
-#define MAX_GIDS 256
+static const int MAX_GIDS = 256;
 
 static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_pool_t *pool)
 {
@@ -193,11 +193,11 @@ static void print_usage_and_exit(const char *name, const apr_getopt_option_t *op
     exit(EXIT_FAILURE);
 }
 
-#define HASH_STR_BUCKET_SIZE 32
-#define HASH_STR_MAX_ENTRIES 8
-#define HASH_SIZE_BUCKET_SIZE 4096
-#define HASH_SIZE_MAX_ENTRIES 8
-#define EXCESS_SIZE_DEFAULT (50 * 1024 * 1024)
+static const int HASH_STR_BUCKET_SIZE = 32;
+static const int HASH_STR_MAX_ENTRIES = 8;
+static const int HASH_SIZE_BUCKET_SIZE = 4096;
+static const int HASH_SIZE_MAX_ENTRIES = 8;
+static const apr_off_t EXCESS_SIZE_DEFAULT = (50 * 1024 * 1024);
 
 ft_conf_t *ft_config_create(apr_pool_t *pool)
 {
@@ -239,9 +239,9 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     return conf;
 }
 
-#define ERROR_BUFFER_SIZE 128
-#define MAX_THREADS 256
-#define BASE_TEN 10
+#if HAVE_PUZZLE
+static const double DEFAULT_THRESHOLD = 0.5;
+#endif
 
 static const apr_getopt_option_t opt_option[] = {
     {"hidden", 'a', FALSE, "do not ignore hidden files."},
@@ -340,7 +340,7 @@ static void process_options(int optch, const char *optarg, ft_conf_t *conf, char
 	    conf->threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
 	    break;
 	case '3':
-	    conf->threshold = 0.5;
+	    conf->threshold = DEFAULT_THRESHOLD;
 	    break;
 	case '4':
 	    conf->threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
