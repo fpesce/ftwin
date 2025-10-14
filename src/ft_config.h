@@ -3,6 +3,11 @@
 
 #include "ft_types.h"
 
+/* Constants */
+static const int ERROR_BUFFER_SIZE = 128;
+static const int MAX_THREADS = 256;
+static const int BASE_TEN = 10;
+
 /**
  * @brief Main configuration structure for the ftwin application.
  * @ingroup CoreLogic

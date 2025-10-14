@@ -1,6 +1,7 @@
 #include <apr_thread_mutex.h>
 
 #include "debug.h"
+#include "ft_config.h"
 #include "ft_process.h"
 #include "ft_system.h"
 #include "ft_types.h"
@@ -19,7 +20,7 @@ int ft_file_cmp(const void *param1, const void *param2);
 
 static apr_status_t hashing_worker_callback(void *ctx, void *data)
 {
-    char errbuf[128];
+    char errbuf[ERROR_BUFFER_SIZE];
     hashing_context_t *h_ctx = (hashing_context_t *) ctx;
     hashing_task_t *task = (hashing_task_t *) data;
     ft_fsize_t *fsize = task->fsize;
