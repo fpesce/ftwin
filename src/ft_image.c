@@ -46,12 +46,14 @@ struct compute_vector_ctx_t
 };
 typedef struct compute_vector_ctx_t compute_vector_ctx_t;
 
+#define ERROR_BUFFER_SIZE 128
+
 static apr_status_t compute_vector(void *ctx, void *data)
 {
-    char errbuf[128];
+    char errbuf[ERROR_BUFFER_SIZE];
     compute_vector_ctx_t *cv_ctx = ctx;
     ft_file_t *file = data;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     puzzle_init_cvec(cv_ctx->contextp, &(file->cvec));
     if (0 == puzzle_fill_cvec_from_file(cv_ctx->contextp, &(file->cvec), file->path)) {
@@ -63,120 +65,155 @@ static apr_status_t compute_vector(void *ctx, void *data)
 
     status = apr_thread_mutex_lock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
+	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return status;
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
-	fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
-		(int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0));
+	(void) fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
+		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0));
     }
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
+	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return status;
     }
 
     return APR_SUCCESS;
 }
 
+#define MAX_PUZZLE_WIDTH 5000
+#define MAX_PUZZLE_HEIGHT 5000
+#define PUZZLE_LAMBDAS 13
+
+static void initialize_puzzle_context(PuzzleContext *context);
+static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext *context);
+static void compare_image_vectors(ft_conf_t *conf, PuzzleContext *context);
+
 apr_status_t ft_image_twin_report(ft_conf_t *conf)
 {
-    char errbuf[128];
     PuzzleContext context;
-    compute_vector_ctx_t cv_ctx;
-    double d;
-    ft_file_t *file, *file_cmp;
-    napr_threadpool_t *threadpool;
-    unsigned long nb_cmp, cnt_cmp;
-    int i, heap_size;
     apr_status_t status;
-    unsigned char already_printed;
 
-    puzzle_init_context(&context);
-    puzzle_set_max_width(&context, 5000);
-    puzzle_set_max_height(&context, 5000);
-    puzzle_set_lambdas(&context, 13);
+    initialize_puzzle_context(&context);
 
-    cv_ctx.contextp = &context;
-    cv_ctx.heap_size = heap_size = napr_heap_size(conf->heap);
-    cv_ctx.nb_processed = 0;
-    cv_ctx.conf = conf;
-    status = apr_thread_mutex_create(&(cv_ctx.mutex), APR_THREAD_MUTEX_DEFAULT, conf->pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-    status = napr_threadpool_init(&threadpool, &cv_ctx, NB_WORKER, compute_vector, conf->pool);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, 128));
+    status = compute_image_vectors(conf, &context);
+    if (status != APR_SUCCESS) {
+	puzzle_free_context(&context);
 	return status;
     }
 
-    for (i = 0; i < heap_size; i++) {
-
-	file = napr_heap_get_nth(conf->heap, i);
-	status = napr_threadpool_add(threadpool, file);
-	if (APR_SUCCESS != status) {
-	    DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, 128));
-	    return status;
-	}
-    }
-    napr_threadpool_wait(threadpool);
-    status = apr_thread_mutex_destroy(cv_ctx.mutex);
-    if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, 128));
-	return status;
-    }
-    if (is_option_set(conf->mask, OPTION_VERBO)) {
-	fprintf(stderr, "\rProgress [%i/%i] %d%% ", i, heap_size, (int) ((float) i / (float) heap_size * 100.0));
-	fprintf(stderr, "\n");
-    }
-
-    nb_cmp = napr_heap_size(conf->heap) * (napr_heap_size(conf->heap) - 1) / 2;
-    cnt_cmp = 0;
-    while (NULL != (file = napr_heap_extract(conf->heap))) {
-	if (!(file->cvec_ok & 0x1))
-	    continue;
-	already_printed = 0;
-	heap_size = napr_heap_size(conf->heap);
-	for (i = 0; i < heap_size; i++) {
-	    file_cmp = napr_heap_get_nth(conf->heap, i);
-	    if (!(file_cmp->cvec_ok & 0x1))
-		continue;
-
-	    d = puzzle_vector_normalized_distance(&context, &(file->cvec), &(file_cmp->cvec), 0);
-	    if (d < conf->threshold) {
-		if (!already_printed) {
-		    printf("%s%c", file->path, conf->sep);
-		    already_printed = 1;
-		}
-		else {
-		    printf("%c", conf->sep);
-		}
-		printf("%s", file_cmp->path);
-	    }
-	    if (is_option_set(conf->mask, OPTION_VERBO)) {
-		fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-			(double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
-	    }
-	    cnt_cmp++;
-	}
-
-	if (already_printed)
-	    printf("\n\n");
-
-	puzzle_free_cvec(&context, &(file->cvec));
-    }
-    if (is_option_set(conf->mask, OPTION_VERBO)) {
-	fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-		(double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
-	fprintf(stderr, "\n");
-    }
+    compare_image_vectors(conf, &context);
 
     puzzle_free_context(&context);
 
     return APR_SUCCESS;
+}
+
+static void initialize_puzzle_context(PuzzleContext *context)
+{
+    puzzle_init_context(context);
+    puzzle_set_max_width(context, MAX_PUZZLE_WIDTH);
+    puzzle_set_max_height(context, MAX_PUZZLE_HEIGHT);
+    puzzle_set_lambdas(context, PUZZLE_LAMBDAS);
+}
+
+static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext *context)
+{
+    char errbuf[ERROR_BUFFER_SIZE];
+    apr_status_t status = APR_SUCCESS;
+    napr_threadpool_t *threadpool = NULL;
+    compute_vector_ctx_t cv_ctx;
+    int heap_size = napr_heap_size(conf->heap);
+
+    cv_ctx.contextp = context;
+    cv_ctx.heap_size = heap_size;
+    cv_ctx.nb_processed = 0;
+    cv_ctx.conf = conf;
+
+    status = apr_thread_mutex_create(&cv_ctx.mutex, APR_THREAD_MUTEX_DEFAULT, conf->pool);
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	return status;
+    }
+
+    status = napr_threadpool_init(&threadpool, &cv_ctx, NB_WORKER, compute_vector, conf->pool);
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	return status;
+    }
+
+    for (int i = 0; i < heap_size; i++) {
+	ft_file_t *file = napr_heap_get_nth(conf->heap, i);
+	status = napr_threadpool_add(threadpool, file);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	    return status;
+	}
+    }
+
+    napr_threadpool_wait(threadpool);
+    status = apr_thread_mutex_destroy(cv_ctx.mutex);
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	return status;
+    }
+
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+	(void) fprintf(stderr, "\rProgress [%d/%d] %d%% ", heap_size, heap_size, 100);
+	(void) fprintf(stderr, "\n");
+    }
+
+    return APR_SUCCESS;
+}
+
+static void compare_image_vectors(ft_conf_t *conf, PuzzleContext *context)
+{
+    unsigned long nb_cmp = napr_heap_size(conf->heap) * (napr_heap_size(conf->heap) - 1) / 2;
+    unsigned long cnt_cmp = 0;
+    ft_file_t *file;
+
+    while (NULL != (file = napr_heap_extract(conf->heap))) {
+	if (!(file->cvec_ok & 0x1)) {
+	    continue;
+	}
+
+	unsigned char already_printed = 0;
+	int heap_size = napr_heap_size(conf->heap);
+	for (int i = 0; i < heap_size; i++) {
+	    ft_file_t *file_cmp = napr_heap_get_nth(conf->heap, i);
+	    if (!(file_cmp->cvec_ok & 0x1)) {
+		continue;
+	    }
+
+	    double distance = puzzle_vector_normalized_distance(context, &(file->cvec), &(file_cmp->cvec), 0);
+	    if (distance < conf->threshold) {
+		if (!already_printed) {
+		    (void) printf("%s%c", file->path, conf->sep);
+		    already_printed = 1;
+		} else {
+		    (void) printf("%c", conf->sep);
+		}
+		(void) printf("%s", file_cmp->path);
+	    }
+	    if (is_option_set(conf->mask, OPTION_VERBO)) {
+		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
+			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
+	    }
+	    cnt_cmp++;
+	}
+
+	if (already_printed) {
+	    (void) printf("\n\n");
+	}
+
+	puzzle_free_cvec(context, &(file->cvec));
+    }
+
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+	(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp, 100.0);
+	(void) fprintf(stderr, "\n");
+    }
 }
 
 #endif /* HAVE_PUZZLE */
