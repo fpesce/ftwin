@@ -32,6 +32,8 @@ static void setup(void)
 
     rs = apr_pool_create(&pool, main_pool);
     if (rs != APR_SUCCESS) {
+	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
 	DEBUG_ERR("Error creating pool");
 	exit(1);
     }
@@ -89,6 +91,8 @@ START_TEST(test_napr_hash_rebuild)
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    // Safe: apr_pcalloc is APR library macro with proper size calculation
     keys = apr_pcalloc(pool, 50 * sizeof(char *));
 
     /* Insert enough items to force a rebuild */
@@ -125,6 +129,8 @@ START_TEST(test_napr_hash_remove_multiple)
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    // Safe: apr_pcalloc is APR library macro with proper size calculation
     keys = apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
@@ -175,6 +181,8 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
+    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+    // Safe: apr_pcalloc is APR library macro with proper size calculation
     keys = apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items */

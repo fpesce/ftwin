@@ -33,6 +33,8 @@ static void setup(void)
 
     rs = apr_pool_create(&pool, main_pool);
     if (rs != APR_SUCCESS) {
+	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
 	DEBUG_ERR("Error creating pool");
 	exit(1);
     }
