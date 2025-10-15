@@ -53,6 +53,7 @@ static apr_status_t compute_vector(void *ctx, void *data)
     ft_file_t *file = data;
     apr_status_t status = APR_SUCCESS;
 
+    memset(errbuf, 0, sizeof(errbuf));
     puzzle_init_cvec(cv_ctx->contextp, &(file->cvec));
     if (0 == puzzle_fill_cvec_from_file(cv_ctx->contextp, &(file->cvec), file->path)) {
 	file->cvec_ok |= 0x1;
@@ -125,6 +126,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     compute_vector_ctx_t cv_ctx;
     int heap_size = napr_heap_size(conf->heap);
 
+    memset(errbuf, 0, sizeof(errbuf));
     cv_ctx.contextp = context;
     cv_ctx.heap_size = heap_size;
     cv_ctx.nb_processed = 0;
