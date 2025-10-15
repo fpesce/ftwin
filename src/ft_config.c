@@ -84,7 +84,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     int nb_gid = 0;
 
     memset(list, 0, sizeof(list));
-    nb_gid = getgroups(sizeof(list) / sizeof(gid_t), list);
+    nb_gid = getgroups((int)(sizeof(list) / sizeof(gid_t)), list);
     if (nb_gid < 0) {
 	DEBUG_ERR("error calling getgroups()");
 	return APR_EGENERAL;
@@ -192,7 +192,7 @@ static const int HASH_STR_BUCKET_SIZE = 32;
 static const int HASH_STR_MAX_ENTRIES = 8;
 static const int HASH_SIZE_BUCKET_SIZE = 4096;
 static const int HASH_SIZE_MAX_ENTRIES = 8;
-static const apr_off_t EXCESS_SIZE_DEFAULT = (50 * 1024 * 1024);
+static const apr_off_t EXCESS_SIZE_DEFAULT = (50LL * 1024 * 1024);
 
 ft_conf_t *ft_config_create(apr_pool_t *pool)
 {
