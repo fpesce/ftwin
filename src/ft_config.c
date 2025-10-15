@@ -265,17 +265,28 @@ static const apr_getopt_option_t opt_option[] = {
     {NULL, 0, 0, NULL},		/* end (a.k.a. sentinel) */
 };
 
+/**
+ * @brief A structure to hold pointers to the various regex string options.
+ *
+ * This is used to avoid passing multiple `char **` arguments to helper
+ * functions, which can be error-prone (swappable parameters).
+ */
+struct regex_options
+{
+    char **ignore_regex;     /**< Pointer to the ignore regex string. */
+    char **whitelist_regex;  /**< Pointer to the whitelist regex string. */
+    char **archive_regex;    /**< Pointer to the archive regex string. */
+};
+
 /* Forward declarations for helper functions */
 static void handle_flag_option(int option, ft_conf_t *conf);
-static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
-				 char **arregex);
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts);
 static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
 				  const apr_getopt_option_t *opt_option);
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
 				  const char *name, const apr_getopt_option_t *opt_option);
 
-static void process_options(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
-			    const char *name)
+static void process_options(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name)
 {
     switch (option) {
 	/* Simple Flags */
@@ -297,7 +308,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
     case 'p':
     case 's':
     case 'w':
-	handle_string_option(option, optarg, conf, regex, wregex, arregex);
+	handle_string_option(option, optarg, conf, opts);
 	break;
 
 	/* Numeric Arguments */
@@ -315,7 +326,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
     case 'T':
     case 'J':
     case 't':
-	handle_special_option(option, optarg, conf, wregex, arregex, name, opt_option);
+	handle_special_option(option, optarg, conf, opts, name, opt_option);
 	break;
 
     default:
@@ -362,12 +373,11 @@ static void handle_flag_option(int option, ft_conf_t *conf)
     }
 }
 
-static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
-				 char **arregex)
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts)
 {
     switch (option) {
     case 'e':
-	*regex = apr_pstrdup(conf->pool, optarg);
+	*(opts->ignore_regex) = apr_pstrdup(conf->pool, optarg);
 	break;
     case 'i':
 	ft_hash_add_ignore_list(conf->ig_files, optarg);
@@ -380,7 +390,7 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
 	conf->sep = *optarg;
 	break;
     case 'w':
-	*wregex = apr_pstrdup(conf->pool, optarg);
+	*(opts->whitelist_regex) = apr_pstrdup(conf->pool, optarg);
 	break;
     default:
 	/* Should not happen. */
@@ -467,7 +477,7 @@ static void handle_image_options(int option, const char *optarg, ft_conf_t *conf
     }
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
 				  const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
@@ -479,7 +489,7 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 	exit(0);
     case 'I':
     case 'T':
-	handle_image_options(option, optarg, conf, wregex, name, opt_option);
+	handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
 	break;
 #if HAVE_JANSSON
     case 'J':
@@ -492,7 +502,7 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 #endif
     case 't':
 	set_option(&conf->mask, OPTION_UNTAR, 1);
-	*arregex = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
+	*(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
 	break;
     default:
 	/* Should not happen. */
@@ -503,9 +513,10 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    char *regex = NULL;
-    char *wregex = NULL;
-    char *arregex = NULL;
+    char *regex_str = NULL;
+    char *wregex_str = NULL;
+    char *arregex_str = NULL;
+    struct regex_options opts = { &regex_str, &wregex_str, &arregex_str };
     apr_getopt_t *opt_state = NULL;
     const char *optarg = NULL;
     int option = 0;
@@ -519,7 +530,7 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     }
 
     while (APR_SUCCESS == (status = apr_getopt_long(opt_state, opt_option, &option, &optarg))) {
-	process_options(option, optarg, conf, &regex, &wregex, &arregex, argv[0]);
+	process_options(option, optarg, conf, &opts, argv[0]);
     }
 
     status = apr_uid_current(&(conf->userid), &(conf->groupid), conf->pool);
@@ -540,22 +551,22 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
 	return status;
     }
 
-    if (NULL != regex) {
-	conf->ig_regex = ft_pcre_compile(regex, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+    if (NULL != regex_str) {
+	conf->ig_regex = ft_pcre_compile(regex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
 	if (NULL == conf->ig_regex) {
 	    return APR_EGENERAL;
 	}
     }
 
-    if (NULL != wregex) {
-	conf->wl_regex = ft_pcre_compile(wregex, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+    if (NULL != wregex_str) {
+	conf->wl_regex = ft_pcre_compile(wregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
 	if (NULL == conf->wl_regex) {
 	    return APR_EGENERAL;
 	}
     }
 
-    if (NULL != arregex) {
-	conf->ar_regex = ft_pcre_compile(arregex, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+    if (NULL != arregex_str) {
+	conf->ar_regex = ft_pcre_compile(arregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
 	if (NULL == conf->ar_regex) {
 	    return APR_EGENERAL;
 	}
