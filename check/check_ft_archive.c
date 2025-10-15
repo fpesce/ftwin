@@ -128,24 +128,24 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_archive("test_archive.tar", files_to_archive, 3);
 
     // 2. Setup: Capture ftwin's output
-    (void) pipe(stdout_pipe);
-    (void) pipe(stderr_pipe);
+    (void)pipe(stdout_pipe);
+    (void)pipe(stderr_pipe);
 
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
 
-    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void) dup2(stderr_pipe[1], STDERR_FILENO);
+    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void)dup2(stderr_pipe[1], STDERR_FILENO);
 
     // 3. Run ftwin with archive support
-    (void) ftwin_main(argc, argv);
+    (void)ftwin_main(argc, argv);
 
     // 4. Restore output and capture result
-    (void) close(stdout_pipe[1]);
-    (void) close(stderr_pipe[1]);
+    (void)close(stdout_pipe[1]);
+    (void)close(stderr_pipe[1]);
 
-    (void) dup2(original_stdout, STDOUT_FILENO);
-    (void) dup2(original_stderr, STDERR_FILENO);
+    (void)dup2(original_stdout, STDOUT_FILENO);
+    (void)dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
 

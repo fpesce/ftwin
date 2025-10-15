@@ -43,9 +43,9 @@ static const int MAX_CMD_LENGTH = 512;
 static void setup(void)
 {
     if (main_pool == NULL) {
-	(void) apr_initialize();
-	(void) atexit(apr_terminate);
-	(void) apr_pool_create(&main_pool, NULL);
+	(void)apr_initialize();
+	(void)atexit(apr_terminate);
+	(void)apr_pool_create(&main_pool, NULL);
     }
 }
 
@@ -62,7 +62,7 @@ static void create_test_file(const char *path, size_t size)
     FILE *file = fopen(path, "wb");
     if (file) {
 	for (size_t i = 0; i < size; i++) {
-	    (void) fputc((int) (i % 256), file);
+	    (void)fputc((int) (i % 256), file);
 	}
 	(void) fclose(file);
     }
@@ -273,11 +273,11 @@ START_TEST(test_many_files)
 	char base_path[MAX_PATH_LENGTH];
 	memset(command, 0, sizeof(command));
 	memset(base_path, 0, sizeof(base_path));
-	(void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
+	(void)snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
 	create_test_file(base_path, 1024 + i * 100);
 
 	for (int j = 1; j <= 2; j++) {
-	    (void) snprintf(command, sizeof(command), "cp %s check/tests/many_test/dup%d_%d.dat", base_path, i, j);
+	    (void)snprintf(command, sizeof(command), "cp %s check/tests/many_test/dup%d_%d.dat", base_path, i, j);
 	    (void) system(command);
 	}
     }
