@@ -62,6 +62,6 @@ apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t exces
  * @return APR_SUCCESS on successful comparison, or an APR error code if a file cannot be read.
  */
 apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
-		     int *i);
+		     int *result_out);
 
 #endif /* FT_FILE_H */
