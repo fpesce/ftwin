@@ -9,6 +9,7 @@
 #include <apr_pools.h>
 #include <apr_time.h>
 #include <apr_file_io.h>
+#include <apr_strings.h>
 #include "checksum.h"
 #include "ft_file.h"
 #include "ft_config.h"
@@ -17,21 +18,20 @@
 #include "ftwin.h"
 #endif
 
-static const size_t BUFFER_SIZE = 1024 * 1024;	// 1MB
-static const size_t FILE_SIZE = 10 * 1024 * 1024;	// 10MB
-static const size_t EXCESS_SIZE = 16 * 1024 * 1024;	// 16MB, larger than file to test small file path
+static const size_t BUFFER_SIZE = 1024L * 1024L;	// 1MB
+static const size_t FILE_SIZE = 10L * 1024L * 1024L;	// 10MB
+static const size_t EXCESS_SIZE = 16L * 1024L * 1024L;	// 16MB, larger than file to test small file path
 static const int ITERATIONS = 100;
-static const size_t BENCH_FILE_SIZE = 50 * 1024 * 1024;	// 50MB for parallel benchmarks
+static const size_t BENCH_FILE_SIZE = 50L * 1024L * 1024L;	// 50MB for parallel benchmarks
 static const int NUM_BENCH_FILES = 12;	// Number of files for parallel benchmark
-static const int MKDIR_MODE = 0755;
 
 static void run_hash_benchmark(apr_pool_t *pool);
 static void run_checksum_file_benchmark(apr_pool_t *pool);
 
 #ifdef FTWIN_TEST_BUILD
 static void run_parallel_hashing_benchmark(apr_pool_t *pool);
-static void create_bench_files(const char *dir, int num_files, size_t file_size);
-static void cleanup_bench_files(const char *dir);
+static void create_bench_files(apr_pool_t *pool, const char *dir, int num_files, size_t file_size);
+static void cleanup_bench_files(const char *dir, apr_pool_t *pool);
 #endif
 
 int main(int argc, const char *const *argv)
@@ -130,7 +130,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     apr_time_t start_time = apr_time_now();
 
     for (int i = 0; i < ITERATIONS; ++i) {
-	checksum_file(filename, FILE_SIZE, EXCESS_SIZE, &hash_result, pool);
+	checksum_file(filename, (apr_off_t) FILE_SIZE, (apr_off_t) EXCESS_SIZE, &hash_result, pool);
     }
 
     apr_time_t end_time = apr_time_now();
@@ -148,13 +148,49 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 }
 
 #ifdef FTWIN_TEST_BUILD
-static void create_bench_files(const char *dir, int num_files, size_t file_size)
+
+static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
 {
-    mkdir(dir, MKDIR_MODE);
+    apr_dir_t *dir = NULL;
+    apr_finfo_t finfo;
+    apr_status_t status = apr_dir_open(&dir, path, pool);
+
+    if (status != APR_SUCCESS) {
+	return status;
+    }
+
+    while (apr_dir_read(&finfo, APR_FINFO_DIRENT | APR_FINFO_TYPE, dir) == APR_SUCCESS) {
+	if (strcmp(finfo.name, ".") == 0 || strcmp(finfo.name, "..") == 0) {
+	    continue;
+	}
+
+	char *new_path = apr_pstrcat(pool, path, "/", finfo.name, NULL);
+	if (finfo.filetype == APR_DIR) {
+	    status = recursive_delete(new_path, pool);
+	    if (status != APR_SUCCESS) {
+		(void) apr_dir_close(dir);
+		return status;
+	    }
+	} else {
+	    status = apr_file_remove(new_path, pool);
+	    if (status != APR_SUCCESS) {
+		(void) apr_dir_close(dir);
+		return status;
+	    }
+	}
+    }
+
+    (void) apr_dir_close(dir);
+    return apr_dir_remove(path, pool);
+}
+
+static void create_bench_files(apr_pool_t *pool, const char *dir, int num_files, size_t file_size)
+{
+    (void) apr_dir_make_recursive(dir, APR_OS_DEFAULT, pool);
 
     char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
-	(void)fprintf(stderr, "Failed to allocate buffer for file creation.\n");
+	(void) fprintf(stderr, "Failed to allocate buffer for file creation.\n");
 	return;
     }
 
@@ -165,24 +201,19 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 
     /* Create base files and duplicates */
     for (int i = 0; i < num_files / 3; i++) {
-	char filename[CHAR_MAX_VAL];
-	(void)snprintf(filename, sizeof(filename), "%s/base%d.dat", dir, i);
-
-	FILE *file_handle = fopen(filename, "wb");
-	if (file_handle) {
+	char *filename = apr_pstrcat(pool, dir, "/base", apr_itoa(pool, i), ".dat", NULL);
+	apr_file_t *file_handle = NULL;
+	if (apr_file_open(&file_handle, filename, APR_CREATE | APR_WRITE | APR_BINARY, APR_OS_DEFAULT, pool) == APR_SUCCESS) {
 	    for (size_t j = 0; j < file_size / BUFFER_SIZE; j++) {
-		(void)fwrite(buffer, 1, BUFFER_SIZE, file_handle);
+		apr_size_t bytes_to_write = BUFFER_SIZE;
+		(void) apr_file_write(file_handle, buffer, &bytes_to_write);
 	    }
-	    (void) fclose(file_handle);
+	    (void) apr_file_close(file_handle);
 
 	    /* Create 2 duplicates of each base file */
 	    for (int k = 1; k <= 2; k++) {
-		char dupname[CHAR_MAX_VAL];
-		(void)snprintf(dupname, sizeof(dupname), "%s/dup%d_%d.dat", dir, i, k);
-
-		char cmd[KIBIBYTE];
-		(void)snprintf(cmd, sizeof(cmd), "cp %s %s", filename, dupname);
-		(void) system(cmd);
+		char *dupname = apr_pstrcat(pool, dir, "/dup", apr_itoa(pool, i), "_", apr_itoa(pool, k), ".dat", NULL);
+		(void) apr_file_copy(filename, dupname, APR_OS_DEFAULT, pool);
 	    }
 	}
     }
@@ -190,11 +221,9 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
     free(buffer);
 }
 
-static void cleanup_bench_files(const char *dir)
+static void cleanup_bench_files(const char *dir, apr_pool_t *pool)
 {
-    char command[CHAR_MAX_VAL];
-    (void)snprintf(command, sizeof(command), "rm -rf %s", dir);
-    (void) system(command);
+    (void) recursive_delete(dir, pool);
 }
 
 static void run_parallel_hashing_benchmark(apr_pool_t *pool)
@@ -208,7 +237,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
     (void)fflush(stdout);
     (void)fflush(stderr);
     (void)fprintf(stderr, "Creating benchmark files...\n");
-    create_bench_files(bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
+    create_bench_files(pool, bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
 
     for (int thread_idx = 0; thread_idx < num_thread_configs; thread_idx++) {
 	unsigned int num_threads = thread_counts[thread_idx];
@@ -250,7 +279,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	(void)fflush(stdout);
     }
 
-    cleanup_bench_files(bench_dir);
+    cleanup_bench_files(bench_dir, pool);
     (void)fprintf(stderr, "Benchmark complete.\n");
 }
 #endif
