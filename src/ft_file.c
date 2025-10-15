@@ -80,7 +80,8 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_h
 {
     unsigned char data_chunk[HUGE_LEN];
     char errbuf[CHAR_MAX_VAL];
-    apr_size_t rbytes = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t rbytes;
     apr_file_t *file_descriptor = NULL;
     memset(data_chunk, 0, sizeof(data_chunk));
     memset(errbuf, 0, sizeof(errbuf));
@@ -219,8 +220,10 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
     unsigned char data_chunk1[HUGE_LEN];
     unsigned char data_chunk2[HUGE_LEN];
     char errbuf[CHAR_MAX_VAL];
-    apr_size_t rbytes1 = 0;
-    apr_size_t rbytes2 = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t rbytes1;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t rbytes2;
     apr_file_t *fd1 = NULL;
     apr_file_t *fd2 = NULL;
     memset(data_chunk1, 0, sizeof(data_chunk1));

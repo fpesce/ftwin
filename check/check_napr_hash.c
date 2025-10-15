@@ -242,9 +242,9 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     /* Iterate through all elements */
     count = 0;
     for (hash_iterator = napr_hash_first(pool, hash); hash_iterator; hash_iterator = napr_hash_next(hash_iterator)) {
-	const void *key = NULL;
-	apr_size_t klen = 0;
-	void *val = NULL;
+    const void *key = NULL;
+    apr_size_t klen = 0;
+    void *val = NULL;
 	napr_hash_this(hash_iterator, &key, &klen, &val);
 	ck_assert_ptr_ne(val, NULL);
 	count++;
