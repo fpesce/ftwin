@@ -333,7 +333,7 @@ START_TEST(test_many_files)
 	char base_path[MAX_PATH_LENGTH];
 	memset(base_path, 0, sizeof(base_path));
 	(void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
-	create_test_file(base_path, KIBIBYTE + i * STRESS_TEST_ITERATIONS);
+	create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
 
 	for (int j = 1; j <= 2; j++) {
 	    char dup_path[MAX_PATH_LENGTH];

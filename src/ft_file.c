@@ -38,7 +38,7 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
  * reading and comparing large files. Using a larger chunk size can improve
  * I/O performance but will increase memory usage.
  */
-static const size_t HUGE_LEN = 64 * 1024;
+static const size_t HUGE_LEN = 64L * 1024L;
 
 static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {

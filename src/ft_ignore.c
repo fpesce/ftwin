@@ -38,141 +38,249 @@ static const size_t MAX_PATTERN_LEN = 4096;
  * Convert Git glob pattern to PCRE regex
  * Handles: *, **, ?, [abc], !, /, escapes
  */
-static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int *flags)
+/**
+ * @brief Handles negation and leading/trailing slashes in a Git glob pattern.
+ *
+ * This function processes the beginning of a glob pattern to identify
+ * important structural markers:
+ * - `!`: Negates the pattern.
+ * - `/`: Anchors the pattern to the beginning of the path.
+ * - Trailing `/`: Marks the pattern as matching directories only.
+ *
+ * It updates the provided flags and returns a pointer to the start of the
+ * main pattern content.
+ *
+ * @param pattern The raw glob pattern string.
+ * @param flags A pointer to an unsigned int where flags (FT_IGNORE_NEGATE, FT_IGNORE_DIR_ONLY) are stored.
+ * @param starts_with_slash A pointer to an int that is set to 1 if the pattern is anchored to the root.
+ * @return A pointer to the beginning of the pattern after processing prefixes.
+ */
+static const char *handle_negation_and_slashes(const char *pattern, unsigned int *flags, int *starts_with_slash)
 {
-    char *result = apr_pcalloc(pool, MAX_PATTERN_LEN);
     const char *p = pattern;
-    char *r = result;
-    int starts_with_slash = 0;
 
+    /* Reset flags and indicators */
     *flags = 0;
+    *starts_with_slash = 0;
 
-    /* Skip negation marker */
+    /* Handle negation: Skip '!' and any leading whitespace */
     if (*p == '!') {
 	*flags |= FT_IGNORE_NEGATE;
 	p++;
-	while (isspace(*p)) {
+	while (isspace((unsigned char) *p)) {
 	    p++;
 	}
     }
 
-    /* Check if pattern starts with / */
+    /* Handle root anchor: Check for a leading '/' */
     if (*p == '/') {
-	starts_with_slash = 1;
+	*starts_with_slash = 1;
 	p++;
     }
 
-    /* Check if pattern ends with / (directory only) */
+    /* Handle directory-only: Check for a trailing '/' */
     const char *end = p + strlen(p) - 1;
-    while (end > p && isspace(*end)) {
+    while (end > p && isspace((unsigned char) *end)) {
 	end--;
     }
     if (*end == '/') {
 	*flags |= FT_IGNORE_DIR_ONLY;
     }
 
-    /* Build regex - start anchor */
+    return p;
+}
+
+/**
+ * @brief Appends a PCRE sequence to the result buffer safely.
+ *
+ * This helper function copies a given string `sequence` into the `result`
+ * buffer at the position indicated by the `cursor` pointer. It then advances
+ * the cursor to the end of the newly appended string.
+ *
+ * @param cursor A pointer to the current position in the result buffer.
+ * @param sequence The string to append.
+ */
+static void append_pcre_sequence(char **cursor, const char *sequence)
+{
+    (void) strcpy(*cursor, sequence);
+    *cursor += strlen(sequence);
+}
+
+/**
+ * @brief Sets the start and end anchors for the PCRE regex.
+ *
+ * Based on whether the pattern was anchored with a leading slash or is a
+ * directory-only pattern, this function adds the correct PCRE anchors (`^`, `$`)
+ * to the beginning and end of the regex string.
+ *
+ * @param r A pointer to the current position in the result buffer.
+ * @param starts_with_slash Indicates if the pattern began with '/'.
+ * @param flags Flags that may include FT_IGNORE_DIR_ONLY.
+ */
+static void set_pcre_anchors(char **r, int starts_with_slash, unsigned int flags)
+{
+    char *cursor = *r;
+
     if (starts_with_slash) {
-	*r++ = '^';
+	append_pcre_sequence(&cursor, "^");
     }
     else {
-	/* Pattern can match at any level */
-	*r++ = '(';
-	*r++ = '^';
-	*r++ = '|';
-	*r++ = '/';
-	*r++ = ')';
+	/* Pattern can match at any level unless it contains a slash */
+	append_pcre_sequence(&cursor, "(^|/)");
     }
 
-    /* Convert pattern to regex */
-    while (*p) {
-	/* Skip trailing slash for directory-only patterns */
-	if (*p == '/' && *flags & FT_IGNORE_DIR_ONLY && *(p + 1) == '\0') {
+    *r = cursor;
+}
+
+/**
+ * @brief Handles the conversion of a glob star (`*`) or double-star (`**`)
+ * into its PCRE equivalent.
+ *
+ * @param p A pointer to the current position in the glob pattern.
+ * @param r A pointer to the current position in the result buffer.
+ */
+static void handle_star(const char **p, char **r)
+{
+    if (*(*p + 1) == '*') {
+	/* Double star: ** */
+	if (*(*p + 2) == '/') {
+	    /* **/ /* pattern: matches zero or more directory levels */
+	    append_pcre_sequence(r, "(.*/)?");
+	    *p += 3;
+	}
+	else {
+	    /* ** at the end: matches everything */
+	    append_pcre_sequence(r, ".*");
+	    *p += 2;
+	}
+    }
+    else {
+	/* Single star *: matches anything except a slash */
+	append_pcre_sequence(r, "[^/]*");
+	*p += 1;
+    }
+}
+
+/**
+ * @brief Converts a glob question mark (`?`) into its PCRE equivalent.
+ *
+ * @param p A pointer to the current position in the glob pattern.
+ * @param r A pointer to the current position in the result buffer.
+ */
+static void handle_question_mark(const char **p, char **r)
+{
+    append_pcre_sequence(r, "[^/]");
+    *p += 1;
+}
+
+/**
+ * @brief Converts a glob character class (`[abc]`) into its PCRE equivalent.
+ *
+ * @param p A pointer to the current position in the glob pattern.
+ * @param r A pointer to the current position in the result buffer.
+ */
+static void handle_char_class(const char **p, char **r)
+{
+    char *cursor = *r;
+    *cursor++ = '[';
+    (*p)++;			// Move past opening `[`
+
+    if (**p == '!' || **p == '^') {
+	*cursor++ = '^';
+	(*p)++;
+    }
+
+    while (**p && **p != ']') {
+	if (**p == '\\' && *(*p + 1)) {
+	    *cursor++ = '\\';
+	    (*p)++;
+	}
+	*cursor++ = *(*p)++;
+    }
+
+    if (**p == ']') {
+	*cursor++ = ']';
+	(*p)++;
+    }
+
+    *r = cursor;
+}
+
+/**
+ * @brief Main loop to convert the body of a glob pattern to a PCRE regex.
+ *
+ * This function iterates through the glob pattern character by character and
+ * dispatches to specialized handlers for glob metacharacters like `*`, `?`,
+ * and `[`.
+ *
+ * @param p The glob pattern string (with prefixes like `!` already handled).
+ * @param r A pointer to the current position in the result buffer.
+ * @param flags Flags that may include FT_IGNORE_DIR_ONLY.
+ */
+static void convert_glob_body_to_pcre(const char **p, char **r, unsigned int flags)
+{
+    while (**p) {
+	/* Stop if we hit a trailing slash for a directory-only pattern */
+	if (**p == '/' && (flags & FT_IGNORE_DIR_ONLY) && *(*p + 1) == '\0') {
 	    break;
 	}
 
-	if (*p == '\\' && *(p + 1)) {
-	    /* Escaped character */
-	    p++;
-	    *r++ = '\\';
-	    *r++ = *p++;
+	if (**p == '\\' && *(*p + 1)) {
+	    /* Handle escaped characters */
+	    char *cursor = *r;
+	    *cursor++ = '\\';
+	    *cursor++ = *(*p + 1);
+	    *r = cursor;
+	    *p += 2;
 	}
-	else if (*p == '*') {
-	    if (*(p + 1) == '*') {
-		/* Double star matches any number of directories */
-		if (*(p + 2) == '/') {
-		    /* Double star with slash pattern */
-		    strcpy(r, "(.*/)?");
-		    r += 6;
-		    p += 3;
-		}
-		else if (*(p - 1) == '/' || p == pattern) {
-		    /* Slash double star at end or beginning */
-		    strcpy(r, ".*");
-		    r += 2;
-		    p += 2;
-		}
-		else {
-		    /* Treat as single * */
-		    strcpy(r, "[^/]*");
-		    r += 5;
-		    p++;
-		}
-	    }
-	    else {
-		/* * matches anything except / */
-		strcpy(r, "[^/]*");
-		r += 5;
-		p++;
-	    }
+	else if (**p == '*') {
+	    handle_star(p, r);
 	}
-	else if (*p == '?') {
-	    /* ? matches any single character except / */
-	    strcpy(r, "[^/]");
-	    r += 4;
-	    p++;
+	else if (**p == '?') {
+	    handle_question_mark(p, r);
 	}
-	else if (*p == '[') {
-	    /* Character class */
-	    *r++ = '[';
-	    p++;
-	    if (*p == '!') {
-		*r++ = '^';
-		p++;
-	    }
-	    while (*p && *p != ']') {
-		if (*p == '\\' && *(p + 1)) {
-		    p++;
-		    *r++ = '\\';
-		}
-		*r++ = *p++;
-	    }
-	    if (*p == ']')
-		*r++ = *p++;
+	else if (**p == '[') {
+	    handle_char_class(p, r);
 	}
-	else if (*p == '/') {
-	    *r++ = '/';
-	    p++;
-	}
-	else if (strchr(".^$+{}()|", *p)) {
-	    /* Escape regex metacharacters */
-	    *r++ = '\\';
-	    *r++ = *p++;
+	else if (strchr(".^$+{}()|", **p)) {
+	    /* Escape PCRE metacharacters */
+	    char *cursor = *r;
+	    *cursor++ = '\\';
+	    *cursor++ = **p;
+	    *r = cursor;
+	    (*p)++;
 	}
 	else {
-	    *r++ = *p++;
+	    /* Copy literal characters */
+	    *(*r)++ = *(*p)++;
 	}
     }
+}
 
-    /* End anchor - match end of path or trailing / for directories */
+static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int *flags)
+{
+    char *result = apr_pcalloc(pool, MAX_PATTERN_LEN);
+    char *r = result;
+    int starts_with_slash = 0;
+    const char *p = handle_negation_and_slashes(pattern, flags, &starts_with_slash);
+
+    /* Set start anchor based on whether the pattern had a leading slash */
+    set_pcre_anchors(&r, starts_with_slash, *flags);
+
+    /* Convert the main body of the glob pattern */
+    convert_glob_body_to_pcre(&p, &r, *flags);
+
+    /* Set end anchor */
     if (*flags & FT_IGNORE_DIR_ONLY) {
-	strcpy(r, "/?$");
+	/* Match a directory with an optional trailing slash */
+	append_pcre_sequence(&r, "(/|$)");
     }
     else {
-	*r++ = '$';
-	*r = '\0';
+	/* Match the end of the string */
+	append_pcre_sequence(&r, "$");
     }
 
+    *r = '\0';
     return result;
 }
 
