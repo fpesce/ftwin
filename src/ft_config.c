@@ -81,7 +81,6 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
 {
     gid_t list[MAX_GIDS];
     apr_uint32_t hash_value = 0;
-    int iter = 0;
     int nb_gid = 0;
 
     memset(list, 0, sizeof(list));
@@ -101,11 +100,11 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
 	nb_gid++;
     }
 
-    for (iter = 0; iter < nb_gid; iter++) {
-	ft_gid_t *gid = napr_hash_search(gids, &(list[iter]), sizeof(gid_t), &hash_value);
+    for (int idx = 0; idx < nb_gid; idx++) {
+	ft_gid_t *gid = napr_hash_search(gids, &(list[idx]), sizeof(gid_t), &hash_value);
 	if (NULL == gid) {
 	    gid = apr_palloc(pool, sizeof(struct ft_gid_t));
-	    gid->val = list[iter];
+	    gid->val = list[idx];
 	    napr_hash_set(gids, gid, hash_value);
 	}
     }
@@ -142,10 +141,8 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
 
 static void ft_load_defaults(ft_conf_t *conf)
 {
-    int iter = 0;
-
-    for (iter = 0; default_ignores[iter] != NULL; iter++) {
-	ft_ignore_add_pattern_str(conf->global_ignores, default_ignores[iter]);
+    for (int idx = 0; default_ignores[idx] != NULL; idx++) {
+	ft_ignore_add_pattern_str(conf->global_ignores, default_ignores[idx]);
     }
 }
 
@@ -169,8 +166,6 @@ static void version(void)
 
 static void usage(const char *name, const apr_getopt_option_t *opt_option)
 {
-    int iter = 0;
-
     (void) fprintf(stdout, PACKAGE_STRING "\n");
     (void) fprintf(stdout, "Usage: %s [OPTION]... [FILES or DIRECTORIES]...\n", name);
     (void) fprintf(stdout, "Find identical files passed as parameter or recursively found in directories.\n");
@@ -178,9 +173,9 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     (void) fprintf(stdout, "Mandatory arguments to long options are mandatory for short options too.\n");
     (void) fprintf(stdout, "\n");
 
-    for (iter = 0; NULL != opt_option[iter].name; iter++) {
-	(void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[iter].optch, opt_option[iter].name,
-		       opt_option[iter].description);
+    for (int idx = 0; NULL != opt_option[idx].name; idx++) {
+	(void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[idx].optch, opt_option[idx].name,
+		       opt_option[idx].description);
     }
 }
 
@@ -279,10 +274,10 @@ static const apr_getopt_option_t opt_option[] = {
     {NULL, 0, 0, NULL},		/* end (a.k.a. sentinel) */
 };
 
-static void process_options(int optch, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
+static void process_options(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
 			    const char *name)
 {
-    switch (optch) {
+    switch (option) {
     case 'a':
 	set_option(&conf->mask, OPTION_SHOW_HIDDEN, 1);
 	break;
@@ -417,20 +412,20 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     char *regex = NULL;
     char *wregex = NULL;
     char *arregex = NULL;
-    apr_getopt_t *os = NULL;
+    apr_getopt_t *opt_state = NULL;
     const char *optarg = NULL;
-    int optch = 0;
+    int option = 0;
     apr_status_t status = APR_SUCCESS;
 
     memset(errbuf, 0, sizeof(errbuf));
-    status = apr_getopt_init(&os, conf->pool, argc, argv);
+    status = apr_getopt_init(&opt_state, conf->pool, argc, argv);
     if (APR_SUCCESS != status) {
 	DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return status;
     }
 
-    while (APR_SUCCESS == (status = apr_getopt_long(os, opt_option, &optch, &optarg))) {
-	process_options(optch, optarg, conf, &regex, &wregex, &arregex, argv[0]);
+    while (APR_SUCCESS == (status = apr_getopt_long(opt_state, opt_option, &option, &optarg))) {
+	process_options(option, optarg, conf, &regex, &wregex, &arregex, argv[0]);
     }
 
     status = apr_uid_current(&(conf->userid), &(conf->groupid), conf->pool);
@@ -474,7 +469,7 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
 
     /* Return the index of the first non-option argument */
     if (first_arg_index != NULL) {
-	*first_arg_index = os->ind;
+	*first_arg_index = opt_state->ind;
     }
 
     return APR_SUCCESS;

@@ -69,7 +69,7 @@ static apr_status_t compute_vector(void *ctx, void *data)
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
 	(void) fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
-		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0));
+		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0f));
     }
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
@@ -144,8 +144,8 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
 	return status;
     }
 
-    for (int i = 0; i < heap_size; i++) {
-	ft_file_t *file = napr_heap_get_nth(conf->heap, i);
+    for (int idx = 0; idx < heap_size; idx++) {
+	ft_file_t *file = napr_heap_get_nth(conf->heap, idx);
 	status = napr_threadpool_add(threadpool, file);
 	if (APR_SUCCESS != status) {
 	    DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
@@ -181,8 +181,8 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 
 	unsigned char already_printed = 0;
 	int heap_size = napr_heap_size(conf->heap);
-	for (int i = 0; i < heap_size; i++) {
-	    ft_file_t *file_cmp = napr_heap_get_nth(conf->heap, i);
+	for (int idx = 0; idx < heap_size; idx++) {
+	    ft_file_t *file_cmp = napr_heap_get_nth(conf->heap, idx);
 	    if (!(file_cmp->cvec_ok & 0x1)) {
 		continue;
 	    }
@@ -201,7 +201,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	    }
 	    if (is_option_set(conf->mask, OPTION_VERBO)) {
 		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0));
+			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0f));
 	    }
 	    cnt_cmp++;
 	}
