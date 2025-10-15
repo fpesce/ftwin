@@ -28,79 +28,80 @@ static apr_pool_t *pool = NULL;
 
 static void setup(void)
 {
-	apr_status_t status = APR_SUCCESS;
+    apr_status_t status = APR_SUCCESS;
 
-	if (main_pool == NULL) {
-		apr_initialize();
-		atexit(apr_terminate);
-		apr_pool_create(&main_pool, NULL);
-	}
+    if (main_pool == NULL) {
+	apr_initialize();
+	atexit(apr_terminate);
+	apr_pool_create(&main_pool, NULL);
+    }
 
-	status = apr_pool_create(&pool, main_pool);
-	if (status != APR_SUCCESS) {
-		DEBUG_ERR("Error creating pool");
-		exit(1);
-	}
+    status = apr_pool_create(&pool, main_pool);
+    if (status != APR_SUCCESS) {
+	DEBUG_ERR("Error creating pool");
+	exit(1);
+    }
 }
 
 static void teardown(void)
 {
-	apr_pool_destroy(pool);
+    apr_pool_destroy(pool);
 }
 
-struct check_heap_numbers_t {
-	apr_off_t size;
+struct check_heap_numbers_t
+{
+    apr_off_t size;
 };
 typedef struct check_heap_numbers_t check_heap_numbers_t;
 
 static int check_heap_numbers_cmp(const void *param1, const void *param2)
 {
-	const check_heap_numbers_t *number1 = param1;
-	const check_heap_numbers_t *number2 = param2;
+    const check_heap_numbers_t *number1 = param1;
+    const check_heap_numbers_t *number2 = param2;
 
-	if (number1->size < number2->size) {
-		return -1;
-	}
-	if (number2->size < number1->size) {
-		return 1;
-	}
+    if (number1->size < number2->size) {
+	return -1;
+    }
+    if (number2->size < number1->size) {
+	return 1;
+    }
 
-	return 0;
+    return 0;
 }
 
 START_TEST(test_napr_heap_unordered_bug)
 {
-	const apr_off_t values[] = { 6298, 43601, 193288, 30460, 193288 };
-	const int num_values = sizeof(values) / sizeof(apr_off_t);
-	napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
-	check_heap_numbers_t *number = NULL;
+    const apr_off_t values[] = { 6298, 43601, 193288, 30460, 193288 };
+    const int num_values = sizeof(values) / sizeof(apr_off_t);
+    napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
+    check_heap_numbers_t *number = NULL;
 
-	for (int i = 0; i < num_values; i++) {
-		number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
-		number->size = values[i];
-		napr_heap_insert_r(heap, number);
-	}
+    for (int i = 0; i < num_values; i++) {
+	number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
+	number->size = values[i];
+	napr_heap_insert_r(heap, number);
+    }
 
-	for (int i = 0; i < num_values; i++) {
-		number = napr_heap_extract(heap);
-		switch (i) {
-		case 0:
-			ck_assert_int_eq(number->size, 193288);
-			break;
-		case 1:
-			ck_assert_int_eq(number->size, 193288);
-			break;
-		case 2:
-			ck_assert_int_eq(number->size, 43601);
-			break;
-		case 3:
-			ck_assert_int_eq(number->size, 30460);
-			break;
-		case 4:
-			ck_assert_int_eq(number->size, 6298);
-			break;
-		}
+    for (int i = 0; i < num_values; i++) {
+	number = napr_heap_extract(heap);
+	switch (i) {
+	case 0:
+	    ck_assert_int_eq(number->size, 193288);
+	    break;
+	case 1:
+	    ck_assert_int_eq(number->size, 193288);
+	    break;
+	case 2:
+	    ck_assert_int_eq(number->size, 43601);
+	    break;
+	case 3:
+	    ck_assert_int_eq(number->size, 30460);
+	    break;
+	case 4:
+	    ck_assert_int_eq(number->size, 6298);
+	    break;
 	}
+    }
 }
 
 /* *INDENT-OFF* */
@@ -109,12 +110,12 @@ END_TEST
 
 Suite *make_napr_heap_suite(void)
 {
-	Suite *suite = suite_create("Napr_Heap");
-	TCase *tc_core = tcase_create("Core Tests");
+    Suite *suite = suite_create("Napr_Heap");
+    TCase *tc_core = tcase_create("Core Tests");
 
-	tcase_add_checked_fixture(tc_core, setup, teardown);
-	tcase_add_test(tc_core, test_napr_heap_unordered_bug);
-	suite_add_tcase(suite, tc_core);
+    tcase_add_checked_fixture(tc_core, setup, teardown);
+    tcase_add_test(tc_core, test_napr_heap_unordered_bug);
+    suite_add_tcase(suite, tc_core);
 
-	return suite;
+    return suite;
 }
