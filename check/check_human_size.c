@@ -2,6 +2,7 @@
 #include <apr_pools.h>
 #include "human_size.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *pool = NULL;
 
 static void setup(void)
@@ -16,6 +17,7 @@ static void teardown(void)
     apr_terminate();
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_format_human_size)
 {
     const long long KIB = 1024;
@@ -46,6 +48,7 @@ START_TEST(test_format_human_size)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_parse_human_size_valid)
 {
     const long long KIB = 1024;
@@ -70,6 +73,7 @@ START_TEST(test_parse_human_size_valid)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_parse_human_size_invalid)
 {
     const int error_code = -1;

@@ -25,7 +25,9 @@
 
 static const int INITIAL_HASH_SIZE = 16;
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *pool = NULL;
 
 static void setup(void)
@@ -59,6 +61,7 @@ static void teardown(void)
     apr_pool_destroy(pool);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_basic)
 {
     napr_hash_t *hash = NULL;
@@ -122,6 +125,7 @@ static void verify_hash_after_rebuild(napr_hash_t *hash, char **keys, int num_ke
     }
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_rebuild)
 {
     const int num_rebuild_keys = 50;
@@ -148,6 +152,7 @@ START_TEST(test_napr_hash_rebuild)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_remove_multiple)
 {
     napr_hash_t *hash = NULL;
@@ -202,6 +207,7 @@ START_TEST(test_napr_hash_remove_multiple)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_iterator_multiple_elements)
 {
     napr_hash_t *hash = NULL;
@@ -251,6 +257,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_pool_get)
 {
     napr_hash_t *hash = NULL;
@@ -268,6 +275,7 @@ START_TEST(test_napr_hash_pool_get)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_iterator_empty_buckets)
 {
     napr_hash_t *hash = NULL;

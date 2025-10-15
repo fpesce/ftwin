@@ -107,6 +107,7 @@ static void create_test_file(const char *path, const char *content)
     ck_assert_int_eq(fclose(file), 0);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_archive_duplicates)
 {
     int stdout_pipe[2] = { 0 };

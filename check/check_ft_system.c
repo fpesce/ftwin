@@ -19,6 +19,7 @@
 
 #include "ft_system.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_get_cpu_cores)
 {
     unsigned int core_count = ft_get_cpu_cores();

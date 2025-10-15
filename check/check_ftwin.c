@@ -45,6 +45,7 @@ enum
     ERROR_BUFFER_SIZE = 256
 };
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 apr_pool_t *main_pool = NULL;
 
 static void copy_file(const char *src_path, const char *dest_path)
@@ -94,6 +95,7 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_size_options)
 {
     int stdout_pipe[2] = { 0 };
@@ -139,6 +141,7 @@ START_TEST(test_ftwin_size_options)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_no_recurse)
 {
     int stdout_pipe[2] = { 0 };
@@ -175,6 +178,7 @@ START_TEST(test_ftwin_no_recurse)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_hidden_files)
 {
     int stdout_pipe[2] = { 0 };
@@ -211,6 +215,7 @@ START_TEST(test_ftwin_hidden_files)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_show_hidden_files)
 {
     int stdout_pipe[2] = { 0 };
@@ -288,6 +293,7 @@ static void validate_duplicate_files(json_t *duplicates, const char *path1, cons
     ck_assert_msg(match1 && match2 && strcmp(out_path1, out_path2) != 0, "JSON paths mismatch");
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_json_output_validation)
 {
     int stdout_pipe[2] = { 0 };
