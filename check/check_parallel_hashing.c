@@ -33,6 +33,7 @@
 #endif
 #include "ftwin.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
 
 static void setup(void)
@@ -66,6 +67,7 @@ static void create_test_file(const char *path, size_t size)
 /**
  * Test that single-threaded and multi-threaded produce identical results
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_parallel_correctness)
 {
     int stdout_pipe1[2], stdout_pipe2[2];
@@ -143,6 +145,7 @@ END_TEST
 /**
  * Test thread pool with various thread counts
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_thread_counts)
 {
     int stdout_pipe[2];
@@ -193,6 +196,7 @@ END_TEST
 /**
  * Test with files of various sizes
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_various_file_sizes)
 {
     int stdout_pipe[2];
@@ -249,6 +253,7 @@ END_TEST
 /**
  * Test with many files to stress test thread pool
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_many_files)
 {
     int stdout_pipe[2];

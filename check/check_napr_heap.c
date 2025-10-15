@@ -23,7 +23,9 @@
 #include "debug.h"
 #include "napr_heap.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *pool;
 
 static void setup(void)
@@ -68,6 +70,7 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     return 0;
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_heap_unordered_bug)
 {
     apr_off_t array[] = { 6298, 43601, 193288, 30460, 193288 };

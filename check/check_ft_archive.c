@@ -33,6 +33,9 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static apr_pool_t *main_pool = NULL;
+
 enum
 {
     CAPTURE_BUFFER_SIZE = 4096,
@@ -106,6 +109,7 @@ static void create_test_file(const char *path, const char *content)
     ck_assert_int_eq(fclose(file), 0);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ftwin_archive_duplicates)
 {
     // 1. Setup: Create test files and a tar archive

@@ -24,7 +24,9 @@
 #include "debug.h"
 #include "ft_file.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *pool = NULL;
 static const apr_off_t SIZE_16K = 16384;
 static const apr_off_t SIZE_1K = 1024;
@@ -69,6 +71,7 @@ static const apr_off_t size_1k = SIZE_1K;
 static const char *const fname_5k = CHECK_DIR "/tests/5K_file";
 static const apr_off_t size_5k = SIZE_5K;
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_checksum_empty_file)
 {
     apr_status_t status = APR_SUCCESS;
@@ -102,6 +105,7 @@ START_TEST(test_checksum_empty_file)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_checksum_small_files)
 {
     apr_status_t status = APR_SUCCESS;
@@ -143,6 +147,7 @@ START_TEST(test_checksum_small_files)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_checksum_file)
 {
     apr_status_t status = APR_SUCCESS;
@@ -178,6 +183,7 @@ START_TEST(test_checksum_file)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_filecmp)
 {
     int return_value = 0;
@@ -198,6 +204,7 @@ START_TEST(test_filecmp)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_filecmp_empty)
 {
     int return_value = 0;
@@ -234,6 +241,7 @@ START_TEST(test_filecmp_empty)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_filecmp_small_files)
 {
     int return_value = 0;

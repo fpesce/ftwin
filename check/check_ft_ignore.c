@@ -19,6 +19,7 @@
 #include <apr_file_io.h>
 #include "ft_ignore.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
 
 static void setup(void)
@@ -31,6 +32,7 @@ static void setup(void)
 }
 
 /* Test basic pattern matching */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_simple_pattern)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -50,6 +52,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test directory-only patterns */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_directory_pattern)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -71,6 +74,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test double-star patterns */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_doublestar_pattern)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -97,6 +101,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test negation patterns */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_negation_pattern)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -119,6 +124,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test rooted patterns (starting with /) */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_rooted_pattern)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -140,6 +146,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test hierarchical context (parent-child) */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_hierarchical_context)
 {
     ft_ignore_context_t *root_ctx = NULL;
@@ -171,6 +178,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test loading patterns from file */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_load_file)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -210,6 +218,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test VCS directory patterns */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_vcs_directories)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -233,6 +242,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test wildcard patterns */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_wildcard_patterns)
 {
     ft_ignore_context_t *ctx = NULL;
@@ -255,6 +265,7 @@ END_TEST
 /* *INDENT-ON* */
 
 /* Test last-match-wins behavior */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_last_match_wins)
 {
     ft_ignore_context_t *ctx = NULL;
