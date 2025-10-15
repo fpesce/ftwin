@@ -54,7 +54,7 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
-    create_test_file("d.txt", "identical content"); // Standalone duplicate
+    create_test_file("d.txt", "identical content");	// Standalone duplicate
 
     system("tar -cf test_archive.tar a.txt b.txt c.txt");
 

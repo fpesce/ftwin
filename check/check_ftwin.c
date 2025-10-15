@@ -360,7 +360,7 @@ int main(int argc, char **argv)
 	srunner_add_suite(sr, make_ft_ignore_suite());
 
     if (!num || num == 10)
-    srunner_add_suite(sr, make_ft_archive_suite());
+	srunner_add_suite(sr, make_ft_archive_suite());
 
     srunner_set_fork_status(sr, CK_NOFORK);
     srunner_set_xml(sr, "check_log.xml");
