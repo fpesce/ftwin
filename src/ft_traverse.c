@@ -12,7 +12,6 @@
 static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats,
 				       ft_ignore_context_t * parent_ctx)
 {
-    int ovector[MATCH_VECTOR_SIZE];
     char errbuf[128];
     apr_finfo_t finfo;
     apr_dir_t *dir;
@@ -22,7 +21,6 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     apr_size_t fname_len;
     apr_uint32_t hash_value;
     apr_status_t status;
-    int match_code;
 
     if (!is_option_set(conf->mask, OPTION_FSYML)) {
 	statmask |= APR_FINFO_LINK;
@@ -148,18 +146,22 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 	    fullname = apr_pstrcat(gc_pool, filename, ('/' == filename[fname_len - 1]) ? "" : "/", finfo.name, NULL);
 	    fullname_len = strlen(fullname);
 
-	    if ((NULL != conf->ig_regex) && (APR_DIR != finfo.filetype)
-		&& (0 <=
-		    (match_code =
-		     pcre_exec(conf->ig_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE)))) {
-		continue;
+	    if ((NULL != conf->ig_regex) && (APR_DIR != finfo.filetype)) {
+		int match_code;
+		int ovector[MATCH_VECTOR_SIZE];
+		match_code = pcre_exec(conf->ig_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE);
+		if (match_code >= 0) {
+		    continue;
+		}
 	    }
 
-	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)
-		&& (0 >
-		    (match_code =
-		     pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE)))) {
-		continue;
+	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)) {
+		int match_code;
+		int ovector[MATCH_VECTOR_SIZE];
+		match_code = pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE);
+		if (match_code < 0) {
+		    continue;
+		}
 	    }
 
 	    if (stats) {

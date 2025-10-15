@@ -210,7 +210,6 @@ static void format_and_print_duplicate(ft_conf_t *conf, const ft_file_t *file, c
 static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t i, apr_size_t j,
 					    unsigned char *already_printed, const reporting_colors_t *colors)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
     char *fpathi = NULL;
     char *fpathj = NULL;
     int rv = 0;
@@ -229,6 +228,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 
     if (status != APR_SUCCESS) {
 	if (is_option_set(conf->mask, OPTION_VERBO)) {
+	    char errbuf[ERROR_BUFFER_SIZE];
 	    (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file_i->path, file_j->path,
 			   apr_strerror(status, errbuf, sizeof(errbuf)));
 	}
