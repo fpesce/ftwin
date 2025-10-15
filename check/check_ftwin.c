@@ -66,13 +66,13 @@ static void copy_file(const char *src_path, const char *dest_path)
 
     /* 2. Loop and copy data */
     do {
-	apr_size_t bytes_read = sizeof(buffer);
+	bytes_read = sizeof(buffer);
 	status_code = apr_file_read(src_file, buffer, &bytes_read);
 	if (status_code != APR_SUCCESS && status_code != APR_EOF) {
 	    ck_abort_msg("Failed to read from source file");
 	}
 	if (bytes_read > 0) {
-	    apr_size_t bytes_written = bytes_read;
+	    bytes_written = bytes_read;
 	    status_code = apr_file_write(dest_file, buffer, &bytes_written);
 	    ck_assert_int_eq(status_code, APR_SUCCESS);
 	    ck_assert_int_eq(bytes_read, bytes_written);
