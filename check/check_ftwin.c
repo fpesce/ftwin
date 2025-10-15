@@ -44,17 +44,16 @@
 
 apr_pool_t *main_pool = NULL;
 
-static void copy_file(const char *src_path, const char *dest_path)
-{
-    apr_file_t *src_file, *dest_file;
+static void copy_file(const char *src_path, const char *dest_path) {
+    apr_file_t *src_file = NULL, *dest_file = NULL;
     apr_status_t rv;
     char buffer[4096];
-    apr_size_t bytes_read, bytes_written;
+    apr_size_t bytes_read;
 
-    rv = apr_file_open(&src_file, src_path, APR_READ, APR_OS_DEFAULT, main_pool);
+    rv = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
 
-    rv = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE, APR_OS_DEFAULT, main_pool);
+    rv = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
 
     do {
@@ -63,14 +62,13 @@ static void copy_file(const char *src_path, const char *dest_path)
         if (rv != APR_SUCCESS && rv != APR_EOF) {
             ck_abort_msg("Failed to read from source file");
         }
-
         if (bytes_read > 0) {
-            bytes_written = bytes_read;
+            apr_size_t bytes_written = bytes_read;
             rv = apr_file_write(dest_file, buffer, &bytes_written);
             ck_assert_int_eq(rv, APR_SUCCESS);
             ck_assert_int_eq(bytes_read, bytes_written);
         }
-    } while (rv != APR_EOF);
+    } while (rv == APR_SUCCESS);
 
     apr_file_close(src_file);
     apr_file_close(dest_file);

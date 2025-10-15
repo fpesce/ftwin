@@ -34,13 +34,15 @@
 #include <archive_entry.h>
 
 #define CAPTURE_BUFFER_SIZE 4096
+#define DEFAULT_FILE_MODE 0644
+#define ARCHIVE_BUFFER_SIZE 8192
 
 static void create_test_archive(const char *archive_name, const char **filenames, int num_files)
 {
-    struct archive *a = archive_write_new();
-    ck_assert_ptr_ne(a, NULL);
-    archive_write_set_format_pax_restricted(a); // Use a common, safe format
-    archive_write_open_filename(a, archive_name);
+    struct archive *archive = archive_write_new();
+    ck_assert_ptr_ne(archive, NULL);
+    archive_write_set_format_pax_restricted(archive); // Use a common, safe format
+    archive_write_open_filename(archive, archive_name);
 
     for (int i = 0; i < num_files; ++i) {
         const char *filename = filenames[i];
@@ -48,30 +50,30 @@ static void create_test_archive(const char *archive_name, const char **filenames
         ck_assert_ptr_ne(entry, NULL);
 
         archive_entry_set_pathname(entry, filename);
-        archive_entry_set_mode(entry, S_IFREG | 0644);
+        archive_entry_set_mode(entry, S_IFREG | DEFAULT_FILE_MODE);
 
         // Get file size
-        FILE *f = fopen(filename, "rb");
-        ck_assert_ptr_ne(f, NULL);
-        fseek(f, 0, SEEK_END);
-        long size = ftell(f);
-        fseek(f, 0, SEEK_SET);
+        FILE *file = fopen(filename, "rb");
+        ck_assert_ptr_ne(file, NULL);
+        ck_assert_int_eq(fseek(file, 0, SEEK_END), 0);
+        long size = ftell(file);
+        ck_assert_int_eq(fseek(file, 0, SEEK_SET), 0);
 
         archive_entry_set_size(entry, size);
-        archive_write_header(a, entry);
+        archive_write_header(archive, entry);
 
-        char buff[8192];
-        size_t len = fread(buff, 1, sizeof(buff), f);
+        char buff[ARCHIVE_BUFFER_SIZE];
+        size_t len = fread(buff, 1, sizeof(buff), file);
         while (len > 0) {
-            archive_write_data(a, buff, len);
-            len = fread(buff, 1, sizeof(buff), f);
+            archive_write_data(archive, buff, len);
+            len = fread(buff, 1, sizeof(buff), file);
         }
-        fclose(f);
+        ck_assert_int_eq(fclose(file), 0);
         archive_entry_free(entry);
     }
 
-    archive_write_close(a);
-    archive_write_free(a);
+    archive_write_close(archive);
+    archive_write_free(archive);
 }
 
 static char *capture_output(int file_descriptor)
