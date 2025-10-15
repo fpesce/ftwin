@@ -33,7 +33,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-enum {
+enum
+{
     CAPTURE_BUFFER_SIZE = 4096,
     DEFAULT_FILE_MODE = 0644,
     ARCHIVE_BUFFER_SIZE = 8192

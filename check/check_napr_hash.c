@@ -131,7 +131,7 @@ START_TEST(test_napr_hash_rebuild)
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **)apr_pcalloc(pool, NUM_REBUILD_KEYS * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, NUM_REBUILD_KEYS * sizeof(char *));
 
     /* Insert enough items to force a rebuild */
     populate_hash_for_rebuild_test(hash, keys, NUM_REBUILD_KEYS);
@@ -157,7 +157,7 @@ START_TEST(test_napr_hash_remove_multiple)
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **)apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
     for (index = 0; index < 5; index++) {
@@ -210,7 +210,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **)apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items */
     for (index = 0; index < 8; index++) {

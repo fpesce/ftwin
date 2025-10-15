@@ -217,7 +217,7 @@ START_TEST(test_filecmp_empty)
     (void) apr_file_close(empty2);
 
     /* Compare empty files with small path */
-    status = filecmp(pool, empty_fname1, empty_fname2, 0, (apr_off_t)BUFFER_SIZE_1K, &return_value);
+    status = filecmp(pool, empty_fname1, empty_fname2, 0, (apr_off_t) BUFFER_SIZE_1K, &return_value);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_eq(return_value, 0);
 
