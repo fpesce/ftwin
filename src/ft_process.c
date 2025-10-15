@@ -25,10 +25,11 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
     hashing_task_t *task = (hashing_task_t *) data;
     ft_fsize_t *fsize = task->fsize;
     ft_file_t *file = fsize->chksum_array[task->index].file;
-    apr_pool_t *subpool;
-    apr_status_t status;
-    char *filepath;
+    apr_pool_t *subpool = NULL;
+    apr_status_t status = APR_SUCCESS;
+    char *filepath = NULL;
 
+    memset(errbuf, 0, sizeof(errbuf));
     if (APR_SUCCESS != (status = apr_pool_create(&subpool, h_ctx->pool))) {
 	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
 	return status;

@@ -81,9 +81,10 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
 {
     gid_t list[MAX_GIDS];
     apr_uint32_t hash_value = 0;
-    int iter;
-    int nb_gid;
+    int iter = 0;
+    int nb_gid = 0;
 
+    memset(list, 0, sizeof(list));
     nb_gid = getgroups(sizeof(list) / sizeof(gid_t), list);
     if (nb_gid < 0) {
 	DEBUG_ERR("error calling getgroups()");
@@ -421,6 +422,7 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     int optch = 0;
     apr_status_t status = APR_SUCCESS;
 
+    memset(errbuf, 0, sizeof(errbuf));
     status = apr_getopt_init(&os, conf->pool, argc, argv);
     if (APR_SUCCESS != status) {
 	DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));

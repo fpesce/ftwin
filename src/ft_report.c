@@ -56,19 +56,21 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
 {
     char errbuf[ERROR_BUFFER_SIZE];
     apr_off_t old_size = -1;
-    ft_file_t *file;
-    ft_fsize_t *fsize;
-    apr_uint32_t hash_value;
-    apr_size_t i, j;
-    int rv;
-    apr_status_t status;
-    unsigned char already_printed;
+    ft_file_t *file = NULL;
+    ft_fsize_t *fsize = NULL;
+    apr_uint32_t hash_value = 0;
+    apr_size_t i = 0;
+    apr_size_t j = 0;
+    int rv = 0;
+    apr_status_t status = APR_SUCCESS;
+    unsigned char already_printed = 0;
     apr_uint32_t chksum_array_sz = 0U;
     int use_color = isatty(STDOUT_FILENO);
     const char *color_size = use_color ? ANSI_COLOR_CYAN ANSI_COLOR_BOLD : "";
     const char *color_path = use_color ? ANSI_COLOR_BLUE ANSI_COLOR_BOLD : "";
     const char *color_reset = use_color ? ANSI_COLOR_RESET : "";
 
+    memset(errbuf, 0, sizeof(errbuf));
     if (is_option_set(conf->mask, OPTION_VERBO))
 	fprintf(stderr, "Reporting duplicate files:\n");
 
