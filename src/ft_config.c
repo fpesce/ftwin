@@ -271,7 +271,8 @@ static const apr_getopt_option_t opt_option[] = {
  * This is used to avoid passing multiple `char **` arguments to helper
  * functions, which can be error-prone (swappable parameters).
  */
-struct regex_options {
+struct regex_options
+{
     char **ignore_regex;     /**< Pointer to the ignore regex string. */
     char **whitelist_regex;  /**< Pointer to the whitelist regex string. */
     char **archive_regex;    /**< Pointer to the archive regex string. */
@@ -501,8 +502,7 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 #endif
     case 't':
 	set_option(&conf->mask, OPTION_UNTAR, 1);
-	*(opts->archive_regex) =
-	    apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
+	*(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
 	break;
     default:
 	/* Should not happen. */
