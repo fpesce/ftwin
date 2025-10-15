@@ -71,40 +71,58 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     return 0;
 }
 
+/**
+ * @brief Populates a heap with a given array of values.
+ *
+ * This helper function simplifies test setup by encapsulating the logic for
+ * creating and inserting multiple elements into a napr_heap.
+ *
+ * @param heap The heap to populate.
+ * @param values An array of values to insert into the heap.
+ * @param num_values The number of elements in the values array.
+ */
+static void populate_heap(napr_heap_t *heap, const apr_off_t values[], int num_values)
+{
+    for (int i = 0; i < num_values; i++) {
+	check_heap_numbers_t *number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
+
+	number->size = values[i];
+	napr_heap_insert_r(heap, number);
+    }
+}
+
+/**
+ * @brief Validates that elements are extracted from the heap in the expected order.
+ *
+ * This function extracts all elements from the heap and asserts that their
+ * values match the corresponding values in an array of expected sorted elements.
+ * It also verifies that the heap is empty after all elements have been extracted.
+ *
+ * @param heap The heap to validate.
+ * @param expected_values An array of the expected values in sorted order.
+ * @param num_values The number of elements in the expected_values array.
+ */
+static void validate_heap_extraction(napr_heap_t *heap, const apr_off_t expected_values[], int num_values)
+{
+    for (int i = 0; i < num_values; i++) {
+	check_heap_numbers_t *number = napr_heap_extract(heap);
+
+	ck_assert_msg(number != NULL, "Heap unexpectedly empty at index %d", i);
+	ck_assert_int_eq(number->size, expected_values[i]);
+    }
+    ck_assert_ptr_eq(napr_heap_extract(heap), NULL);
+}
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_heap_unordered_bug)
 {
     const apr_off_t values[] = { 6298, 43601, 193288, 30460, 193288 };
+    const apr_off_t expected_sorted_values[] = { 193288, 193288, 43601, 30460, 6298 };
     const int num_values = sizeof(values) / sizeof(apr_off_t);
     napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
-    check_heap_numbers_t *number = NULL;
 
-    for (int i = 0; i < num_values; i++) {
-	number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
-	number->size = values[i];
-	napr_heap_insert_r(heap, number);
-    }
-
-    for (int i = 0; i < num_values; i++) {
-	number = napr_heap_extract(heap);
-	switch (i) {
-	case 0:
-	    ck_assert_int_eq(number->size, 193288);
-	    break;
-	case 1:
-	    ck_assert_int_eq(number->size, 193288);
-	    break;
-	case 2:
-	    ck_assert_int_eq(number->size, 43601);
-	    break;
-	case 3:
-	    ck_assert_int_eq(number->size, 30460);
-	    break;
-	case 4:
-	    ck_assert_int_eq(number->size, 6298);
-	    break;
-	}
-    }
+    populate_heap(heap, values, num_values);
+    validate_heap_extraction(heap, expected_sorted_values, num_values);
 }
 
 /* *INDENT-OFF* */
