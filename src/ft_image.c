@@ -42,7 +42,7 @@ struct compute_vector_ctx_t {
     PuzzleContext *contextp;
     ft_conf_t *conf;
     unsigned int heap_size;
-    int nb_processed;
+    unsigned int nb_processed;
 };
 typedef struct compute_vector_ctx_t compute_vector_ctx_t;
 
