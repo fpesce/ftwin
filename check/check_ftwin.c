@@ -52,7 +52,6 @@ static void copy_file(const char *src_path, const char *dest_path)
     apr_file_t *dest_file = NULL;
     apr_status_t rv = APR_SUCCESS;
     char buffer[4096] = { 0 };
-    apr_size_t bytes_read = 0;
 
     rv = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
@@ -61,7 +60,7 @@ static void copy_file(const char *src_path, const char *dest_path)
     ck_assert_int_eq(rv, APR_SUCCESS);
 
     do {
-	bytes_read = sizeof(buffer);
+	apr_size_t bytes_read = sizeof(buffer);
 	rv = apr_file_read(src_file, buffer, &bytes_read);
 	if (rv != APR_SUCCESS && rv != APR_EOF) {
 	    ck_abort_msg("Failed to read from source file");
