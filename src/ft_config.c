@@ -19,8 +19,8 @@ const void *ft_gids_get_key(const void *opaque);
 
 int ft_file_cmp(const void *param1, const void *param2)
 {
-    const ft_file_t *file1 = param1;
-    const ft_file_t *file2 = param2;
+    const ft_file_t *file1 = (const ft_file_t *) param1;
+    const ft_file_t *file2 = (const ft_file_t *) param2;
 
     if (file1->size < file2->size) {
 	return -1;

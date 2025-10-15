@@ -30,7 +30,8 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
     char *filepath = NULL;
 
     memset(errbuf, 0, sizeof(errbuf));
-    if (APR_SUCCESS != (status = apr_pool_create(&subpool, h_ctx->pool))) {
+    status = apr_pool_create(&subpool, h_ctx->pool);
+    if (APR_SUCCESS != status) {
 	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
 	return status;
     }
