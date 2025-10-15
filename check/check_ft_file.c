@@ -36,8 +36,8 @@ static void setup(void)
     apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	(void)apr_initialize();
-	(void)atexit(apr_terminate);
+	(void) apr_initialize();
+	(void) atexit(apr_terminate);
 	status = apr_pool_create(&main_pool, NULL);
 	if (status != APR_SUCCESS) {
 	    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
@@ -81,7 +81,7 @@ START_TEST(test_checksum_empty_file)
     /* Create empty file for testing */
     status = apr_file_open(&empty_file, empty_fname, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(empty_file);
+    (void) apr_file_close(empty_file);
 
     /* Test checksum of empty file with small path */
     status = checksum_file(empty_fname, 0, BUFFER_SIZE_1K, &hash1, pool);
@@ -96,7 +96,7 @@ START_TEST(test_checksum_empty_file)
     ck_assert_int_eq(return_value, 0);
 
     /* Clean up */
-    (void)apr_file_remove(empty_fname, pool);
+    (void) apr_file_remove(empty_fname, pool);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -210,11 +210,11 @@ START_TEST(test_filecmp_empty)
     /* Create two empty files */
     status = apr_file_open(&empty1, empty_fname1, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(empty1);
+    (void) apr_file_close(empty1);
 
     status = apr_file_open(&empty2, empty_fname2, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(empty2);
+    (void) apr_file_close(empty2);
 
     /* Compare empty files with small path */
     status = filecmp(pool, empty_fname1, empty_fname2, 0, BUFFER_SIZE_1K, &return_value);
@@ -227,8 +227,8 @@ START_TEST(test_filecmp_empty)
     ck_assert_int_eq(return_value, 0);
 
     /* Clean up */
-    (void)apr_file_remove(empty_fname1, pool);
-    (void)apr_file_remove(empty_fname2, pool);
+    (void) apr_file_remove(empty_fname1, pool);
+    (void) apr_file_remove(empty_fname2, pool);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -253,22 +253,22 @@ START_TEST(test_filecmp_small_files)
     status = apr_file_open(&small1, small_fname1, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data1) - 1;
-    (void)apr_file_write(small1, test_data1, &len);
-    (void)apr_file_close(small1);
+    (void) apr_file_write(small1, test_data1, &len);
+    (void) apr_file_close(small1);
 
     /* Create small test file 2 (identical content) */
     status = apr_file_open(&small2, small_fname2, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data2) - 1;
-    (void)apr_file_write(small2, test_data2, &len);
-    (void)apr_file_close(small2);
+    (void) apr_file_write(small2, test_data2, &len);
+    (void) apr_file_close(small2);
 
     /* Create small test file 3 (different content) */
     status = apr_file_open(&small3, small_fname3, APR_CREATE | APR_WRITE | APR_TRUNCATE, APR_OS_DEFAULT, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     len = sizeof(test_data3) - 1;
-    (void)apr_file_write(small3, test_data3, &len);
-    (void)apr_file_close(small3);
+    (void) apr_file_write(small3, test_data3, &len);
+    (void) apr_file_close(small3);
 
     /* Compare identical small files with small path (mmap) */
     apr_off_t small_size = sizeof(test_data1) - 1;
@@ -282,9 +282,9 @@ START_TEST(test_filecmp_small_files)
     ck_assert_int_ne(return_value, 0);
 
     /* Clean up */
-    (void)apr_file_remove(small_fname1, pool);
-    (void)apr_file_remove(small_fname2, pool);
-    (void)apr_file_remove(small_fname3, pool);
+    (void) apr_file_remove(small_fname1, pool);
+    (void) apr_file_remove(small_fname2, pool);
+    (void) apr_file_remove(small_fname3, pool);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -297,7 +297,7 @@ Suite *make_ft_file_suite(void)
     suite = suite_create("Ft_File");
     tc_core = tcase_create("Core Tests");
 
-    (void)tcase_add_checked_fixture(tc_core, setup, teardown);
+    (void) tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_checksum_empty_file);
     tcase_add_test(tc_core, test_checksum_small_files);
     tcase_add_test(tc_core, test_checksum_file);

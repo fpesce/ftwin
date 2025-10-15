@@ -24,9 +24,9 @@ static apr_pool_t *main_pool = NULL;
 static void setup(void)
 {
     if (main_pool == NULL) {
-	(void)apr_initialize();
-	(void)atexit(apr_terminate);
-	(void)apr_pool_create(&main_pool, NULL);
+	(void) apr_initialize();
+	(void) atexit(apr_terminate);
+	(void) apr_pool_create(&main_pool, NULL);
     }
 }
 
@@ -37,7 +37,7 @@ START_TEST(test_ignore_simple_pattern)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "*.o");
+    (void) ft_ignore_add_pattern_str(ctx, "*.o");
 
     result = ft_ignore_match(ctx, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
@@ -56,7 +56,7 @@ START_TEST(test_ignore_directory_pattern)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "build/");
+    (void) ft_ignore_add_pattern_str(ctx, "build/");
 
     /* Directory should be ignored */
     result = ft_ignore_match(ctx, "/test/build", 1);
@@ -77,7 +77,7 @@ START_TEST(test_ignore_doublestar_pattern)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "**/*.tmp");
+    (void) ft_ignore_add_pattern_str(ctx, "**/*.tmp");
 
     /* Should match at any depth */
     result = ft_ignore_match(ctx, "/test/file.tmp", 0);
@@ -103,8 +103,8 @@ START_TEST(test_ignore_negation_pattern)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "*.log");
-    (void)ft_ignore_add_pattern_str(ctx, "!important.log");
+    (void) ft_ignore_add_pattern_str(ctx, "*.log");
+    (void) ft_ignore_add_pattern_str(ctx, "!important.log");
 
     /* Regular log should be ignored */
     result = ft_ignore_match(ctx, "/test/debug.log", 0);
@@ -125,7 +125,7 @@ START_TEST(test_ignore_rooted_pattern)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "/build");
+    (void) ft_ignore_add_pattern_str(ctx, "/build");
 
     /* Should match only at root level */
     result = ft_ignore_match(ctx, "/test/build", 1);
@@ -148,11 +148,11 @@ START_TEST(test_ignore_hierarchical_context)
 
     /* Root context ignores *.o */
     root_ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(root_ctx, "*.o");
+    (void) ft_ignore_add_pattern_str(root_ctx, "*.o");
 
     /* Child context ignores *.tmp */
     child_ctx = ft_ignore_context_create(main_pool, root_ctx, "/test/subdir");
-    (void)ft_ignore_add_pattern_str(child_ctx, "*.tmp");
+    (void) ft_ignore_add_pattern_str(child_ctx, "*.tmp");
 
     /* Child should inherit parent's patterns */
     result = ft_ignore_match(child_ctx, "/test/subdir/file.o", 0);
@@ -179,13 +179,13 @@ START_TEST(test_ignore_load_file)
     const char *gitignore_path = "/tmp/test_gitignore";
 
     /* Create a temporary .gitignore file */
-    (void)apr_file_open(&file, gitignore_path, APR_WRITE | APR_CREATE | APR_TRUNCATE, APR_OS_DEFAULT, main_pool);
-    (void)apr_file_puts("*.o\n", file);
-    (void)apr_file_puts("build/\n", file);
-    (void)apr_file_puts("# This is a comment\n", file);
-    (void)apr_file_puts("\n", file);
-    (void)apr_file_puts("*.tmp\n", file);
-    (void)apr_file_close(file);
+    (void) apr_file_open(&file, gitignore_path, APR_WRITE | APR_CREATE | APR_TRUNCATE, APR_OS_DEFAULT, main_pool);
+    (void) apr_file_puts("*.o\n", file);
+    (void) apr_file_puts("build/\n", file);
+    (void) apr_file_puts("# This is a comment\n", file);
+    (void) apr_file_puts("\n", file);
+    (void) apr_file_puts("*.tmp\n", file);
+    (void) apr_file_close(file);
 
     /* Load patterns */
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
@@ -203,7 +203,7 @@ START_TEST(test_ignore_load_file)
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* Clean up */
-    (void)apr_file_remove(gitignore_path, main_pool);
+    (void) apr_file_remove(gitignore_path, main_pool);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -216,8 +216,8 @@ START_TEST(test_ignore_vcs_directories)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, ".git/");
-    (void)ft_ignore_add_pattern_str(ctx, ".svn/");
+    (void) ft_ignore_add_pattern_str(ctx, ".git/");
+    (void) ft_ignore_add_pattern_str(ctx, ".svn/");
 
     result = ft_ignore_match(ctx, "/test/.git", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
@@ -239,7 +239,7 @@ START_TEST(test_ignore_wildcard_patterns)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "test_*.c");
+    (void) ft_ignore_add_pattern_str(ctx, "test_*.c");
 
     result = ft_ignore_match(ctx, "/test/test_foo.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
@@ -261,9 +261,9 @@ START_TEST(test_ignore_last_match_wins)
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void)ft_ignore_add_pattern_str(ctx, "*.log");
-    (void)ft_ignore_add_pattern_str(ctx, "!important.log");
-    (void)ft_ignore_add_pattern_str(ctx, "*.log");
+    (void) ft_ignore_add_pattern_str(ctx, "*.log");
+    (void) ft_ignore_add_pattern_str(ctx, "!important.log");
+    (void) ft_ignore_add_pattern_str(ctx, "*.log");
 
     /* The last *.log should override the negation */
     result = ft_ignore_match(ctx, "/test/important.log", 0);
@@ -278,7 +278,7 @@ Suite *make_ft_ignore_suite(void)
     Suite *suite = suite_create("FtIgnore");
     TCase *tc_core = tcase_create("Core");
 
-    (void)tcase_add_checked_fixture(tc_core, setup, NULL);
+    (void) tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_ignore_simple_pattern);
     tcase_add_test(tc_core, test_ignore_directory_pattern);
     tcase_add_test(tc_core, test_ignore_doublestar_pattern);
