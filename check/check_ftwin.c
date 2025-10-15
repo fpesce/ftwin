@@ -224,14 +224,14 @@ END_TEST
 /* *INDENT-ON* */
 
 #if HAVE_JANSSON
-static void validate_json_structure(json_t * root, const char *output)
+static void validate_json_structure(json_t *root, const char *output)
 {
     ck_assert_msg(root != NULL, "JSON parsing failed. Output:\n%s", output);
     ck_assert(json_is_array(root));
     ck_assert_int_eq(json_array_size(root), 1);	// Expect 1 set (the 5K files)
 }
 
-static void validate_duplicate_set(json_t * set)
+static void validate_duplicate_set(json_t *set)
 {
     // Validate metadata (5K file size is 5120 bytes)
     ck_assert_int_eq(json_integer_value(json_object_get(set, "size_bytes")), 5120);
@@ -246,7 +246,7 @@ static void validate_duplicate_set(json_t * set)
     }
 }
 
-static void validate_duplicate_files(json_t * duplicates, const char *path1, const char *path2)
+static void validate_duplicate_files(json_t *duplicates, const char *path1, const char *path2)
 {
     ck_assert_int_eq(json_array_size(duplicates), 2);
 

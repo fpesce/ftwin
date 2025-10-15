@@ -26,6 +26,7 @@
 -T get_key_callback_fn_t
 -T get_key_len_callback_fn_t
 -T hash_callback_fn_t
+-T json_t
 -T key_cmp_callback_fn_t
 -T napr_cell_t
 -T napr_hash_index_t
