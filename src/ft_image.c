@@ -78,7 +78,7 @@ static apr_status_t compute_vector(void *ctx, void *data)
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
 	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
-		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0f));
+		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0F));
     }
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
@@ -94,6 +94,7 @@ static const int MAX_PUZZLE_WIDTH = 5000;
 static const int MAX_PUZZLE_HEIGHT = 5000;
 static const int PUZZLE_LAMBDAS = 13;
 static const int FIX_FOR_CLUSTERING = 0;
+static const int MAX_PERCENTAGE = 100;
 
 static void initialize_puzzle_context(PuzzleContext * context);
 static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * context);
@@ -102,7 +103,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context);
 apr_status_t ft_image_twin_report(ft_conf_t *conf)
 {
     PuzzleContext context;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     initialize_puzzle_context(&context);
 
@@ -172,7 +173,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", heap_size, heap_size, 100);
+	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", heap_size, heap_size, MAX_PERCENTAGE);
 	(void) fprintf(stderr, "\n");
     }
 
@@ -183,7 +184,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 {
     unsigned long nb_cmp = napr_heap_size(conf->heap) * (napr_heap_size(conf->heap) - 1) / 2;
     unsigned long cnt_cmp = 0;
-    ft_file_t *file;
+    ft_file_t *file = NULL;
 
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	if (!(file->cvec_ok & 0x1)) {
@@ -212,7 +213,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	    }
 	    if (is_option_set(conf->mask, OPTION_VERBO)) {
 		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0f));
+			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0F));
 	    }
 	    cnt_cmp++;
 	}
