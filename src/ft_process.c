@@ -68,9 +68,9 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 	    h_ctx->files_processed++;
 
 	    if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-		fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-			h_ctx->files_processed, h_ctx->total_files,
-			(int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0));
+		(void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
+			       h_ctx->files_processed, h_ctx->total_files,
+			       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
 	    }
 
 	    apr_thread_mutex_unlock(h_ctx->stats_mutex);
@@ -100,8 +100,9 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     napr_threadpool_t *threadpool = NULL;
     hashing_context_t h_ctx;
 
-    if (is_option_set(conf->mask, OPTION_VERBO))
-	fprintf(stderr, "Referencing files and sizes:\n");
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+	(void) fprintf(stderr, "Referencing files and sizes:\n");
+    }
 
     if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
 	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
@@ -161,8 +162,9 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	    return status;
 	}
 
-	for (napr_hash_index_t *hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
-	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
+	for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index;
+	     hash_index = napr_hash_next(hash_index)) {
+	    napr_hash_this(hash_index, NULL, NULL, (void **) &fsize);
 
 	    int should_hash = (fsize->nb_files > 2) && (0 != fsize->val);
 	    if (is_option_set(conf->mask, OPTION_JSON)) {
@@ -170,12 +172,11 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	    }
 
 	    if (should_hash) {
-		apr_uint32_t i;
-		for (i = 0; i < fsize->nb_files; i++) {
-		    if (NULL != fsize->chksum_array[i].file) {
+		for (apr_uint32_t idx = 0; idx < fsize->nb_files; idx++) {
+		    if (NULL != fsize->chksum_array[idx].file) {
 			hashing_task_t *task = apr_palloc(gc_pool, sizeof(hashing_task_t));
 			task->fsize = fsize;
-			task->index = i;
+			task->index = idx;
 
 			status = napr_threadpool_add(threadpool, task);
 			if (APR_SUCCESS != status) {
@@ -198,11 +199,12 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	}
 
 	if (is_option_set(conf->mask, OPTION_VERBO)) {
-	    fprintf(stderr, "\n");
+	    (void) fprintf(stderr, "\n");
 	}
 
-	for (napr_hash_index_t *hi = napr_hash_first(gc_pool, conf->sizes); hi; hi = napr_hash_next(hi)) {
-	    napr_hash_this(hi, NULL, NULL, (void **) &fsize);
+	for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index;
+	     hash_index = napr_hash_next(hash_index)) {
+	    napr_hash_this(hash_index, NULL, NULL, (void **) &fsize);
 
 	    int should_insert = (fsize->nb_files > 2) && (0 != fsize->val);
 	    if (is_option_set(conf->mask, OPTION_JSON)) {
@@ -210,10 +212,9 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	    }
 
 	    if (should_insert) {
-		apr_uint32_t i;
-		for (i = 0; i < fsize->nb_files; i++) {
-		    if (NULL != fsize->chksum_array[i].file) {
-			napr_heap_insert(tmp_heap, fsize->chksum_array[i].file);
+		for (apr_uint32_t idx = 0; idx < fsize->nb_files; idx++) {
+		    if (NULL != fsize->chksum_array[idx].file) {
+			napr_heap_insert(tmp_heap, fsize->chksum_array[idx].file);
 		    }
 		}
 	    }

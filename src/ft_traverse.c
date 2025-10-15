@@ -22,17 +22,19 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     apr_size_t fname_len;
     apr_uint32_t hash_value;
     apr_status_t status;
-    int rc;
+    int match_code;
 
-    if (!is_option_set(conf->mask, OPTION_FSYML))
+    if (!is_option_set(conf->mask, OPTION_FSYML)) {
 	statmask |= APR_FINFO_LINK;
+    }
 
     if (APR_SUCCESS != (status = apr_stat(&finfo, filename, statmask, gc_pool))) {
 	if (is_option_set(conf->mask, OPTION_FSYML)) {
 	    statmask ^= APR_FINFO_LINK;
 	    if ((APR_SUCCESS == apr_stat(&finfo, filename, statmask, gc_pool)) && (finfo.filetype & APR_LNK)) {
-		if (is_option_set(conf->mask, OPTION_VERBO))
-		    fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
+		if (is_option_set(conf->mask, OPTION_VERBO)) {
+		    (void) fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
+		}
 		return APR_SUCCESS;
 	    }
 	}
@@ -44,8 +46,9 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     if (conf->respect_gitignore && parent_ctx) {
 	ft_ignore_match_result_t match = ft_ignore_match(parent_ctx, filename, finfo.filetype == APR_DIR);
 	if (match == FT_IGNORE_MATCH_IGNORED) {
-	    if (is_option_set(conf->mask, OPTION_VERBO))
-		fprintf(stderr, "Ignoring (gitignore): [%s]\n", filename);
+	    if (is_option_set(conf->mask, OPTION_VERBO)) {
+		(void) fprintf(stderr, "Ignoring (gitignore): [%s]\n", filename);
+	    }
 	    return APR_SUCCESS;
 	}
     }
@@ -53,21 +56,24 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     if (0 != conf->userid) {
 	if (finfo.user == conf->userid) {
 	    if (!(APR_UREAD & finfo.protection)) {
-		if (is_option_set(conf->mask, OPTION_VERBO))
-		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		if (is_option_set(conf->mask, OPTION_VERBO)) {
+		    (void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		}
 		return APR_SUCCESS;
 	    }
 	}
 	else if (NULL != napr_hash_search(conf->gids, &finfo.group, sizeof(gid_t), &hash_value)) {
 	    if (!(APR_GREAD & finfo.protection)) {
-		if (is_option_set(conf->mask, OPTION_VERBO))
-		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		if (is_option_set(conf->mask, OPTION_VERBO)) {
+		    (void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		}
 		return APR_SUCCESS;
 	    }
 	}
 	else if (!(APR_WREAD & finfo.protection)) {
-	    if (is_option_set(conf->mask, OPTION_VERBO))
-		fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+	    if (is_option_set(conf->mask, OPTION_VERBO)) {
+		(void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+	    }
 	    return APR_SUCCESS;
 	}
     }
@@ -76,21 +82,24 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 	if (0 != conf->userid) {
 	    if (finfo.user == conf->userid) {
 		if (!(APR_UEXECUTE & finfo.protection)) {
-		    if (is_option_set(conf->mask, OPTION_VERBO))
-			fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		    if (is_option_set(conf->mask, OPTION_VERBO)) {
+			(void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		    }
 		    return APR_SUCCESS;
 		}
 	    }
 	    else if (NULL != napr_hash_search(conf->gids, &finfo.group, sizeof(gid_t), &hash_value)) {
 		if (!(APR_GEXECUTE & finfo.protection)) {
-		    if (is_option_set(conf->mask, OPTION_VERBO))
-			fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		    if (is_option_set(conf->mask, OPTION_VERBO)) {
+			(void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		    }
 		    return APR_SUCCESS;
 		}
 	    }
 	    else if (!(APR_WEXECUTE & finfo.protection)) {
-		if (is_option_set(conf->mask, OPTION_VERBO))
-		    fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		if (is_option_set(conf->mask, OPTION_VERBO)) {
+		    (void) fprintf(stderr, "Skipping : [%s] (bad permission)\n", filename);
+		}
 		return APR_SUCCESS;
 	    }
 	}
@@ -111,8 +120,9 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 		ft_ignore_context_t *local_ctx = ft_ignore_context_create(gc_pool, parent_ctx, filename);
 		if (APR_SUCCESS == ft_ignore_load_file(local_ctx, gitignore_path)) {
 		    current_ctx = local_ctx;
-		    if (is_option_set(conf->mask, OPTION_VERBO))
-			fprintf(stderr, "Loaded .gitignore from: [%s]\n", filename);
+		    if (is_option_set(conf->mask, OPTION_VERBO)) {
+			(void) fprintf(stderr, "Loaded .gitignore from: [%s]\n", filename);
+		    }
 		}
 	    }
 	}
@@ -123,34 +133,46 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 	    struct stats child;
 	    struct stats const *ancestor;
 
-	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL))
+	    if (NULL != napr_hash_search(conf->ig_files, finfo.name, strlen(finfo.name), NULL)) {
 		continue;
+	    }
 
-	    if ('.' == finfo.name[0] && !is_option_set(conf->mask, OPTION_SHOW_HIDDEN))
+	    if ('.' == finfo.name[0] && !is_option_set(conf->mask, OPTION_SHOW_HIDDEN)) {
 		continue;
+	    }
 
-	    if (APR_DIR == finfo.filetype && !is_option_set(conf->mask, OPTION_RECSD))
+	    if (APR_DIR == finfo.filetype && !is_option_set(conf->mask, OPTION_RECSD)) {
 		continue;
+	    }
 
 	    fullname = apr_pstrcat(gc_pool, filename, ('/' == filename[fname_len - 1]) ? "" : "/", finfo.name, NULL);
 	    fullname_len = strlen(fullname);
 
 	    if ((NULL != conf->ig_regex) && (APR_DIR != finfo.filetype)
-		&& (0 <= (rc = pcre_exec(conf->ig_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
+		&& (0 <=
+		    (match_code =
+		     pcre_exec(conf->ig_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE)))) {
 		continue;
+	    }
 
 	    if ((NULL != conf->wl_regex) && (APR_DIR != finfo.filetype)
-		&& (0 > (rc = pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE))))
+		&& (0 >
+		    (match_code =
+		     pcre_exec(conf->wl_regex, NULL, fullname, fullname_len, 0, 0, ovector, MATCH_VECTOR_SIZE)))) {
 		continue;
+	    }
 
 	    if (stats) {
-		if (stats->stat.inode)
-		    for (ancestor = stats; (ancestor = ancestor->parent) != 0;)
+		if (stats->stat.inode) {
+		    for (ancestor = stats; (ancestor = ancestor->parent) != 0;) {
 			if (ancestor->stat.inode == stats->stat.inode && ancestor->stat.device == stats->stat.device) {
-			    if (is_option_set(conf->mask, OPTION_VERBO))
-				fprintf(stderr, "Warning: %s: recursive directory loop\n", filename);
+			    if (is_option_set(conf->mask, OPTION_VERBO)) {
+				(void) fprintf(stderr, "Warning: %s: recursive directory loop\n", filename);
+			    }
 			    return APR_SUCCESS;
 			}
+		    }
+		}
 	    }
 	    child.parent = stats;
 	    child.stat = finfo;
@@ -173,22 +195,14 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 	}
     }
     else if (APR_REG == finfo.filetype || ((APR_LNK == finfo.filetype) && (is_option_set(conf->mask, OPTION_FSYML)))) {
-	apr_off_t finfosize;
-	apr_time_t finfomtime;
-	char *fname;
-
-	fname = apr_pstrdup(conf->pool, filename);
-	finfosize = finfo.size;
-	finfomtime = finfo.mtime;
-
-	if (finfosize >= conf->minsize && (conf->maxsize == 0 || finfosize <= conf->maxsize)) {
+	if (finfo.size >= conf->minsize && (conf->maxsize == 0 || finfo.size <= conf->maxsize)) {
 	    ft_file_t *file;
 	    ft_fsize_t *fsize;
 
 	    file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
-	    file->path = fname;
-	    file->size = finfosize;
-	    file->mtime = finfomtime;
+	    file->path = apr_pstrdup(conf->pool, filename);
+	    file->size = finfo.size;
+	    file->mtime = finfo.mtime;
 
 	    if ((conf->p_path) && (strlen(filename) >= conf->p_path_len)
 		&& ((is_option_set(conf->mask, OPTION_ICASE) && !strncasecmp(filename, conf->p_path, conf->p_path_len))
@@ -203,9 +217,9 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 #endif
 	    napr_heap_insert(conf->heap, file);
 
-	    if (NULL == (fsize = napr_hash_search(conf->sizes, &finfosize, sizeof(apr_off_t), &hash_value))) {
+	    if (NULL == (fsize = napr_hash_search(conf->sizes, &finfo.size, sizeof(apr_off_t), &hash_value))) {
 		fsize = apr_palloc(conf->pool, sizeof(struct ft_fsize_t));
-		fsize->val = finfosize;
+		fsize->val = finfo.size;
 		fsize->chksum_array = NULL;
 		fsize->nb_checksumed = 0;
 		fsize->nb_files = 0;
