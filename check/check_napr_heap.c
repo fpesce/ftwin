@@ -24,19 +24,20 @@
 #include "napr_heap.h"
 
 static apr_pool_t *main_pool = NULL;
-static apr_pool_t *pool;
+static apr_pool_t *pool = NULL;
 
 static void setup(void)
 {
-    apr_status_t rs;
+    apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
 	apr_initialize();
 	atexit(apr_terminate);
 	apr_pool_create(&main_pool, NULL);
     }
-    rs = apr_pool_create(&pool, main_pool);
-    if (rs != APR_SUCCESS) {
+
+    status = apr_pool_create(&pool, main_pool);
+    if (status != APR_SUCCESS) {
 	DEBUG_ERR("Error creating pool");
 	exit(1);
     }
@@ -61,7 +62,7 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     if (number1->size < number2->size) {
 	return -1;
     }
-    else if (number2->size < number1->size) {
+    if (number2->size < number1->size) {
 	return 1;
     }
 
@@ -70,20 +71,18 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
 
 START_TEST(test_napr_heap_unordered_bug)
 {
-    apr_off_t array[] = { 6298, 43601, 193288, 30460, 193288 };
-    napr_heap_t *heap;
-    check_heap_numbers_t *number;
-    int i;
+    const apr_off_t values[] = { 6298, 43601, 193288, 30460, 193288 };
+    const int num_values = sizeof(values) / sizeof(apr_off_t);
+    napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
+    check_heap_numbers_t *number = NULL;
 
-    heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
-
-    for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
+    for (int i = 0; i < num_values; i++) {
 	number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
-	number->size = array[i];
+	number->size = values[i];
 	napr_heap_insert_r(heap, number);
     }
 
-    for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
+    for (int i = 0; i < num_values; i++) {
 	number = napr_heap_extract(heap);
 	switch (i) {
 	case 0:
@@ -104,20 +103,19 @@ START_TEST(test_napr_heap_unordered_bug)
 	}
     }
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
 Suite *make_napr_heap_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
-    s = suite_create("Napr_Heap");
-    tc_core = tcase_create("Core Tests");
+    Suite *suite = suite_create("Napr_Heap");
+    TCase *tc_core = tcase_create("Core Tests");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_napr_heap_unordered_bug);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

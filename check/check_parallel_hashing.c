@@ -34,6 +34,10 @@
 #include "ftwin.h"
 
 static apr_pool_t *main_pool = NULL;
+static const int MKDIR_MODE = 0755;
+static const size_t TEST_FILE_SIZE = 10240;
+static const int MAX_PATH_LENGTH = 128;
+static const int MAX_CMD_LENGTH = 512;
 
 static void setup(void)
 {
@@ -44,22 +48,22 @@ static void setup(void)
     }
 }
 
-static char *capture_output(int fd)
+static char *capture_output(int file_descriptor)
 {
     static char buffer[8192];
     memset(buffer, 0, sizeof(buffer));
-    read(fd, buffer, sizeof(buffer) - 1);
+    (void) read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
 }
 
 static void create_test_file(const char *path, size_t size)
 {
-    FILE *f = fopen(path, "wb");
-    if (f) {
+    FILE *file = fopen(path, "wb");
+    if (file) {
 	for (size_t i = 0; i < size; i++) {
-	    fputc((i % 256), f);
+	    fputc((i % 256), file);
 	}
-	fclose(f);
+	fclose(file);
     }
 }
 
@@ -68,15 +72,17 @@ static void create_test_file(const char *path, size_t size)
  */
 START_TEST(test_parallel_correctness)
 {
-    int stdout_pipe1[2], stdout_pipe2[2];
-    int stderr_pipe1[2], stderr_pipe2[2];
+    int stdout_pipe1[2] = { 0 };
+    int stdout_pipe2[2] = { 0 };
+    int stderr_pipe1[2] = { 0 };
+    int stderr_pipe2[2] = { 0 };
 
     /* Create test files with duplicates */
-    mkdir("check/tests/parallel_test", 0755);
-    create_test_file("check/tests/parallel_test/file1.dat", 10240);
+    mkdir("check/tests/parallel_test", MKDIR_MODE);
+    create_test_file("check/tests/parallel_test/file1.dat", TEST_FILE_SIZE);
     system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file2.dat");
     system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file3.dat");
-    create_test_file("check/tests/parallel_test/file4.dat", 10240);
+    create_test_file("check/tests/parallel_test/file4.dat", TEST_FILE_SIZE);
     system("cp check/tests/parallel_test/file4.dat check/tests/parallel_test/file5.dat");
 
     /* Test with single thread */
@@ -145,17 +151,17 @@ END_TEST
  */
 START_TEST(test_thread_counts)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
 
-    mkdir("check/tests/thread_test", 0755);
+    mkdir("check/tests/thread_test", MKDIR_MODE);
     create_test_file("check/tests/thread_test/a.dat", 5120);
     system("cp check/tests/thread_test/a.dat check/tests/thread_test/b.dat");
     system("cp check/tests/thread_test/a.dat check/tests/thread_test/c.dat");
 
     /* Test with various thread counts: 1, 2, 4, 8 */
     const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
-    for (int i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
+    for (size_t i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
 	pipe(stdout_pipe);
 	pipe(stderr_pipe);
 
@@ -166,7 +172,7 @@ START_TEST(test_thread_counts)
 	dup2(stderr_pipe[1], STDERR_FILENO);
 
 	const char *argv[] = { "ftwin", "-j", thread_counts[i], "check/tests/thread_test" };
-	int result = ftwin_main(4, argv);
+	int return_value = ftwin_main(4, argv);
 
 	close(stdout_pipe[1]);
 	close(stderr_pipe[1]);
@@ -178,7 +184,7 @@ START_TEST(test_thread_counts)
 	close(stderr_pipe[0]);
 
 	/* Verify duplicates found regardless of thread count */
-	ck_assert_int_eq(result, 0);
+	ck_assert_int_eq(return_value, 0);
 	ck_assert_ptr_ne(strstr(output, "a.dat"), NULL);
 	ck_assert_ptr_ne(strstr(output, "b.dat"), NULL);
 	ck_assert_ptr_ne(strstr(output, "c.dat"), NULL);
@@ -195,10 +201,10 @@ END_TEST
  */
 START_TEST(test_various_file_sizes)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
 
-    mkdir("check/tests/size_test", 0755);
+    mkdir("check/tests/size_test", MKDIR_MODE);
 
     /* Create files of different sizes with duplicates */
     create_test_file("check/tests/size_test/tiny1.dat", 10);
@@ -220,7 +226,7 @@ START_TEST(test_various_file_sizes)
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     const char *argv[] = { "ftwin", "-j", "2", "check/tests/size_test" };
-    int result = ftwin_main(4, argv);
+    int return_value = ftwin_main(4, argv);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -232,7 +238,7 @@ START_TEST(test_various_file_sizes)
     close(stderr_pipe[0]);
 
     /* Verify all size categories found duplicates */
-    ck_assert_int_eq(result, 0);
+    ck_assert_int_eq(return_value, 0);
     ck_assert_ptr_ne(strstr(output, "tiny1.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "tiny2.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "small1.dat"), NULL);
@@ -251,21 +257,23 @@ END_TEST
  */
 START_TEST(test_many_files)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
 
-    mkdir("check/tests/many_test", 0755);
+    mkdir("check/tests/many_test", MKDIR_MODE);
 
     /* Create 20 sets of duplicate files (3 copies each = 60 files) */
     for (int i = 0; i < 20; i++) {
-	char cmd[512];
-	char base[128];
-	snprintf(base, sizeof(base), "check/tests/many_test/base%d.dat", i);
-	create_test_file(base, 1024 + i * 100);
+	char command[MAX_CMD_LENGTH];
+	char base_path[MAX_PATH_LENGTH];
+	memset(command, 0, sizeof(command));
+	memset(base_path, 0, sizeof(base_path));
+	snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
+	create_test_file(base_path, 1024 + i * 100);
 
 	for (int j = 1; j <= 2; j++) {
-	    snprintf(cmd, sizeof(cmd), "cp %s check/tests/many_test/dup%d_%d.dat", base, i, j);
-	    system(cmd);
+	    snprintf(command, sizeof(command), "cp %s check/tests/many_test/dup%d_%d.dat", base_path, i, j);
+	    system(command);
 	}
     }
 
@@ -279,7 +287,7 @@ START_TEST(test_many_files)
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     const char *argv[] = { "ftwin", "-j", "4", "check/tests/many_test" };
-    int result = ftwin_main(4, argv);
+    int return_value = ftwin_main(4, argv);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -291,7 +299,7 @@ START_TEST(test_many_files)
     close(stderr_pipe[0]);
 
     /* Verify no crashes and duplicates found */
-    ck_assert_int_eq(result, 0);
+    ck_assert_int_eq(return_value, 0);
     ck_assert_ptr_ne(strstr(output, "base0.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup0_1.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "base19.dat"), NULL);
@@ -305,7 +313,7 @@ END_TEST
 
 Suite *make_parallel_hashing_suite(void)
 {
-    Suite *s = suite_create("ParallelHashing");
+    Suite *suite = suite_create("ParallelHashing");
     TCase *tc_core = tcase_create("Core");
 
     /* Increase timeout for these tests as they create many files */
@@ -317,7 +325,7 @@ Suite *make_parallel_hashing_suite(void)
     tcase_add_test(tc_core, test_various_file_sizes);
     tcase_add_test(tc_core, test_many_files);
 
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

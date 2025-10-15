@@ -60,14 +60,14 @@ static void teardown(void)
     apr_pool_destroy(pool);
 }
 
-static const char *const fname1 = CHECK_DIR "/tests/truerand";
-static const apr_off_t size1 = SIZE_16K;
-static const char *const fname2 = CHECK_DIR "/tests/copyrand";
-static const char *const fname3 = CHECK_DIR "/tests/testrand";
-static const char *const fname_1k = CHECK_DIR "/tests/1K_file";
-static const apr_off_t size_1k = SIZE_1K;
-static const char *const fname_5k = CHECK_DIR "/tests/5K_file";
-static const apr_off_t size_5k = SIZE_5K;
+static const char *const FNAME_1 = CHECK_DIR "/tests/truerand";
+static const apr_off_t FILE_SIZE_1 = SIZE_16K;
+static const char *const FNAME_2 = CHECK_DIR "/tests/copyrand";
+static const char *const FNAME_3 = CHECK_DIR "/tests/testrand";
+static const char *const FNAME_1K = CHECK_DIR "/tests/1K_file";
+static const apr_off_t FILE_SIZE_1K = SIZE_1K;
+static const char *const FNAME_5K = CHECK_DIR "/tests/5K_file";
+static const apr_off_t FILE_SIZE_5K = SIZE_5K;
 
 START_TEST(test_checksum_empty_file)
 {
@@ -98,6 +98,7 @@ START_TEST(test_checksum_empty_file)
     /* Clean up */
     (void) apr_file_remove(empty_fname, pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -112,11 +113,11 @@ START_TEST(test_checksum_small_files)
     int return_value = 0;
 
     /* Test 1K file with small file path (excess_size > file size) */
-    status = checksum_file(fname_1k, size_1k, size_1k * 2, &hash_1k_small, pool);
+    status = checksum_file(FNAME_1K, FILE_SIZE_1K, FILE_SIZE_1K * 2, &hash_1k_small, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Test 1K file with big file path (excess_size < file size) */
-    status = checksum_file(fname_1k, size_1k, size_1k / 2, &hash_1k_big, pool);
+    status = checksum_file(FNAME_1K, FILE_SIZE_1K, FILE_SIZE_1K / 2, &hash_1k_big, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Both paths should produce same hash */
@@ -124,11 +125,11 @@ START_TEST(test_checksum_small_files)
     ck_assert_int_eq(return_value, 0);
 
     /* Test 5K file with small file path */
-    status = checksum_file(fname_5k, size_5k, size_5k * 2, &hash_5k_small, pool);
+    status = checksum_file(FNAME_5K, FILE_SIZE_5K, FILE_SIZE_5K * 2, &hash_5k_small, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Test 5K file with big file path */
-    status = checksum_file(fname_5k, size_5k, size_5k / 2, &hash_5k_big, pool);
+    status = checksum_file(FNAME_5K, FILE_SIZE_5K, FILE_SIZE_5K / 2, &hash_5k_big, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Both paths should produce same hash */
@@ -139,6 +140,7 @@ START_TEST(test_checksum_small_files)
     return_value = memcmp(&hash_1k_small, &hash_5k_small, sizeof(ft_hash_t));
     ck_assert_int_ne(return_value, 0);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -150,30 +152,31 @@ START_TEST(test_checksum_file)
     ft_hash_t hash2;
     int return_value = 0;
 
-    status = checksum_file(fname1, size1, 2 * size1, &hash1, pool);
+    status = checksum_file(FNAME_1, FILE_SIZE_1, 2 * FILE_SIZE_1, &hash1, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    status = checksum_file(fname2, size1, 2 * size1, &hash2, pool);
+    status = checksum_file(FNAME_2, FILE_SIZE_1, 2 * FILE_SIZE_1, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     return_value = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_eq(return_value, 0);
 
-    status = checksum_file(fname3, size1, 2 * size1, &hash2, pool);
+    status = checksum_file(FNAME_3, FILE_SIZE_1, 2 * FILE_SIZE_1, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     return_value = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_ne(return_value, 0);
 
-    status = checksum_file(fname1, size1, size1 / 2, &hash1, pool);
+    status = checksum_file(FNAME_1, FILE_SIZE_1, FILE_SIZE_1 / 2, &hash1, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
-    status = checksum_file(fname2, size1, size1 / 2, &hash2, pool);
+    status = checksum_file(FNAME_2, FILE_SIZE_1, FILE_SIZE_1 / 2, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     return_value = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_eq(return_value, 0);
 
-    status = checksum_file(fname3, size1, size1 / 2, &hash2, pool);
+    status = checksum_file(FNAME_3, FILE_SIZE_1, FILE_SIZE_1 / 2, &hash2, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
     return_value = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_ne(return_value, 0);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -183,17 +186,18 @@ START_TEST(test_filecmp)
     int return_value = 0;
     apr_status_t status = APR_SUCCESS;
 
-    status = filecmp(pool, fname1, fname2, size1, 2 * size1, &return_value);
+    status = filecmp(pool, FNAME_1, FNAME_2, FILE_SIZE_1, 2 * FILE_SIZE_1, &return_value);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_eq(return_value, 0);
-    status = filecmp(pool, fname1, fname2, size1, size1 / 2, &return_value);
+    status = filecmp(pool, FNAME_1, FNAME_2, FILE_SIZE_1, FILE_SIZE_1 / 2, &return_value);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_eq(return_value, 0);
 
-    status = filecmp(pool, fname1, fname3, size1, size1 / 2, &return_value);
+    status = filecmp(pool, FNAME_1, FNAME_3, FILE_SIZE_1, FILE_SIZE_1 / 2, &return_value);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_ne(return_value, 0);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -230,6 +234,7 @@ START_TEST(test_filecmp_empty)
     (void) apr_file_remove(empty_fname1, pool);
     (void) apr_file_remove(empty_fname2, pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -286,6 +291,7 @@ START_TEST(test_filecmp_small_files)
     (void) apr_file_remove(small_fname2, pool);
     (void) apr_file_remove(small_fname3, pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

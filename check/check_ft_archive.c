@@ -44,8 +44,9 @@ static void add_file_to_archive(struct archive *archive, const char *filename)
 {
     struct archive_entry *entry = NULL;
     FILE *file = NULL;
-    char buff[ARCHIVE_BUFFER_SIZE] = { 0 };
-    size_t len = 0;
+    char buffer[ARCHIVE_BUFFER_SIZE] = { 0 };
+    size_t length = 0;
+    long size = 0;
 
     entry = archive_entry_new();
     ck_assert_ptr_ne(entry, NULL);
@@ -56,16 +57,16 @@ static void add_file_to_archive(struct archive *archive, const char *filename)
     file = fopen(filename, "rb");
     ck_assert_ptr_ne(file, NULL);
     ck_assert_int_eq(fseek(file, 0, SEEK_END), 0);
-    long size = ftell(file);
+    size = ftell(file);
     ck_assert_int_eq(fseek(file, 0, SEEK_SET), 0);
 
     archive_entry_set_size(entry, size);
     archive_write_header(archive, entry);
 
-    len = fread(buff, 1, sizeof(buff), file);
-    while (len > 0) {
-	archive_write_data(archive, buff, len);
-	len = fread(buff, 1, sizeof(buff), file);
+    length = fread(buffer, 1, sizeof(buffer), file);
+    while (length > 0) {
+	archive_write_data(archive, buffer, length);
+	length = fread(buffer, 1, sizeof(buffer), file);
     }
 
     ck_assert_int_eq(fclose(file), 0);
@@ -94,7 +95,7 @@ static char *capture_output(int file_descriptor)
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: using sizeof(buffer) for bounds checking
     memset(buffer, 0, sizeof(buffer));
-    read(file_descriptor, buffer, sizeof(buffer) - 1);
+    (void) read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
 }
 
@@ -108,31 +109,34 @@ static void create_test_file(const char *path, const char *content)
 
 START_TEST(test_ftwin_archive_duplicates)
 {
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    int original_stdout = 0;
+    int original_stderr = 0;
+    char *output = NULL;
+    const char *argv[] = { "ftwin", "-t", "test_archive.tar", "d.txt" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    const char *files_to_archive[] = { "a.txt", "b.txt", "c.txt" };
+
     // 1. Setup: Create test files and a tar archive
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
     create_test_file("d.txt", "identical content");	// Standalone duplicate
 
-    const char *files_to_archive[] = { "a.txt", "b.txt", "c.txt" };
     create_test_archive("test_archive.tar", files_to_archive, 3);
 
     // 2. Setup: Capture ftwin's output
-    int stdout_pipe[2];
-    int stderr_pipe[2];
     pipe(stdout_pipe);
     pipe(stderr_pipe);
 
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     // 3. Run ftwin with archive support
-    const char *argv[] = { "ftwin", "-t", "test_archive.tar", "d.txt" };
-    int argc = sizeof(argv) / sizeof(argv[0]);
-
     ftwin_main(argc, argv);
 
     // 4. Restore output and capture result
@@ -142,7 +146,7 @@ START_TEST(test_ftwin_archive_duplicates)
     dup2(original_stdout, STDOUT_FILENO);
     dup2(original_stderr, STDERR_FILENO);
 
-    char *output = capture_output(stdout_pipe[0]);
+    output = capture_output(stdout_pipe[0]);
 
     // 5. Assertions
     // Check that the three identical files are reported as duplicates
@@ -155,7 +159,6 @@ START_TEST(test_ftwin_archive_duplicates)
     ck_assert_ptr_ne(strstr(output, "test_archive.tar:/a.txt"), "archive path for a.txt is incorrect");
     ck_assert_ptr_ne(strstr(output, "test_archive.tar:/b.txt"), "archive path for b.txt is incorrect");
 
-
     // 6. Teardown
     (void) remove("a.txt");
     (void) remove("b.txt");
@@ -163,6 +166,7 @@ START_TEST(test_ftwin_archive_duplicates)
     (void) remove("d.txt");
     (void) remove("test_archive.tar");
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
