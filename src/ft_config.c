@@ -273,8 +273,66 @@ static const apr_getopt_option_t opt_option[] = {
     {NULL, 0, 0, NULL},		/* end (a.k.a. sentinel) */
 };
 
+/* Forward declarations for helper functions */
+static void handle_flag_option(int option, ft_conf_t *conf);
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
+				 char **arregex);
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+				  const apr_getopt_option_t *opt_option);
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+				  const char *name, const apr_getopt_option_t *opt_option);
+
 static void process_options(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
 			    const char *name)
+{
+    switch (option) {
+	/* Simple Flags */
+    case 'a':
+    case 'c':
+    case 'd':
+    case 'n':
+    case 'f':
+    case 'o':
+    case 'r':
+    case 'R':
+    case 'v':
+	handle_flag_option(option, conf);
+	break;
+
+	/* String Arguments */
+    case 'e':
+    case 'i':
+    case 'p':
+    case 's':
+    case 'w':
+	handle_string_option(option, optarg, conf, regex, wregex, arregex);
+	break;
+
+	/* Numeric Arguments */
+    case 'j':
+    case 'm':
+    case 'M':
+    case 'x':
+	handle_numeric_option(option, optarg, conf, name, opt_option);
+	break;
+
+	/* Special/Complex Cases */
+    case 'h':
+    case 'V':
+    case 'I':
+    case 'T':
+    case 'J':
+    case 't':
+	handle_special_option(option, optarg, conf, wregex, arregex, name, opt_option);
+	break;
+
+    default:
+	/* Should not happen. */
+	break;
+    }
+}
+
+static void handle_flag_option(int option, ft_conf_t *conf)
 {
     switch (option) {
     case 'a':
@@ -289,34 +347,53 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
     case 'n':
 	set_option(&conf->mask, OPTION_DRY_RUN, 1);
 	break;
-    case 'e':
-	*regex = apr_pstrdup(conf->pool, optarg);
-	break;
     case 'f':
 	set_option(&conf->mask, OPTION_FSYML, 1);
 	break;
-    case 'h':
-	usage(name, opt_option);
-	exit(0);
+    case 'o':
+	set_option(&conf->mask, OPTION_OPMEM, 1);
+	break;
+    case 'r':
+	set_option(&conf->mask, OPTION_RECSD, 1);
+	break;
+    case 'R':
+	set_option(&conf->mask, OPTION_RECSD, 0);
+	break;
+    case 'v':
+	if (!is_option_set(conf->mask, OPTION_JSON)) {
+	    set_option(&conf->mask, OPTION_VERBO, 1);
+	}
+	break;
+    }
+}
+
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
+				 char **arregex)
+{
+    switch (option) {
+    case 'e':
+	*regex = apr_pstrdup(conf->pool, optarg);
+	break;
     case 'i':
 	ft_hash_add_ignore_list(conf->ig_files, optarg);
 	break;
-#if HAVE_PUZZLE
-    case 'I':
-	set_option(&conf->mask, OPTION_ICASE, 1);
-	set_option(&conf->mask, OPTION_PUZZL, 1);
-	*wregex = apr_pstrdup(conf->pool, ".*\\.(gif|png|jpe?g)$");
+    case 'p':
+	conf->p_path = apr_pstrdup(conf->pool, optarg);
+	conf->p_path_len = strlen(conf->p_path);
 	break;
-#endif
-#if HAVE_JANSSON
-    case 'J':
-	set_option(&conf->mask, OPTION_JSON, 1);
-	if (is_option_set(conf->mask, OPTION_VERBO)) {
-	    (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
-	    set_option(&conf->mask, OPTION_VERBO, 0);
-	}
+    case 's':
+	conf->sep = *optarg;
 	break;
-#endif
+    case 'w':
+	*wregex = apr_pstrdup(conf->pool, optarg);
+	break;
+    }
+}
+
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+				  const apr_getopt_option_t *opt_option)
+{
+    switch (option) {
     case 'j':{
 	    char *endptr = NULL;
 	    long threads = strtol(optarg, &endptr, BASE_TEN);
@@ -324,8 +401,45 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
 		print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
 	    }
 	    conf->num_threads = (unsigned int) threads;
-	} break;
+	    break;
+	}
+    case 'm':
+	conf->minsize = parse_human_size(optarg);
+	if (conf->minsize < 0) {
+	    print_usage_and_exit(name, opt_option, "Invalid size for --minimal-length:", optarg);
+	}
+	break;
+    case 'M':
+	conf->maxsize = parse_human_size(optarg);
+	if (conf->maxsize < 0) {
+	    print_usage_and_exit(name, opt_option, "Invalid size for --max-size:", optarg);
+	}
+	break;
+    case 'x':
+	conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
+	if (ULONG_MAX == conf->minsize) {
+	    print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
+	}
+	break;
+    }
+}
+
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+				  const char *name, const apr_getopt_option_t *opt_option)
+{
+    switch (option) {
+    case 'h':
+	usage(name, opt_option);
+	exit(0);
+    case 'V':
+	version();
+	exit(0);
 #if HAVE_PUZZLE
+    case 'I':
+	set_option(&conf->mask, OPTION_ICASE, 1);
+	set_option(&conf->mask, OPTION_PUZZL, 1);
+	*wregex = apr_pstrdup(conf->pool, ".*\\.(gif|png|jpe?g)$");
+	break;
     case 'T':
 	switch (*optarg) {
 	case '1':
@@ -348,60 +462,21 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
 	}
 	break;
 #endif
-    case 'm':
-	conf->minsize = parse_human_size(optarg);
-	if (conf->minsize < 0) {
-	    print_usage_and_exit(name, opt_option, "Invalid size for --minimal-length:", optarg);
+#if HAVE_JANSSON
+    case 'J':
+	set_option(&conf->mask, OPTION_JSON, 1);
+	if (is_option_set(conf->mask, OPTION_VERBO)) {
+	    (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
+	    set_option(&conf->mask, OPTION_VERBO, 0);
 	}
 	break;
-    case 'M':
-	conf->maxsize = parse_human_size(optarg);
-	if (conf->maxsize < 0) {
-	    print_usage_and_exit(name, opt_option, "Invalid size for --max-size:", optarg);
-	}
-	break;
-    case 'o':
-	set_option(&conf->mask, OPTION_OPMEM, 1);
-	break;
-    case 'p':
-	conf->p_path = apr_pstrdup(conf->pool, optarg);
-	conf->p_path_len = strlen(conf->p_path);
-	break;
-    case 'r':
-	set_option(&conf->mask, OPTION_RECSD, 1);
-	break;
-    case 'R':
-	set_option(&conf->mask, OPTION_RECSD, 0);
-	break;
-    case 's':
-	conf->sep = *optarg;
-	break;
+#endif
 #if HAVE_ARCHIVE
     case 't':
 	set_option(&conf->mask, OPTION_UNTAR, 1);
 	*arregex = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
 	break;
 #endif
-    case 'v':
-	if (!is_option_set(conf->mask, OPTION_JSON)) {
-	    set_option(&conf->mask, OPTION_VERBO, 1);
-	}
-	break;
-    case 'V':
-	version();
-	exit(0);
-    case 'w':
-	*wregex = apr_pstrdup(conf->pool, optarg);
-	break;
-    case 'x':
-	conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
-	if (ULONG_MAX == conf->minsize) {
-	    print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
-	}
-	break;
-    default:
-	/* Should not happen. */
-	break;
     }
 }
 
