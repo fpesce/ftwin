@@ -37,7 +37,8 @@
 
 static const int NB_WORKER = 4;
 
-struct compute_vector_ctx_t {
+struct compute_vector_ctx_t
+{
     apr_thread_mutex_t *mutex;
     PuzzleContext *contextp;
     ft_conf_t *conf;

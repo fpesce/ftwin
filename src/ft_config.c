@@ -275,15 +275,18 @@ static const apr_getopt_option_t opt_option[] = {
 
 /* Forward declarations for helper functions */
 static void handle_flag_option(int option, ft_conf_t *conf);
-static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex);
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option);
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex, const char *name, const apr_getopt_option_t *opt_option);
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
+				 char **arregex);
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+				  const apr_getopt_option_t *opt_option);
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+				  const char *name, const apr_getopt_option_t *opt_option);
 
 static void process_options(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex,
 			    const char *name)
 {
     switch (option) {
-    /* Simple Flags */
+	/* Simple Flags */
     case 'a':
     case 'c':
     case 'd':
@@ -296,7 +299,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
 	handle_flag_option(option, conf);
 	break;
 
-    /* String Arguments */
+	/* String Arguments */
     case 'e':
     case 'i':
     case 'p':
@@ -305,7 +308,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
 	handle_string_option(option, optarg, conf, regex, wregex, arregex);
 	break;
 
-    /* Numeric Arguments */
+	/* Numeric Arguments */
     case 'j':
     case 'm':
     case 'M':
@@ -313,7 +316,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, cha
 	handle_numeric_option(option, optarg, conf, name, opt_option);
 	break;
 
-    /* Special/Complex Cases */
+	/* Special/Complex Cases */
     case 'h':
     case 'V':
     case 'I':
@@ -364,7 +367,8 @@ static void handle_flag_option(int option, ft_conf_t *conf)
     }
 }
 
-static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex, char **arregex)
+static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, char **regex, char **wregex,
+				 char **arregex)
 {
     switch (option) {
     case 'e':
@@ -386,18 +390,19 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
     }
 }
 
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option)
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+				  const apr_getopt_option_t *opt_option)
 {
     switch (option) {
-    case 'j': {
-	char *endptr = NULL;
-	long threads = strtol(optarg, &endptr, BASE_TEN);
-	if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
-	    print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
+    case 'j':{
+	    char *endptr = NULL;
+	    long threads = strtol(optarg, &endptr, BASE_TEN);
+	    if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
+		print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
+	    }
+	    conf->num_threads = (unsigned int) threads;
+	    break;
 	}
-	conf->num_threads = (unsigned int) threads;
-	break;
-    }
     case 'm':
 	conf->minsize = parse_human_size(optarg);
 	if (conf->minsize < 0) {
@@ -419,7 +424,8 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
     }
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex, const char *name, const apr_getopt_option_t *opt_option)
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+				  const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'h':
