@@ -43,18 +43,18 @@ int main(int argc, const char *const *argv)
     apr_initialize();
     apr_pool_create(&pool, NULL);
 
-    printf("[\n");
+    (void)printf("[\n");
 
     run_hash_benchmark(pool);
-    printf(",\n");
+    (void)printf(",\n");
     run_checksum_file_benchmark(pool);
 
 #ifdef FTWIN_TEST_BUILD
-    printf(",\n");
+    (void)printf(",\n");
     run_parallel_hashing_benchmark(pool);
 #endif
 
-    printf("\n]\n");
+    (void)printf("\n]\n");
 
     apr_pool_destroy(pool);
     apr_terminate();
@@ -86,11 +86,11 @@ static void run_hash_benchmark(apr_pool_t *pool)
     apr_time_t total_time = end_time - start_time;
     double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * 1000000.0 / (1024.0 * 1024.0);
 
-    printf("  {\n");
-    printf("    \"name\": \"hash_throughput\",\n");
-    printf("    \"unit\": \"MB/s\",\n");
-    printf("    \"value\": %.2f\n", throughput_mb_s);
-    printf("  }");
+    (void)printf("  {\n");
+    (void)printf("    \"name\": \"hash_throughput\",\n");
+    (void)printf("    \"unit\": \"MB/s\",\n");
+    (void)printf("    \"value\": %.2f\n", throughput_mb_s);
+    (void)printf("  }");
 
     free(buffer);
 }
@@ -136,11 +136,11 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     apr_time_t total_time = end_time - start_time;
     double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time * 1000000.0 / (1024.0 * 1024.0);
 
-    printf("  {\n");
-    printf("    \"name\": \"checksum_file_throughput\",\n");
-    printf("    \"unit\": \"MB/s\",\n");
-    printf("    \"value\": %.2f\n", throughput_mb_s);
-    printf("  }");
+    (void)printf("  {\n");
+    (void)printf("    \"name\": \"checksum_file_throughput\",\n");
+    (void)printf("    \"unit\": \"MB/s\",\n");
+    (void)printf("    \"value\": %.2f\n", throughput_mb_s);
+    (void)printf("  }");
 
     // Clean up the temporary file
     (void) apr_file_remove(filename, pool);
@@ -153,7 +153,7 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 
     char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
-	fprintf(stderr, "Failed to allocate buffer for file creation.\n");
+	(void)fprintf(stderr, "Failed to allocate buffer for file creation.\n");
 	return;
     }
 
@@ -165,22 +165,22 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
     /* Create base files and duplicates */
     for (int i = 0; i < num_files / 3; i++) {
 	char filename[256];
-	snprintf(filename, sizeof(filename), "%s/base%d.dat", dir, i);
+	(void)snprintf(filename, sizeof(filename), "%s/base%d.dat", dir, i);
 
 	FILE *f = fopen(filename, "wb");
 	if (f) {
 	    for (size_t j = 0; j < file_size / BUFFER_SIZE; j++) {
-		fwrite(buffer, 1, BUFFER_SIZE, f);
+		(void)fwrite(buffer, 1, BUFFER_SIZE, f);
 	    }
 	    (void) fclose(f);
 
 	    /* Create 2 duplicates of each base file */
 	    for (int k = 1; k <= 2; k++) {
 		char dupname[256];
-		snprintf(dupname, sizeof(dupname), "%s/dup%d_%d.dat", dir, i, k);
+		(void)snprintf(dupname, sizeof(dupname), "%s/dup%d_%d.dat", dir, i, k);
 
 		char cmd[1024];
-		snprintf(cmd, sizeof(cmd), "cp %s %s", filename, dupname);
+		(void)snprintf(cmd, sizeof(cmd), "cp %s %s", filename, dupname);
 		(void) system(cmd);
 	    }
 	}
@@ -192,7 +192,7 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 static void cleanup_bench_files(const char *dir)
 {
     char command[256];
-    snprintf(command, sizeof(command), "rm -rf %s", dir);
+    (void)snprintf(command, sizeof(command), "rm -rf %s", dir);
     (void) system(command);
 }
 
@@ -204,32 +204,32 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 
     (void) pool;
 
-    fflush(stdout);
-    fflush(stderr);
-    fprintf(stderr, "Creating benchmark files...\n");
+    (void)fflush(stdout);
+    (void)fflush(stderr);
+    (void)fprintf(stderr, "Creating benchmark files...\n");
     create_bench_files(bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
 
     for (int t = 0; t < num_thread_configs; t++) {
 	unsigned int num_threads = thread_counts[t];
 
-	fflush(stdout);
-	fflush(stderr);
+	(void)fflush(stdout);
+	(void)fflush(stderr);
 	int stdout_save = dup(STDOUT_FILENO);
 	int stderr_save = dup(STDERR_FILENO);
 	int dev_null_fd = open("/dev/null", O_WRONLY);
 	dup2(dev_null_fd, STDOUT_FILENO);
-	dup2(dev_null_fd, STDERR_FILENO);
+	(void)dup2(dev_null_fd, STDERR_FILENO);
 	apr_time_t start_time = apr_time_now();
 	char threads_str[16];
-	snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
+	(void)snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
 	const char *argv[] = { "ftwin", "-j", threads_str, bench_dir };
-	ftwin_main(4, argv);
+	(void)ftwin_main(4, argv);
 	apr_time_t end_time = apr_time_now();
-	dup2(stdout_save, STDOUT_FILENO);
-	dup2(stderr_save, STDERR_FILENO);
-	close(dev_null_fd);
-	close(stdout_save);
-	close(stderr_save);
+	(void)dup2(stdout_save, STDOUT_FILENO);
+	(void)dup2(stderr_save, STDERR_FILENO);
+	(void)close(dev_null_fd);
+	(void)close(stdout_save);
+	(void)close(stderr_save);
 
 	apr_time_t total_time = end_time - start_time;
 	double time_seconds = (double) total_time / 1000000.0;
@@ -237,19 +237,19 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	double throughput_mb_s = total_mb / time_seconds;
 
 	if (t > 0) {
-	    printf(",\n");
+	    (void)printf(",\n");
 	}
-	printf("  {\n");
-	printf("    \"name\": \"parallel_hashing (%u threads)\",\n", num_threads);
-	printf("    \"unit\": \"MB/s\",\n");
-	printf("    \"value\": %.2f,\n", throughput_mb_s);
-	printf("    \"extra\": \"time_seconds=%.3f\"\n", time_seconds);
-	printf("  }");
+	(void)printf("  {\n");
+	(void)printf("    \"name\": \"parallel_hashing (%u threads)\",\n", num_threads);
+	(void)printf("    \"unit\": \"MB/s\",\n");
+	(void)printf("    \"value\": %.2f,\n", throughput_mb_s);
+	(void)printf("    \"extra\": \"time_seconds=%.3f\"\n", time_seconds);
+	(void)printf("  }");
 
-	fflush(stdout);
+	(void)fflush(stdout);
     }
 
     cleanup_bench_files(bench_dir);
-    fprintf(stderr, "Benchmark complete.\n");
+    (void)fprintf(stderr, "Benchmark complete.\n");
 }
 #endif
