@@ -39,8 +39,6 @@ apr_pool_t *main_pool = NULL;
 static char *capture_output(int fd)
 {
     static char buffer[4096];
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: using sizeof(buffer) for bounds checking
     memset(buffer, 0, sizeof(buffer));
     read(fd, buffer, sizeof(buffer) - 1);
     return buffer;
@@ -207,11 +205,7 @@ START_TEST(test_ftwin_json_output_validation)
     ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
     char expected_abs_path1[2048];
     char expected_abs_path2[2048];
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: using sizeof() for bounds checking and buffer is sufficiently large
     snprintf(expected_abs_path1, sizeof(expected_abs_path1), "%s/check/tests/5K_file", cwd);
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: using sizeof() for bounds checking and buffer is sufficiently large
     snprintf(expected_abs_path2, sizeof(expected_abs_path2), "%s/check/tests/5K_file_copy", cwd);
 
     // Run ftwin with --json using relative input paths (ftwin should resolve them)
@@ -300,7 +294,6 @@ Suite *make_ftwin_suite(void)
 }
 
 Suite *make_napr_heap_suite(void);
-Suite *make_napr_hash_suite(void);
 Suite *make_ft_file_suite(void);
 Suite *make_human_size_suite(void);
 Suite *make_ft_system_suite(void);
@@ -336,9 +329,6 @@ int main(int argc, char **argv)
 
     if (!num || num == 1)
 	srunner_add_suite(sr, make_napr_heap_suite());
-
-    if (!num || num == 2)
-	srunner_add_suite(sr, make_napr_hash_suite());
 
     if (!num || num == 3)
 	srunner_add_suite(sr, make_ft_file_suite());

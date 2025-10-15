@@ -87,11 +87,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          repo-root: '.' # The compilation database is at the root
+          build-dir: '.' # The compilation database is at the root
           style: '' # Disable clang-format
           tidy-checks: '' # Use .clang-tidy file from repo
           thread-comments: 'update'
           file-annotations: true
+          # Continue even if errors are found to allow the final step to report
+          continue-on-error: true
 
       - name: Report Linting Failure
         if: steps.linter.outputs.checks-failed > 0

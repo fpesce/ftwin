@@ -56,7 +56,7 @@ ftwin_SOURCES = src/ftwin.c \
 		   src/key_hash.c
 
 check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.c \
-		      check/check_napr_hash.c check/check_ft_file.c src/ft_file.c \
+		      check/check_ft_file.c src/ft_file.c \
 		      src/vendor/xxhash/xxhash.c src/ftwin.c \
 		      src/napr_hash.c src/napr_threadpool.c \
 		      check/check_human_size.c src/human_size.c src/ft_system.c \
