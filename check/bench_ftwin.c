@@ -113,7 +113,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
 	fprintf(stderr, "Failed to allocate buffer for file writing.\n");
-	apr_file_close(file);
+	(void) apr_file_close(file);
 	return;
     }
     for (size_t i = 0; i < FILE_SIZE / BUFFER_SIZE; ++i) {
@@ -121,7 +121,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 	apr_file_write(file, buffer, &bytes_written);
     }
     free(buffer);
-    apr_file_close(file);
+    (void) apr_file_close(file);
 
     ft_hash_t hash_result;
     memset(&hash_result, 0, sizeof(hash_result));
@@ -143,7 +143,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     printf("  }");
 
     // Clean up the temporary file
-    apr_file_remove(filename, pool);
+    (void) apr_file_remove(filename, pool);
 }
 
 #ifdef FTWIN_TEST_BUILD
@@ -172,7 +172,7 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 	    for (size_t j = 0; j < file_size / BUFFER_SIZE; j++) {
 		fwrite(buffer, 1, BUFFER_SIZE, f);
 	    }
-	    fclose(f);
+	    (void) fclose(f);
 
 	    /* Create 2 duplicates of each base file */
 	    for (int k = 1; k <= 2; k++) {
@@ -181,7 +181,7 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 
 		char cmd[1024];
 		snprintf(cmd, sizeof(cmd), "cp %s %s", filename, dupname);
-		system(cmd);
+		(void) system(cmd);
 	    }
 	}
     }
@@ -193,7 +193,7 @@ static void cleanup_bench_files(const char *dir)
 {
     char command[256];
     snprintf(command, sizeof(command), "rm -rf %s", dir);
-    system(command);
+    (void) system(command);
 }
 
 static void run_parallel_hashing_benchmark(apr_pool_t *pool)

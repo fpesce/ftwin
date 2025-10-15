@@ -84,7 +84,7 @@ START_TEST(test_checksum_empty_file)
     (void) apr_file_close(empty_file);
 
     /* Test checksum of empty file with small path */
-    status = checksum_file(empty_fname, 0, BUFFER_SIZE_1K, &hash1, pool);
+    status = checksum_file(empty_fname, 0, (apr_off_t) BUFFER_SIZE_1K, &hash1, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Test checksum of empty file with big path */

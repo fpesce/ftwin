@@ -248,7 +248,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
 	ft_ignore_add_pattern_str(ctx, line);
     }
 
-    apr_file_close(file);
+    (void) apr_file_close(file);
     return APR_SUCCESS;
 }
 

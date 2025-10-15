@@ -100,6 +100,8 @@ START_TEST(test_napr_heap_unordered_bug)
 	case 4:
 	    ck_assert_int_eq(number->size, 6298);
 	    break;
+	default:
+	    break;
 	}
     }
 }
