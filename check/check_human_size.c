@@ -65,8 +65,11 @@ START_TEST(test_parse_human_size_valid)
     ck_assert_int_eq(parse_human_size("1g"), GIB);
     ck_assert_int_eq(parse_human_size("1T"), TIB);
     ck_assert_int_eq(parse_human_size("1t"), TIB);
-    ck_assert_int_eq(parse_human_size("1.5K"), (apr_off_t) (1.5 * KIB));
-    ck_assert_int_eq(parse_human_size("2.5M"), (apr_off_t) (2.5 * MIB));
+
+    const float KIB_MULTIPLIER = 1.5F;
+    const float MIB_MULTIPLIER = 2.5F;
+    ck_assert_int_eq(parse_human_size("1.5K"), (apr_off_t) (KIB_MULTIPLIER * KIB));
+    ck_assert_int_eq(parse_human_size("2.5M"), (apr_off_t) (MIB_MULTIPLIER * MIB));
 }
 
 /* *INDENT-OFF* */

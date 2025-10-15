@@ -53,7 +53,7 @@ static void copy_file(const char *src_path, const char *dest_path)
     apr_file_t *src_file = NULL;
     apr_file_t *dest_file = NULL;
     apr_status_t status_code = APR_SUCCESS;
-    char buffer[4096] = { 0 };
+    char buffer[OUTPUT_BUFFER_SIZE] = { 0 };
     apr_size_t bytes_read = 0;
     apr_size_t bytes_written = 0;
 
