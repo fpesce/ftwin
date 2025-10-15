@@ -174,8 +174,7 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     (void) fprintf(stdout, "\n");
 
     for (int idx = 0; NULL != opt_option[idx].name; idx++) {
-	(void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[idx].optch, opt_option[idx].name,
-		       opt_option[idx].description);
+	(void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[idx].optch, opt_option[idx].name, opt_option[idx].description);
     }
 }
 

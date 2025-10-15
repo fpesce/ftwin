@@ -68,9 +68,9 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 	    h_ctx->files_processed++;
 
 	    if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-		       h_ctx->files_processed, h_ctx->total_files,
-		       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
+		(void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
+			       h_ctx->files_processed, h_ctx->total_files,
+			       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
 	    }
 
 	    apr_thread_mutex_unlock(h_ctx->stats_mutex);
