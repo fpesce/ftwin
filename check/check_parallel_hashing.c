@@ -38,9 +38,9 @@ static apr_pool_t *main_pool = NULL;
 static void setup(void)
 {
     if (main_pool == NULL) {
-        apr_initialize();
-        atexit(apr_terminate);
-        apr_pool_create(&main_pool, NULL);
+	apr_initialize();
+	atexit(apr_terminate);
+	apr_pool_create(&main_pool, NULL);
     }
 }
 
