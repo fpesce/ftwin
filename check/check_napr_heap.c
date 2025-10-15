@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
+ * Copyright (C) 2007-2025 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.

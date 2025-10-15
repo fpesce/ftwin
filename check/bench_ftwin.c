@@ -30,8 +30,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool);
 
 #ifdef FTWIN_TEST_BUILD
 static void run_parallel_hashing_benchmark(apr_pool_t *pool);
-static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files,
-			       size_t size_of_each_file);
+static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files, size_t size_of_each_file);
 static void cleanup_bench_files(const char *dir, apr_pool_t *pool);
 #endif
 
@@ -188,8 +187,7 @@ static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
     return apr_dir_remove(path, pool);
 }
 
-static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files,
-			       size_t size_of_each_file)
+static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files, size_t size_of_each_file)
 {
     (void) apr_dir_make_recursive(directory_path, APR_OS_DEFAULT, pool);
 
@@ -206,12 +204,9 @@ static void create_bench_files(apr_pool_t *pool, const char *directory_path, int
 
     /* Create base files and duplicates */
     for (int i = 0; i < number_of_files / 3; i++) {
-	char *filename =
-	    apr_pstrcat(pool, directory_path, "/base", apr_itoa(pool, i), ".dat", NULL);
+	char *filename = apr_pstrcat(pool, directory_path, "/base", apr_itoa(pool, i), ".dat", NULL);
 	apr_file_t *file_handle = NULL;
-	if (apr_file_open
-	    (&file_handle, filename, APR_CREATE | APR_WRITE | APR_BINARY, APR_OS_DEFAULT,
-	     pool) == APR_SUCCESS) {
+	if (apr_file_open(&file_handle, filename, APR_CREATE | APR_WRITE | APR_BINARY, APR_OS_DEFAULT, pool) == APR_SUCCESS) {
 	    for (size_t j = 0; j < size_of_each_file / BUFFER_SIZE; j++) {
 		apr_size_t bytes_to_write = BUFFER_SIZE;
 		(void) apr_file_write(file_handle, buffer, &bytes_to_write);
@@ -272,8 +267,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 
 	apr_time_t total_time = end_time - start_time;
 	double time_seconds = (double) total_time / (double) MICROSECONDS_PER_SECOND;
-	double total_mb =
-	    (double) (NUM_BENCH_FILES * BENCH_FILE_SIZE) / (double) (KIBIBYTE * KIBIBYTE);
+	double total_mb = (double) (NUM_BENCH_FILES * BENCH_FILE_SIZE) / (double) (KIBIBYTE * KIBIBYTE);
 	double throughput_mb_s = total_mb / time_seconds;
 
 	if (thread_idx > 0) {
