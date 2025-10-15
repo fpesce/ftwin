@@ -279,6 +279,16 @@ struct regex_options
 };
 
 /* Forward declarations for helper functions */
+
+/**
+ * @brief Maps a command-line option character to its corresponding flag and value.
+ */
+typedef struct {
+    int option_char;    /**< The single-character option, e.g., 'a'. */
+    int option_flag;    /**< The flag to set, e.g., OPTION_SHOW_HIDDEN. */
+    int value;          /**< The value to set (1 for on, 0 for off). */
+} flag_option_mapping_t;
+
 static void handle_flag_option(int option, ft_conf_t *conf);
 static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts);
 static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
@@ -335,41 +345,31 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, str
     }
 }
 
+static const flag_option_mapping_t flag_mappings[] = {
+    {'a', OPTION_SHOW_HIDDEN, 1},
+    {'c', OPTION_ICASE, 1},
+    {'d', OPTION_SIZED, 1},
+    {'n', OPTION_DRY_RUN, 1},
+    {'f', OPTION_FSYML, 1},
+    {'o', OPTION_OPMEM, 1},
+    {'r', OPTION_RECSD, 1},
+    {'R', OPTION_RECSD, 0}
+};
+
 static void handle_flag_option(int option, ft_conf_t *conf)
 {
-    switch (option) {
-    case 'a':
-	set_option(&conf->mask, OPTION_SHOW_HIDDEN, 1);
-	break;
-    case 'c':
-	set_option(&conf->mask, OPTION_ICASE, 1);
-	break;
-    case 'd':
-	set_option(&conf->mask, OPTION_SIZED, 1);
-	break;
-    case 'n':
-	set_option(&conf->mask, OPTION_DRY_RUN, 1);
-	break;
-    case 'f':
-	set_option(&conf->mask, OPTION_FSYML, 1);
-	break;
-    case 'o':
-	set_option(&conf->mask, OPTION_OPMEM, 1);
-	break;
-    case 'r':
-	set_option(&conf->mask, OPTION_RECSD, 1);
-	break;
-    case 'R':
-	set_option(&conf->mask, OPTION_RECSD, 0);
-	break;
-    case 'v':
+    for (size_t idx = 0; idx < sizeof(flag_mappings) / sizeof(flag_mappings[0]); ++idx) {
+        if (flag_mappings[idx].option_char == option) {
+            set_option(&conf->mask, flag_mappings[idx].option_flag, flag_mappings[idx].value);
+            return;
+        }
+    }
+
+    if (option == 'v') {
+        /* The verbose flag is a special case: it should only be set if JSON output is not enabled. */
 	if (!is_option_set(conf->mask, OPTION_JSON)) {
 	    set_option(&conf->mask, OPTION_VERBO, 1);
 	}
-	break;
-    default:
-	/* Should not happen. */
-	break;
     }
 }
 
