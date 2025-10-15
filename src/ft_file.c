@@ -191,7 +191,7 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
     status = apr_file_close(fd2);
     if (APR_SUCCESS != status) {
 	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, sizeof(errbuf)));
-	(void)apr_mmap_delete(mm1);
+	(void) apr_mmap_delete(mm1);
 	(void) apr_file_close(fd1);
 	return status;
     }
@@ -249,8 +249,10 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
     } while ((APR_SUCCESS == status1) && (APR_SUCCESS == status2) && (0 == *result_out) && (rbytes2 == rbytes1));
 
     if ((APR_EOF != status1) && (APR_EOF != status2) && (0 == *result_out)) {
-	DEBUG_ERR("1:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname1, rbytes1, apr_strerror(status1, errbuf, sizeof(errbuf)));
-	DEBUG_ERR("2:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname2, rbytes2, apr_strerror(status2, errbuf, sizeof(errbuf)));
+	DEBUG_ERR("1:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname1, rbytes1,
+		  apr_strerror(status1, errbuf, sizeof(errbuf)));
+	DEBUG_ERR("2:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname2, rbytes2,
+		  apr_strerror(status2, errbuf, sizeof(errbuf)));
 	return status1;
     }
 

@@ -33,9 +33,9 @@ static void setup(void)
     apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	(void)apr_initialize();
-	(void)atexit(apr_terminate);
-	(void)apr_pool_create(&main_pool, NULL);
+	(void) apr_initialize();
+	(void) atexit(apr_terminate);
+	(void) apr_pool_create(&main_pool, NULL);
     }
 
     status = apr_pool_create(&pool, main_pool);
