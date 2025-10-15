@@ -283,10 +283,11 @@ struct regex_options
 /**
  * @brief Maps a command-line option character to its corresponding flag and value.
  */
-typedef struct {
-    int option_char;    /**< The single-character option, e.g., 'a'. */
-    int option_flag;    /**< The flag to set, e.g., OPTION_SHOW_HIDDEN. */
-    int value;          /**< The value to set (1 for on, 0 for off). */
+typedef struct
+{
+    int option_char;	/**< The single-character option, e.g., 'a'. */
+    int option_flag;	/**< The flag to set, e.g., OPTION_SHOW_HIDDEN. */
+    int value;		/**< The value to set (1 for on, 0 for off). */
 } flag_option_mapping_t;
 
 static void handle_flag_option(int option, ft_conf_t *conf);
@@ -359,14 +360,14 @@ static const flag_option_mapping_t flag_mappings[] = {
 static void handle_flag_option(int option, ft_conf_t *conf)
 {
     for (size_t idx = 0; idx < sizeof(flag_mappings) / sizeof(flag_mappings[0]); ++idx) {
-        if (flag_mappings[idx].option_char == option) {
-            set_option(&conf->mask, flag_mappings[idx].option_flag, flag_mappings[idx].value);
-            return;
-        }
+	if (flag_mappings[idx].option_char == option) {
+	    set_option(&conf->mask, flag_mappings[idx].option_flag, flag_mappings[idx].value);
+	    return;
+	}
     }
 
     if (option == 'v') {
-        /* The verbose flag is a special case: it should only be set if JSON output is not enabled. */
+	/* The verbose flag is a special case: it should only be set if JSON output is not enabled. */
 	if (!is_option_set(conf->mask, OPTION_JSON)) {
 	    set_option(&conf->mask, OPTION_VERBO, 1);
 	}
