@@ -38,7 +38,7 @@ static void setup(void)
 	    DEBUG_ERR("Error initializing APR");
 	    exit(1);
 	}
-	(void)atexit(apr_terminate);
+	(void) atexit(apr_terminate);
 	status = apr_pool_create(&main_pool, NULL);
 	if (status != APR_SUCCESS) {
 	    DEBUG_ERR("Error creating main_pool");

@@ -36,7 +36,8 @@
 #include <ctype.h>
 #include <apr_file_io.h>
 
-enum {
+enum
+{
     OUTPUT_BUFFER_SIZE = 4096,
     PATH_BUFFER_SIZE = 1024,
     ABS_PATH_BUFFER_SIZE = 2048,
@@ -369,12 +370,14 @@ int main(int argc, char **argv)
 
 	/* Check for errors: overflow, underflow, no digits found */
 	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr)) {
-	    num = 0; /* Default to running all tests on error */
-	} else if (*endptr != '\0') {
+	    num = 0;		/* Default to running all tests on error */
+	}
+	else if (*endptr != '\0') {
 	    /* Non-numeric characters found, treat as invalid input */
 	    num = 0;
-	} else {
-	    num = (int)val;
+	}
+	else {
+	    num = (int) val;
 	}
     }
 
