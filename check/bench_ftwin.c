@@ -44,18 +44,18 @@ int main(int argc, const char *const *argv)
     apr_initialize();
     apr_pool_create(&pool, NULL);
 
-    (void)printf("[\n");
+    (void) printf("[\n");
 
     run_hash_benchmark(pool);
-    (void)printf(",\n");
+    (void) printf(",\n");
     run_checksum_file_benchmark(pool);
 
 #ifdef FTWIN_TEST_BUILD
-    (void)printf(",\n");
+    (void) printf(",\n");
     run_parallel_hashing_benchmark(pool);
 #endif
 
-    (void)printf("\n]\n");
+    (void) printf("\n]\n");
 
     apr_pool_destroy(pool);
     apr_terminate();
@@ -85,13 +85,14 @@ static void run_hash_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
+    double throughput_mb_s =
+	(double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
 
-    (void)printf("  {\n");
-    (void)printf("    \"name\": \"hash_throughput\",\n");
-    (void)printf("    \"unit\": \"MB/s\",\n");
-    (void)printf("    \"value\": %.2f\n", throughput_mb_s);
-    (void)printf("  }");
+    (void) printf("  {\n");
+    (void) printf("    \"name\": \"hash_throughput\",\n");
+    (void) printf("    \"unit\": \"MB/s\",\n");
+    (void) printf("    \"value\": %.2f\n", throughput_mb_s);
+    (void) printf("  }");
 
     free(buffer);
 }
@@ -135,13 +136,14 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
+    double throughput_mb_s =
+	(double) (FILE_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
 
-    (void)printf("  {\n");
-    (void)printf("    \"name\": \"checksum_file_throughput\",\n");
-    (void)printf("    \"unit\": \"MB/s\",\n");
-    (void)printf("    \"value\": %.2f\n", throughput_mb_s);
-    (void)printf("  }");
+    (void) printf("  {\n");
+    (void) printf("    \"name\": \"checksum_file_throughput\",\n");
+    (void) printf("    \"unit\": \"MB/s\",\n");
+    (void) printf("    \"value\": %.2f\n", throughput_mb_s);
+    (void) printf("  }");
 
     // Clean up the temporary file
     (void) apr_file_remove(filename, pool);
@@ -171,7 +173,8 @@ static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
 		(void) apr_dir_close(dir);
 		return status;
 	    }
-	} else {
+	}
+	else {
 	    status = apr_file_remove(new_path, pool);
 	    if (status != APR_SUCCESS) {
 		(void) apr_dir_close(dir);
@@ -234,32 +237,32 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 
     (void) pool;
 
-    (void)fflush(stdout);
-    (void)fflush(stderr);
-    (void)fprintf(stderr, "Creating benchmark files...\n");
+    (void) fflush(stdout);
+    (void) fflush(stderr);
+    (void) fprintf(stderr, "Creating benchmark files...\n");
     create_bench_files(pool, bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
 
     for (int thread_idx = 0; thread_idx < num_thread_configs; thread_idx++) {
 	unsigned int num_threads = thread_counts[thread_idx];
 
-	(void)fflush(stdout);
-	(void)fflush(stderr);
+	(void) fflush(stdout);
+	(void) fflush(stderr);
 	int stdout_save = dup(STDOUT_FILENO);
 	int stderr_save = dup(STDERR_FILENO);
 	int dev_null_fd = open("/dev/null", O_WRONLY);
 	dup2(dev_null_fd, STDOUT_FILENO);
-	(void)dup2(dev_null_fd, STDERR_FILENO);
+	(void) dup2(dev_null_fd, STDERR_FILENO);
 	apr_time_t start_time = apr_time_now();
 	char threads_str[DEFAULT_SMALL_BUFFER_SIZE];
-	(void)snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
+	(void) snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
 	const char *argv[] = { "ftwin", "-j", threads_str, bench_dir };
-	(void)ftwin_main(4, argv);
+	(void) ftwin_main(4, argv);
 	apr_time_t end_time = apr_time_now();
-	(void)dup2(stdout_save, STDOUT_FILENO);
-	(void)dup2(stderr_save, STDERR_FILENO);
-	(void)close(dev_null_fd);
-	(void)close(stdout_save);
-	(void)close(stderr_save);
+	(void) dup2(stdout_save, STDOUT_FILENO);
+	(void) dup2(stderr_save, STDERR_FILENO);
+	(void) close(dev_null_fd);
+	(void) close(stdout_save);
+	(void) close(stderr_save);
 
 	apr_time_t total_time = end_time - start_time;
 	double time_seconds = (double) total_time / MICROSECONDS_PER_SECOND;
@@ -267,19 +270,19 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	double throughput_mb_s = total_mb / time_seconds;
 
 	if (thread_idx > 0) {
-	    (void)printf(",\n");
+	    (void) printf(",\n");
 	}
-	(void)printf("  {\n");
-	(void)printf("    \"name\": \"parallel_hashing (%u threads)\",\n", num_threads);
-	(void)printf("    \"unit\": \"MB/s\",\n");
-	(void)printf("    \"value\": %.2f,\n", throughput_mb_s);
-	(void)printf("    \"extra\": \"time_seconds=%.3f\"\n", time_seconds);
-	(void)printf("  }");
+	(void) printf("  {\n");
+	(void) printf("    \"name\": \"parallel_hashing (%u threads)\",\n", num_threads);
+	(void) printf("    \"unit\": \"MB/s\",\n");
+	(void) printf("    \"value\": %.2f,\n", throughput_mb_s);
+	(void) printf("    \"extra\": \"time_seconds=%.3f\"\n", time_seconds);
+	(void) printf("  }");
 
-	(void)fflush(stdout);
+	(void) fflush(stdout);
     }
 
     cleanup_bench_files(bench_dir, pool);
-    (void)fprintf(stderr, "Benchmark complete.\n");
+    (void) fprintf(stderr, "Benchmark complete.\n");
 }
 #endif
