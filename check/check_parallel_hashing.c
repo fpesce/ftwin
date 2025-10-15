@@ -32,6 +32,7 @@
 #include "config.h"
 #endif
 #include "ftwin.h"
+#include "ft_config.h"
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
@@ -49,9 +50,11 @@ static void setup(void)
     }
 }
 
+#define CAPTURE_BUFFER_SIZE 8192
+
 static char *capture_output(int file_descriptor)
 {
-    static char buffer[8192];
+    static char buffer[CAPTURE_BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
     (void) read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
@@ -62,7 +65,7 @@ static void create_test_file(const char *path, size_t size)
     FILE *file = fopen(path, "wb");
     if (file) {
 	for (size_t i = 0; i < size; i++) {
-	    (void)fputc((int) (i % 256), file);
+	    (void)fputc((int) (i % CHAR_MAX_VAL), file);
 	}
 	(void) fclose(file);
     }
@@ -158,7 +161,7 @@ START_TEST(test_thread_counts)
     int stderr_pipe[2] = { 0 };
 
     mkdir("check/tests/thread_test", MKDIR_MODE);
-    create_test_file("check/tests/thread_test/a.dat", 5120);
+    create_test_file("check/tests/thread_test/a.dat", TEST_FILE_SIZE_SMALL);
     (void) system("cp check/tests/thread_test/a.dat check/tests/thread_test/b.dat");
     (void) system("cp check/tests/thread_test/a.dat check/tests/thread_test/c.dat");
 
@@ -211,13 +214,13 @@ START_TEST(test_various_file_sizes)
     mkdir("check/tests/size_test", MKDIR_MODE);
 
     /* Create files of different sizes with duplicates */
-    create_test_file("check/tests/size_test/tiny1.dat", 10);
+    create_test_file("check/tests/size_test/tiny1.dat", TEST_CHUNK_SIZE);
     (void) system("cp check/tests/size_test/tiny1.dat check/tests/size_test/tiny2.dat");
 
-    create_test_file("check/tests/size_test/small1.dat", 1024);
+    create_test_file("check/tests/size_test/small1.dat", KIBIBYTE);
     (void) system("cp check/tests/size_test/small1.dat check/tests/size_test/small2.dat");
 
-    create_test_file("check/tests/size_test/medium1.dat", 50000);
+    create_test_file("check/tests/size_test/medium1.dat", TEST_FILE_SIZE_LARGE);
     (void) system("cp check/tests/size_test/medium1.dat check/tests/size_test/medium2.dat");
 
     pipe(stdout_pipe);
@@ -268,13 +271,13 @@ START_TEST(test_many_files)
     mkdir("check/tests/many_test", MKDIR_MODE);
 
     /* Create 20 sets of duplicate files (3 copies each = 60 files) */
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {
 	char command[MAX_CMD_LENGTH];
 	char base_path[MAX_PATH_LENGTH];
 	memset(command, 0, sizeof(command));
 	memset(base_path, 0, sizeof(base_path));
 	(void)snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
-	create_test_file(base_path, 1024 + i * 100);
+	create_test_file(base_path, KIBIBYTE + i * STRESS_TEST_ITERATIONS);
 
 	for (int j = 1; j <= 2; j++) {
 	    (void)snprintf(command, sizeof(command), "cp %s check/tests/many_test/dup%d_%d.dat", base_path, i, j);
@@ -322,7 +325,7 @@ Suite *make_parallel_hashing_suite(void)
     TCase *tc_core = tcase_create("Core");
 
     /* Increase timeout for these tests as they create many files */
-    tcase_set_timeout(tc_core, 30);
+    tcase_set_timeout(tc_core, PARALLEL_TIMEOUT_SECONDS);
 
     tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_parallel_correctness);

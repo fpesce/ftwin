@@ -11,6 +11,7 @@
 #include <apr_file_io.h>
 #include "checksum.h"
 #include "ft_file.h"
+#include "ft_config.h"
 
 #ifdef FTWIN_TEST_BUILD
 #include "ftwin.h"
@@ -71,7 +72,7 @@ static void run_hash_benchmark(apr_pool_t *pool)
     }
 
     for (size_t i = 0; i < BUFFER_SIZE; ++i) {
-	buffer[i] = (unsigned char) (i % 256);
+	buffer[i] = (unsigned char) (i % CHAR_MAX_VAL);
     }
 
     apr_time_t start_time = apr_time_now();
@@ -84,7 +85,7 @@ static void run_hash_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * 1000000.0 / (1024.0 * 1024.0);
+    double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
 
     (void)printf("  {\n");
     (void)printf("    \"name\": \"hash_throughput\",\n");
@@ -134,7 +135,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time * 1000000.0 / (1024.0 * 1024.0);
+    double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time * MICROSECONDS_PER_SECOND / (KIBIBYTE * KIBIBYTE);
 
     (void)printf("  {\n");
     (void)printf("    \"name\": \"checksum_file_throughput\",\n");
@@ -159,27 +160,27 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 
     /* Fill buffer with pattern */
     for (size_t i = 0; i < BUFFER_SIZE; ++i) {
-	buffer[i] = (char) (i % 256);
+	buffer[i] = (char) (i % CHAR_MAX_VAL);
     }
 
     /* Create base files and duplicates */
     for (int i = 0; i < num_files / 3; i++) {
-	char filename[256];
+	char filename[CHAR_MAX_VAL];
 	(void)snprintf(filename, sizeof(filename), "%s/base%d.dat", dir, i);
 
-	FILE *f = fopen(filename, "wb");
-	if (f) {
+	FILE *file_handle = fopen(filename, "wb");
+	if (file_handle) {
 	    for (size_t j = 0; j < file_size / BUFFER_SIZE; j++) {
-		(void)fwrite(buffer, 1, BUFFER_SIZE, f);
+		(void)fwrite(buffer, 1, BUFFER_SIZE, file_handle);
 	    }
-	    (void) fclose(f);
+	    (void) fclose(file_handle);
 
 	    /* Create 2 duplicates of each base file */
 	    for (int k = 1; k <= 2; k++) {
-		char dupname[256];
+		char dupname[CHAR_MAX_VAL];
 		(void)snprintf(dupname, sizeof(dupname), "%s/dup%d_%d.dat", dir, i, k);
 
-		char cmd[1024];
+		char cmd[KIBIBYTE];
 		(void)snprintf(cmd, sizeof(cmd), "cp %s %s", filename, dupname);
 		(void) system(cmd);
 	    }
@@ -191,7 +192,7 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
 
 static void cleanup_bench_files(const char *dir)
 {
-    char command[256];
+    char command[CHAR_MAX_VAL];
     (void)snprintf(command, sizeof(command), "rm -rf %s", dir);
     (void) system(command);
 }
@@ -209,8 +210,8 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
     (void)fprintf(stderr, "Creating benchmark files...\n");
     create_bench_files(bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
 
-    for (int t = 0; t < num_thread_configs; t++) {
-	unsigned int num_threads = thread_counts[t];
+    for (int thread_idx = 0; thread_idx < num_thread_configs; thread_idx++) {
+	unsigned int num_threads = thread_counts[thread_idx];
 
 	(void)fflush(stdout);
 	(void)fflush(stderr);
@@ -220,7 +221,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	dup2(dev_null_fd, STDOUT_FILENO);
 	(void)dup2(dev_null_fd, STDERR_FILENO);
 	apr_time_t start_time = apr_time_now();
-	char threads_str[16];
+	char threads_str[DEFAULT_SMALL_BUFFER_SIZE];
 	(void)snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
 	const char *argv[] = { "ftwin", "-j", threads_str, bench_dir };
 	(void)ftwin_main(4, argv);
@@ -232,11 +233,11 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	(void)close(stderr_save);
 
 	apr_time_t total_time = end_time - start_time;
-	double time_seconds = (double) total_time / 1000000.0;
-	double total_mb = (double) (NUM_BENCH_FILES * BENCH_FILE_SIZE) / (1024.0 * 1024.0);
+	double time_seconds = (double) total_time / MICROSECONDS_PER_SECOND;
+	double total_mb = (double) (NUM_BENCH_FILES * BENCH_FILE_SIZE) / (KIBIBYTE * KIBIBYTE);
 	double throughput_mb_s = total_mb / time_seconds;
 
-	if (t > 0) {
+	if (thread_idx > 0) {
 	    (void)printf(",\n");
 	}
 	(void)printf("  {\n");

@@ -33,7 +33,13 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-#define ARCHIVE_BLOCK_SIZE 10240
+/**
+ * @brief The block size for archive operations.
+ *
+ * This constant defines the block size (in bytes) used for reading from
+ * and writing to archives.
+ */
+static const size_t ARCHIVE_BLOCK_SIZE = 10240;
 
 static int copy_data(struct archive *archive_read, struct archive *archive_write)
 {

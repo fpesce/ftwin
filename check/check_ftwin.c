@@ -35,14 +35,14 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <apr_file_io.h>
+#include "ft_config.h"
 
 enum
 {
     OUTPUT_BUFFER_SIZE = 4096,
     PATH_BUFFER_SIZE = 1024,
     ABS_PATH_BUFFER_SIZE = 2048,
-    XXH128_HEX_LENGTH = 32,
-    ERROR_BUFFER_SIZE = 256
+    XXH128_HEX_LENGTH = 32
 };
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
@@ -262,7 +262,7 @@ static void validate_json_structure(json_t *root, const char *output)
 
 static void validate_duplicate_set(json_t *set)
 {
-    const int expected_size = 5120;
+    const int expected_size = TEST_FILE_SIZE_SMALL;
     // Validate metadata (5K file size is 5120 bytes)
     ck_assert_int_eq(json_integer_value(json_object_get(set, "size_bytes")), expected_size);
 
@@ -300,11 +300,14 @@ START_TEST(test_ftwin_json_output_validation)
     int stderr_pipe[2] = { 0 };
     int original_stdout = 0;
     int original_stderr = 0;
-    char current_working_dir[PATH_BUFFER_SIZE] = { 0 };
-    char path1[ABS_PATH_BUFFER_SIZE] = { 0 };
-    char path2[ABS_PATH_BUFFER_SIZE] = { 0 };
+    char current_working_dir[PATH_BUFFER_SIZE];
+    char path1[ABS_PATH_BUFFER_SIZE];
+    char path2[ABS_PATH_BUFFER_SIZE];
     int result = 0;
     char *output = NULL;
+    memset(current_working_dir, 0, sizeof(current_working_dir));
+    memset(path1, 0, sizeof(path1));
+    memset(path2, 0, sizeof(path2));
     json_error_t error;
     json_t *root = NULL;
     json_t *set = NULL;
@@ -408,16 +411,17 @@ static void add_all_suites(SRunner * suite_runner)
 
 int main(int argc, char **argv)
 {
-    char error_buffer[ERROR_BUFFER_SIZE] = { 0 };
+    char error_buffer[CHAR_MAX_VAL];
     int number_failed = 0;
     apr_status_t status = APR_SUCCESS;
+    memset(error_buffer, 0, sizeof(error_buffer));
     SRunner *suite_runner = NULL;
     enum test_suite suite_num = ALL_TESTS;
     long value = 0;
 
     if (argc > 1) {
 	char *end_ptr = NULL;
-	value = strtol(argv[1], &end_ptr, 10);
+	value = strtol(argv[1], &end_ptr, DECIMAL_BASE);
 
 	if ((value == LONG_MAX || value == LONG_MIN) || (value == 0 && argv[1] == end_ptr) || *end_ptr != '\0') {
 	    suite_num = ALL_TESTS;
