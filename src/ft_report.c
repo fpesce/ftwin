@@ -78,16 +78,19 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
 	(void) fprintf(stderr, "Reporting duplicate files:\n");
     }
     while (NULL != (file = napr_heap_extract(conf->heap))) {
-	if (file->size == old_size)
+	if (file->size == old_size) {
 	    continue;
+	}
 
 	old_size = file->size;
-	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
+	fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value);
+	if (NULL != fsize) {
 	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
 	    for (i = 0; i < fsize->nb_files; i++) {
-		if (NULL == fsize->chksum_array[i].file)
+		if (NULL == fsize->chksum_array[i].file) {
 		    continue;
+		}
 		already_printed = 0;
 		for (j = i + 1; j < fsize->nb_files; j++) {
 		    if (0 ==
@@ -128,7 +131,6 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 
     memset(errbuf, 0, sizeof(errbuf));
 
-#if HAVE_ARCHIVE
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
 	if (NULL != fsize->chksum_array[i].file->subpath) {
 	    fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);
@@ -155,21 +157,17 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	fpathi = fsize->chksum_array[i].file->path;
 	fpathj = fsize->chksum_array[j].file->path;
     }
-#else
-    fpathi = fsize->chksum_array[i].file->path;
-    fpathj = fsize->chksum_array[j].file->path;
-#endif
 
     status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
 
-#if HAVE_ARCHIVE
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
-	if (NULL != fsize->chksum_array[i].file->subpath)
+	if (NULL != fsize->chksum_array[i].file->subpath) {
 	    apr_file_remove(fpathi, conf->pool);
-	if (NULL != fsize->chksum_array[j].file->subpath)
+	}
+	if (NULL != fsize->chksum_array[j].file->subpath) {
 	    apr_file_remove(fpathj, conf->pool);
+	}
     }
-#endif
 
     if (APR_SUCCESS != status) {
 	if (is_option_set(conf->mask, OPTION_VERBO)) {
@@ -189,25 +187,25 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 		const char *human_size = format_human_size(fsize->val, conf->pool);
 		printf("%sSize: %s%s\n", color_size, human_size, color_reset);
 	    }
-#if HAVE_ARCHIVE
-	    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[i].file->subpath))
+	    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[i].file->subpath)) {
 		printf("%s%s%c%s%s%c", color_path, fsize->chksum_array[i].file->path,
 		       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[i].file->subpath, color_reset, conf->sep);
-	    else
-#endif
+	    }
+	    else {
 		printf("%s%s%s%c", color_path, fsize->chksum_array[i].file->path, color_reset, conf->sep);
+	    }
 	    *already_printed = 1;
 	}
 	else {
 	    printf("%c", conf->sep);
 	}
-#if HAVE_ARCHIVE
-	if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
+	if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath)) {
 	    printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path, (':' != conf->sep) ? ':' : '|',
 		   fsize->chksum_array[j].file->subpath, color_reset);
-	else
-#endif
+	}
+	else {
 	    printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
+	}
 	/* mark j as a twin ! */
 	fsize->chksum_array[j].file = NULL;
 	(void) fflush(stdout);
