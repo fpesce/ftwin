@@ -41,30 +41,30 @@ static const size_t MAX_PATTERN_LEN = 4096;
 static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int *flags)
 {
     char *result = apr_pcalloc(pool, MAX_PATTERN_LEN);
-    const char *p = pattern;
-    char *r = result;
+    const char *pattern_ptr = pattern;
+    char *result_ptr = result;
     int starts_with_slash = 0;
 
     *flags = 0;
 
     /* Skip negation marker */
-    if (*p == '!') {
+    if (*pattern_ptr == '!') {
 	*flags |= FT_IGNORE_NEGATE;
-	p++;
-	while (isspace(*p)) {
-	    p++;
+	pattern_ptr++;
+	while (isspace(*pattern_ptr)) {
+	    pattern_ptr++;
 	}
     }
 
     /* Check if pattern starts with / */
-    if (*p == '/') {
+    if (*pattern_ptr == '/') {
 	starts_with_slash = 1;
-	p++;
+	pattern_ptr++;
     }
 
     /* Check if pattern ends with / (directory only) */
-    const char *end = p + strlen(p) - 1;
-    while (end > p && isspace(*end)) {
+    const char *end = pattern_ptr + strlen(pattern_ptr) - 1;
+    while (end > pattern_ptr && isspace(*end)) {
 	end--;
     }
     if (*end == '/') {
@@ -73,104 +73,109 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 
     /* Build regex - start anchor */
     if (starts_with_slash) {
-	*r++ = '^';
+	*result_ptr++ = '^';
     }
     else {
 	/* Pattern can match at any level */
-	*r++ = '(';
-	*r++ = '^';
-	*r++ = '|';
-	*r++ = '/';
-	*r++ = ')';
+	*result_ptr++ = '(';
+	*result_ptr++ = '^';
+	*result_ptr++ = '|';
+	*result_ptr++ = '/';
+	*result_ptr++ = ')';
     }
 
     /* Convert pattern to regex */
-    while (*p) {
+    while (*pattern_ptr) {
 	/* Skip trailing slash for directory-only patterns */
-	if (*p == '/' && *flags & FT_IGNORE_DIR_ONLY && *(p + 1) == '\0') {
+	if (*pattern_ptr == '/' && *flags & FT_IGNORE_DIR_ONLY && *(pattern_ptr + 1) == '\0') {
 	    break;
 	}
 
-	if (*p == '\\' && *(p + 1)) {
+	if (*pattern_ptr == '\\' && *(pattern_ptr + 1)) {
 	    /* Escaped character */
-	    p++;
-	    *r++ = '\\';
-	    *r++ = *p++;
+	    pattern_ptr++;
+	    *result_ptr++ = '\\';
+	    *result_ptr++ = *pattern_ptr++;
 	}
-	else if (*p == '*') {
-	    if (*(p + 1) == '*') {
+	else if (*pattern_ptr == '*') {
+	    if (*(pattern_ptr + 1) == '*') {
 		/* Double star matches any number of directories */
-		if (*(p + 2) == '/') {
+		if (*(pattern_ptr + 2) == '/') {
 		    /* Double star with slash pattern */
-		    strcpy(r, "(.*/)?");
-		    r += 6;
-		    p += 3;
+		    const char *pcre_pattern = "(.*/)?";
+		    strcpy(result_ptr, pcre_pattern);
+		    result_ptr += strlen(pcre_pattern);
+		    pattern_ptr += 3;
 		}
-		else if (*(p - 1) == '/' || p == pattern) {
+		else if (*(pattern_ptr - 1) == '/' || pattern_ptr == pattern) {
 		    /* Slash double star at end or beginning */
-		    strcpy(r, ".*");
-		    r += 2;
-		    p += 2;
+		    const char *pcre_pattern = ".*";
+		    strcpy(result_ptr, pcre_pattern);
+		    result_ptr += strlen(pcre_pattern);
+		    pattern_ptr += 2;
 		}
 		else {
 		    /* Treat as single * */
-		    strcpy(r, "[^/]*");
-		    r += 5;
-		    p++;
+		    const char *pcre_pattern = "[^/]*";
+		    strcpy(result_ptr, pcre_pattern);
+		    result_ptr += strlen(pcre_pattern);
+		    pattern_ptr++;
 		}
 	    }
 	    else {
 		/* * matches anything except / */
-		strcpy(r, "[^/]*");
-		r += 5;
-		p++;
+		const char *pcre_pattern = "[^/]*";
+		strcpy(result_ptr, pcre_pattern);
+		result_ptr += strlen(pcre_pattern);
+		pattern_ptr++;
 	    }
 	}
-	else if (*p == '?') {
+	else if (*pattern_ptr == '?') {
 	    /* ? matches any single character except / */
-	    strcpy(r, "[^/]");
-	    r += 4;
-	    p++;
+	    const char *pcre_pattern = "[^/]";
+		strcpy(result_ptr, pcre_pattern);
+		result_ptr += strlen(pcre_pattern);
+	    pattern_ptr++;
 	}
-	else if (*p == '[') {
+	else if (*pattern_ptr == '[') {
 	    /* Character class */
-	    *r++ = '[';
-	    p++;
-	    if (*p == '!') {
-		*r++ = '^';
-		p++;
+	    *result_ptr++ = '[';
+	    pattern_ptr++;
+	    if (*pattern_ptr == '!') {
+		*result_ptr++ = '^';
+		pattern_ptr++;
 	    }
-	    while (*p && *p != ']') {
-		if (*p == '\\' && *(p + 1)) {
-		    p++;
-		    *r++ = '\\';
+	    while (*pattern_ptr && *pattern_ptr != ']') {
+		if (*pattern_ptr == '\\' && *(pattern_ptr + 1)) {
+		    pattern_ptr++;
+		    *result_ptr++ = '\\';
 		}
-		*r++ = *p++;
+		*result_ptr++ = *pattern_ptr++;
 	    }
-	    if (*p == ']')
-		*r++ = *p++;
+	    if (*pattern_ptr == ']')
+		*result_ptr++ = *pattern_ptr++;
 	}
-	else if (*p == '/') {
-	    *r++ = '/';
-	    p++;
+	else if (*pattern_ptr == '/') {
+	    *result_ptr++ = '/';
+	    pattern_ptr++;
 	}
-	else if (strchr(".^$+{}()|", *p)) {
+	else if (strchr(".^$+{}()|", *pattern_ptr)) {
 	    /* Escape regex metacharacters */
-	    *r++ = '\\';
-	    *r++ = *p++;
+	    *result_ptr++ = '\\';
+	    *result_ptr++ = *pattern_ptr++;
 	}
 	else {
-	    *r++ = *p++;
+	    *result_ptr++ = *pattern_ptr++;
 	}
     }
 
     /* End anchor - match end of path or trailing / for directories */
     if (*flags & FT_IGNORE_DIR_ONLY) {
-	strcpy(r, "/?$");
+	strcpy(result_ptr, "/?$");
     }
     else {
-	*r++ = '$';
-	*r = '\0';
+	*result_ptr++ = '$';
+	*result_ptr = '\0';
     }
 
     return result;

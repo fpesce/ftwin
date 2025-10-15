@@ -155,24 +155,27 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_remove_multiple)
 {
+    const int HASH_VALUES_COUNT = 10;
+    const int LOOP_LIMIT = 5;
     napr_hash_t *hash = NULL;
-    apr_uint32_t hash_values[10] = { 0 };
+    apr_uint32_t hash_values[HASH_VALUES_COUNT];
     char **keys = NULL;
     void *result = NULL;
     apr_status_t status = APR_SUCCESS;
     int i = 0;
 
+    memset(hash_values, 0, sizeof(hash_values));
     /* Create hash with very low fill factor to force collisions */
-    hash = napr_hash_str_make(pool, 1, 10);	/* 1 bucket, 10 items capacity */
+    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);	/* 1 bucket, 10 items capacity */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, HASH_VALUES_COUNT * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < LOOP_LIMIT; i++) {
 	keys[i] = apr_psprintf(pool, "key_%d", i);
 
 	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_values[i]);
@@ -219,17 +222,21 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     void *result = NULL;
     apr_status_t status = APR_SUCCESS;
 
+    const int ITEMS_PER_BUCKET = 5;
+    const int KEYS_COUNT = 10;
+    const int LOOP_LIMIT = 8;
+
     /* Create hash with configuration that promotes collisions */
-    hash = napr_hash_str_make(pool, 2, 5);	/* 2 buckets, 5 items per bucket */
+    hash = napr_hash_str_make(pool, 2, ITEMS_PER_BUCKET);	/* 2 buckets, 5 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, KEYS_COUNT * sizeof(char *));
 
     /* Insert multiple items */
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < LOOP_LIMIT; i++) {
 	keys[i] = apr_psprintf(pool, "key_%d", i);
 
 	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
@@ -284,9 +291,11 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
     int count = 0;
     char *key1 = NULL;
     char *key2 = NULL;
+    const int BUCKET_COUNT = 128;
 
+    const int ITEMS_PER_BUCKET = 4;
     /* Create hash with larger size to ensure empty buckets */
-    hash = napr_hash_str_make(pool, 128, 4);
+    hash = napr_hash_str_make(pool, BUCKET_COUNT, ITEMS_PER_BUCKET);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Insert just a few items so many buckets remain empty */
