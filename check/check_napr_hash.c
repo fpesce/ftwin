@@ -23,7 +23,7 @@
 #include "debug.h"
 #include "napr_hash.h"
 
-#define INITIAL_HASH_SIZE 16
+static const int INITIAL_HASH_SIZE = 16;
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;
@@ -69,6 +69,7 @@ START_TEST(test_napr_hash_basic)
     char *key1 = apr_pstrdup(pool, "key1");
     char *key2 = apr_pstrdup(pool, "key2");
     char *result = NULL;
+    apr_status_t status = APR_SUCCESS;
 
     /* Create a string hash table - for string hash, the data IS the key */
     hash = napr_hash_str_make(pool, INITIAL_HASH_SIZE, 4);
@@ -78,7 +79,7 @@ START_TEST(test_napr_hash_basic)
     result = napr_hash_search(hash, key1, strlen(key1), &hash_value);
     ck_assert_ptr_eq(result, NULL);
 
-    apr_status_t status = napr_hash_set(hash, key1, hash_value);
+    status = napr_hash_set(hash, key1, hash_value);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     result = napr_hash_search(hash, key1, strlen(key1), NULL);
@@ -93,6 +94,7 @@ START_TEST(test_napr_hash_basic)
     result = napr_hash_search(hash, key2, strlen(key2), NULL);
     ck_assert_ptr_eq(result, key2);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -100,31 +102,33 @@ END_TEST
 static void populate_hash_for_rebuild_test(napr_hash_t *hash, char **keys, int num_keys)
 {
     apr_uint32_t hash_value = 0;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
 
-    for (int index = 0; index < num_keys; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+    for (int i = 0; i < num_keys; i++) {
+	keys[i] = apr_psprintf(pool, "key_%d", i);
 
-	void *result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
 	ck_assert_ptr_eq(result, NULL);
 
-	apr_status_t status = napr_hash_set(hash, keys[index], hash_value);
+	status = napr_hash_set(hash, keys[i], hash_value);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 }
 
 static void verify_hash_after_rebuild(napr_hash_t *hash, char **keys, int num_keys)
 {
-    for (int index = 0; index < num_keys; index++) {
-	char *result = napr_hash_search(hash, keys[index], strlen(keys[index]), NULL);
+    for (int i = 0; i < num_keys; i++) {
+	char *result = napr_hash_search(hash, keys[i], strlen(keys[i]), NULL);
 	ck_assert_ptr_ne(result, NULL);
-	ck_assert_str_eq(result, keys[index]);
+	ck_assert_str_eq(result, keys[i]);
     }
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_rebuild)
 {
-    const int NUM_REBUILD_KEYS = 50;
+    const int num_rebuild_keys = 50;
     napr_hash_t *hash = NULL;
     char **keys = NULL;
 
@@ -135,14 +139,15 @@ START_TEST(test_napr_hash_rebuild)
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **) apr_pcalloc(pool, NUM_REBUILD_KEYS * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, num_rebuild_keys * sizeof(char *));
 
     /* Insert enough items to force a rebuild */
-    populate_hash_for_rebuild_test(hash, keys, NUM_REBUILD_KEYS);
+    populate_hash_for_rebuild_test(hash, keys, num_rebuild_keys);
 
     /* Verify all items are still accessible after rebuild */
-    verify_hash_after_rebuild(hash, keys, NUM_REBUILD_KEYS);
+    verify_hash_after_rebuild(hash, keys, num_rebuild_keys);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -153,7 +158,9 @@ START_TEST(test_napr_hash_remove_multiple)
     napr_hash_t *hash = NULL;
     apr_uint32_t hash_values[10] = { 0 };
     char **keys = NULL;
-    int index = 0;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+    int i = 0;
 
     /* Create hash with very low fill factor to force collisions */
     hash = napr_hash_str_make(pool, 1, 10);	/* 1 bucket, 10 items capacity */
@@ -165,13 +172,13 @@ START_TEST(test_napr_hash_remove_multiple)
     keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
-    for (index = 0; index < 5; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+    for (i = 0; i < 5; i++) {
+	keys[i] = apr_psprintf(pool, "key_%d", i);
 
-	void *result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_values[index]);
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_values[i]);
 	ck_assert_ptr_eq(result, NULL);
 
-	apr_status_t status = napr_hash_set(hash, keys[index], hash_values[index]);
+	status = napr_hash_set(hash, keys[i], hash_values[i]);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
@@ -179,7 +186,7 @@ START_TEST(test_napr_hash_remove_multiple)
     napr_hash_remove(hash, keys[1], hash_values[1]);
 
     /* Verify the removed item is gone */
-    char *result = napr_hash_search(hash, keys[1], strlen(keys[1]), NULL);
+    result = napr_hash_search(hash, keys[1], strlen(keys[1]), NULL);
     ck_assert_ptr_eq(result, NULL);
 
     /* Verify other items still exist */
@@ -195,6 +202,7 @@ START_TEST(test_napr_hash_remove_multiple)
     result = napr_hash_search(hash, keys[4], strlen(keys[4]), NULL);
     ck_assert_ptr_eq(result, NULL);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -205,9 +213,11 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     napr_hash_t *hash = NULL;
     apr_uint32_t hash_value = 0;
     char **keys = NULL;
-    int index = 0;
+    int i = 0;
     int count = 0;
     napr_hash_index_t *hash_iterator = NULL;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
 
     /* Create hash with configuration that promotes collisions */
     hash = napr_hash_str_make(pool, 2, 5);	/* 2 buckets, 5 items per bucket */
@@ -219,13 +229,13 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     keys = (char **) apr_pcalloc(pool, 10 * sizeof(char *));
 
     /* Insert multiple items */
-    for (index = 0; index < 8; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+    for (i = 0; i < 8; i++) {
+	keys[i] = apr_psprintf(pool, "key_%d", i);
 
-	void *result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
 	ck_assert_ptr_eq(result, NULL);
 
-	apr_status_t status = napr_hash_set(hash, keys[index], hash_value);
+	status = napr_hash_set(hash, keys[i], hash_value);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
@@ -242,6 +252,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
 
     ck_assert_int_eq(count, 8);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -259,6 +270,7 @@ START_TEST(test_napr_hash_pool_get)
     hash_pool = napr_hash_pool_get(hash);
     ck_assert_ptr_eq(hash_pool, pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -270,14 +282,16 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
     apr_uint32_t hash_value = 0;
     napr_hash_index_t *hash_iterator = NULL;
     int count = 0;
+    char *key1 = NULL;
+    char *key2 = NULL;
 
     /* Create hash with larger size to ensure empty buckets */
     hash = napr_hash_str_make(pool, 128, 4);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Insert just a few items so many buckets remain empty */
-    char *key1 = apr_pstrdup(pool, "key1");
-    char *key2 = apr_pstrdup(pool, "key2");
+    key1 = apr_pstrdup(pool, "key1");
+    key2 = apr_pstrdup(pool, "key2");
 
     napr_hash_search(hash, key1, strlen(key1), &hash_value);
     napr_hash_set(hash, key1, hash_value);
@@ -296,15 +310,16 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
 
     ck_assert_int_eq(count, 2);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
 Suite *make_napr_hash_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
-    s = suite_create("Napr_Hash");
+    Suite *suite = NULL;
+    TCase *tc_core = NULL;
+    suite = suite_create("Napr_Hash");
     tc_core = tcase_create("Core Tests");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
@@ -314,7 +329,7 @@ Suite *make_napr_hash_suite(void)
     tcase_add_test(tc_core, test_napr_hash_iterator_multiple_elements);
     tcase_add_test(tc_core, test_napr_hash_pool_get);
     tcase_add_test(tc_core, test_napr_hash_iterator_empty_buckets);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

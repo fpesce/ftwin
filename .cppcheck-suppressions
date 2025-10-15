@@ -25,3 +25,10 @@ ConfigurationNotChecked:src/ft_system.c
 toomanyconfigs:src/vendor/xxhash/*
 bitwiseOnBoolean:src/vendor/xxhash/*
 funcArgNamesDifferent:src/vendor/xxhash/*
+
+# Suppress variableScope warnings in test files
+variableScope:check/check_ftwin.c
+
+# Suppress unreadVariable warnings in test files
+unreadVariable:check/check_ftwin.c
+unreadVariable:check/check_napr_hash.c

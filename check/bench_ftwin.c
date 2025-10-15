@@ -16,12 +16,13 @@
 #include "ftwin.h"
 #endif
 
-#define BUFFER_SIZE (1024 * 1024)	// 1MB
-#define FILE_SIZE (10 * 1024 * 1024)	// 10MB
-#define EXCESS_SIZE (16 * 1024 * 1024)	// 16MB, larger than file to test small file path
-#define ITERATIONS 100
-#define BENCH_FILE_SIZE (50 * 1024 * 1024)	// 50MB for parallel benchmarks
-#define NUM_BENCH_FILES 12	// Number of files for parallel benchmark
+static const size_t BUFFER_SIZE = 1024 * 1024;	// 1MB
+static const size_t FILE_SIZE = 10 * 1024 * 1024;	// 10MB
+static const size_t EXCESS_SIZE = 16 * 1024 * 1024;	// 16MB, larger than file to test small file path
+static const int ITERATIONS = 100;
+static const size_t BENCH_FILE_SIZE = 50 * 1024 * 1024;	// 50MB for parallel benchmarks
+static const int NUM_BENCH_FILES = 12;	// Number of files for parallel benchmark
+static const int MKDIR_MODE = 0755;
 
 static void run_hash_benchmark(apr_pool_t *pool);
 static void run_checksum_file_benchmark(apr_pool_t *pool);
@@ -29,12 +30,15 @@ static void run_checksum_file_benchmark(apr_pool_t *pool);
 #ifdef FTWIN_TEST_BUILD
 static void run_parallel_hashing_benchmark(apr_pool_t *pool);
 static void create_bench_files(const char *dir, int num_files, size_t file_size);
-static void cleanup_bench_files(const char *dir, int num_files);
+static void cleanup_bench_files(const char *dir);
 #endif
 
 int main(int argc, const char *const *argv)
 {
-    apr_pool_t *pool;
+    apr_pool_t *pool = NULL;
+
+    (void) argc;
+    (void) argv;
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -93,8 +97,8 @@ static void run_hash_benchmark(apr_pool_t *pool)
 
 static void run_checksum_file_benchmark(apr_pool_t *pool)
 {
-    apr_file_t *file;
-    const char *filename;
+    apr_file_t *file = NULL;
+    const char *filename = NULL;
     char template[] = "bench_ftwin.XXXXXX";
     apr_status_t status =
 	apr_file_mktemp(&file, template, APR_CREATE | APR_READ | APR_WRITE | APR_TRUNCATE | APR_BINARY, pool);
@@ -120,6 +124,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     apr_file_close(file);
 
     ft_hash_t hash_result;
+    memset(&hash_result, 0, sizeof(hash_result));
 
     apr_time_t start_time = apr_time_now();
 
@@ -144,7 +149,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 #ifdef FTWIN_TEST_BUILD
 static void create_bench_files(const char *dir, int num_files, size_t file_size)
 {
-    mkdir(dir, 0755);
+    mkdir(dir, MKDIR_MODE);
 
     char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
@@ -184,19 +189,21 @@ static void create_bench_files(const char *dir, int num_files, size_t file_size)
     free(buffer);
 }
 
-static void cleanup_bench_files(const char *dir, int num_files)
+static void cleanup_bench_files(const char *dir)
 {
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", dir);
-    system(cmd);
+    char command[256];
+    snprintf(command, sizeof(command), "rm -rf %s", dir);
+    system(command);
 }
 
 static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 {
     const char *bench_dir = "/tmp/ftwin_bench";
     const unsigned int thread_counts[] = { 1, 2, 4, 8, 12, 16, 24 };
-    int num_thread_configs;
-    num_thread_configs = sizeof(thread_counts) / sizeof(unsigned int);
+    const int num_thread_configs = sizeof(thread_counts) / sizeof(unsigned int);
+
+    (void) pool;
+
     fflush(stdout);
     fflush(stderr);
     fprintf(stderr, "Creating benchmark files...\n");
@@ -209,9 +216,9 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	fflush(stderr);
 	int stdout_save = dup(STDOUT_FILENO);
 	int stderr_save = dup(STDERR_FILENO);
-	int devnull = open("/dev/null", O_WRONLY);
-	dup2(devnull, STDOUT_FILENO);
-	dup2(devnull, STDERR_FILENO);
+	int dev_null_fd = open("/dev/null", O_WRONLY);
+	dup2(dev_null_fd, STDOUT_FILENO);
+	dup2(dev_null_fd, STDERR_FILENO);
 	apr_time_t start_time = apr_time_now();
 	char threads_str[16];
 	snprintf(threads_str, sizeof(threads_str), "%u", num_threads);
@@ -220,7 +227,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	apr_time_t end_time = apr_time_now();
 	dup2(stdout_save, STDOUT_FILENO);
 	dup2(stderr_save, STDERR_FILENO);
-	close(devnull);
+	close(dev_null_fd);
 	close(stdout_save);
 	close(stderr_save);
 
@@ -242,7 +249,7 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
 	fflush(stdout);
     }
 
-    cleanup_bench_files(bench_dir, NUM_BENCH_FILES);
+    cleanup_bench_files(bench_dir);
     fprintf(stderr, "Benchmark complete.\n");
 }
 #endif

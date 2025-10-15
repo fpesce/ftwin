@@ -35,18 +35,19 @@ static void setup(void)
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_simple_pattern)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "*.o");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "*.o");
 
-    result = ft_ignore_match(ctx, "/test/file.o", 0);
+    result = ft_ignore_match(context, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/file.c", 0);
+    result = ft_ignore_match(context, "/test/file.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -55,20 +56,21 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_directory_pattern)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "build/");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "build/");
 
     /* Directory should be ignored */
-    result = ft_ignore_match(ctx, "/test/build", 1);
+    result = ft_ignore_match(context, "/test/build", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* File with same name should not be ignored */
-    result = ft_ignore_match(ctx, "/test/build", 0);
+    result = ft_ignore_match(context, "/test/build", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -77,25 +79,26 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_doublestar_pattern)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "**/*.tmp");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "**/*.tmp");
 
     /* Should match at any depth */
-    result = ft_ignore_match(ctx, "/test/file.tmp", 0);
+    result = ft_ignore_match(context, "/test/file.tmp", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/subdir/file.tmp", 0);
+    result = ft_ignore_match(context, "/test/subdir/file.tmp", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/a/b/c/file.tmp", 0);
+    result = ft_ignore_match(context, "/test/a/b/c/file.tmp", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/file.txt", 0);
+    result = ft_ignore_match(context, "/test/file.txt", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -104,21 +107,22 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_negation_pattern)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "*.log");
-    (void) ft_ignore_add_pattern_str(ctx, "!important.log");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "*.log");
+    (void) ft_ignore_add_pattern_str(context, "!important.log");
 
     /* Regular log should be ignored */
-    result = ft_ignore_match(ctx, "/test/debug.log", 0);
+    result = ft_ignore_match(context, "/test/debug.log", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* important.log should be whitelisted */
-    result = ft_ignore_match(ctx, "/test/important.log", 0);
+    result = ft_ignore_match(context, "/test/important.log", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_WHITELISTED);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -127,20 +131,21 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_rooted_pattern)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "/build");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "/build");
 
     /* Should match only at root level */
-    result = ft_ignore_match(ctx, "/test/build", 1);
+    result = ft_ignore_match(context, "/test/build", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* Should not match in subdirectory */
-    result = ft_ignore_match(ctx, "/test/subdir/build", 1);
+    result = ft_ignore_match(context, "/test/subdir/build", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -149,30 +154,31 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_hierarchical_context)
 {
-    ft_ignore_context_t *root_ctx = NULL;
-    ft_ignore_context_t *child_ctx = NULL;
+    ft_ignore_context_t *root_context = NULL;
+    ft_ignore_context_t *child_context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
     /* Root context ignores *.o */
-    root_ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(root_ctx, "*.o");
+    root_context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(root_context, "*.o");
 
     /* Child context ignores *.tmp */
-    child_ctx = ft_ignore_context_create(main_pool, root_ctx, "/test/subdir");
-    (void) ft_ignore_add_pattern_str(child_ctx, "*.tmp");
+    child_context = ft_ignore_context_create(main_pool, root_context, "/test/subdir");
+    (void) ft_ignore_add_pattern_str(child_context, "*.tmp");
 
     /* Child should inherit parent's patterns */
-    result = ft_ignore_match(child_ctx, "/test/subdir/file.o", 0);
+    result = ft_ignore_match(child_context, "/test/subdir/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* Child should also apply its own patterns */
-    result = ft_ignore_match(child_ctx, "/test/subdir/file.tmp", 0);
+    result = ft_ignore_match(child_context, "/test/subdir/file.tmp", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* Other files should not be ignored */
-    result = ft_ignore_match(child_ctx, "/test/subdir/file.c", 0);
+    result = ft_ignore_match(child_context, "/test/subdir/file.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -181,10 +187,11 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_load_file)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
     apr_file_t *file = NULL;
     const char *gitignore_path = "/tmp/test_gitignore";
+    apr_status_t status = APR_SUCCESS;
 
     /* Create a temporary .gitignore file */
     (void) apr_file_open(&file, gitignore_path, APR_WRITE | APR_CREATE | APR_TRUNCATE, APR_OS_DEFAULT, main_pool);
@@ -196,23 +203,24 @@ START_TEST(test_ignore_load_file)
     (void) apr_file_close(file);
 
     /* Load patterns */
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    apr_status_t status = ft_ignore_load_file(ctx, gitignore_path);
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    status = ft_ignore_load_file(context, gitignore_path);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify patterns were loaded */
-    result = ft_ignore_match(ctx, "/test/file.o", 0);
+    result = ft_ignore_match(context, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/build", 1);
+    result = ft_ignore_match(context, "/test/build", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/file.tmp", 0);
+    result = ft_ignore_match(context, "/test/file.tmp", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
     /* Clean up */
     (void) apr_file_remove(gitignore_path, main_pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -221,22 +229,23 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_vcs_directories)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, ".git/");
-    (void) ft_ignore_add_pattern_str(ctx, ".svn/");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, ".git/");
+    (void) ft_ignore_add_pattern_str(context, ".svn/");
 
-    result = ft_ignore_match(ctx, "/test/.git", 1);
+    result = ft_ignore_match(context, "/test/.git", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/.svn", 1);
+    result = ft_ignore_match(context, "/test/.svn", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/.github", 1);
+    result = ft_ignore_match(context, "/test/.github", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -245,21 +254,22 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_wildcard_patterns)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "test_*.c");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "test_*.c");
 
-    result = ft_ignore_match(ctx, "/test/test_foo.c", 0);
+    result = ft_ignore_match(context, "/test/test_foo.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/test_bar.c", 0);
+    result = ft_ignore_match(context, "/test/test_bar.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 
-    result = ft_ignore_match(ctx, "/test/mytest.c", 0);
+    result = ft_ignore_match(context, "/test/mytest.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -268,18 +278,19 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ignore_last_match_wins)
 {
-    ft_ignore_context_t *ctx = NULL;
+    ft_ignore_context_t *context = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
 
-    ctx = ft_ignore_context_create(main_pool, NULL, "/test");
-    (void) ft_ignore_add_pattern_str(ctx, "*.log");
-    (void) ft_ignore_add_pattern_str(ctx, "!important.log");
-    (void) ft_ignore_add_pattern_str(ctx, "*.log");
+    context = ft_ignore_context_create(main_pool, NULL, "/test");
+    (void) ft_ignore_add_pattern_str(context, "*.log");
+    (void) ft_ignore_add_pattern_str(context, "!important.log");
+    (void) ft_ignore_add_pattern_str(context, "*.log");
 
     /* The last *.log should override the negation */
-    result = ft_ignore_match(ctx, "/test/important.log", 0);
+    result = ft_ignore_match(context, "/test/important.log", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
