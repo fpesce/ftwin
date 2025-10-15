@@ -36,20 +36,23 @@
 #include <ctype.h>
 #include <apr_file_io.h>
 
-#define OUTPUT_BUFFER_SIZE 4096
-#define PATH_BUFFER_SIZE 1024
-#define ABS_PATH_BUFFER_SIZE 2048
-#define XXH128_HEX_LENGTH 32
-#define ERROR_BUFFER_SIZE 256
+enum
+{
+    OUTPUT_BUFFER_SIZE = 4096,
+    PATH_BUFFER_SIZE = 1024,
+    ABS_PATH_BUFFER_SIZE = 2048,
+    XXH128_HEX_LENGTH = 32,
+    ERROR_BUFFER_SIZE = 256
+};
 
 apr_pool_t *main_pool = NULL;
 
 static void copy_file(const char *src_path, const char *dest_path)
 {
-    apr_file_t *src_file = NULL, *dest_file = NULL;
-    apr_status_t rv;
-    char buffer[4096];
-    apr_size_t bytes_read;
+    apr_file_t *src_file = NULL;
+    apr_file_t *dest_file = NULL;
+    apr_status_t rv = APR_SUCCESS;
+    char buffer[4096] = { 0 };
 
     rv = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
@@ -58,7 +61,7 @@ static void copy_file(const char *src_path, const char *dest_path)
     ck_assert_int_eq(rv, APR_SUCCESS);
 
     do {
-	bytes_read = sizeof(buffer);
+	apr_size_t bytes_read = sizeof(buffer);
 	rv = apr_file_read(src_file, buffer, &bytes_read);
 	if (rv != APR_SUCCESS && rv != APR_EOF) {
 	    ck_abort_msg("Failed to read from source file");
@@ -87,10 +90,10 @@ static char *capture_output(int fd)
 
 START_TEST(test_ftwin_size_options)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
 
     int original_stdout = dup(STDOUT_FILENO);
     int original_stderr = dup(STDERR_FILENO);
@@ -129,10 +132,10 @@ END_TEST
 
 START_TEST(test_ftwin_no_recurse)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
 
     int original_stdout = dup(STDOUT_FILENO);
     int original_stderr = dup(STDERR_FILENO);
@@ -161,10 +164,10 @@ END_TEST
 
 START_TEST(test_ftwin_hidden_files)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
 
     int original_stdout = dup(STDOUT_FILENO);
     int original_stderr = dup(STDERR_FILENO);
@@ -193,10 +196,10 @@ END_TEST
 
 START_TEST(test_ftwin_show_hidden_files)
 {
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
 
     int original_stdout = dup(STDOUT_FILENO);
     int original_stderr = dup(STDERR_FILENO);
@@ -265,21 +268,32 @@ static void validate_duplicate_files(json_t *duplicates, const char *path1, cons
 
 START_TEST(test_ftwin_json_output_validation)
 {
-    int stdout_pipe[2], stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    int original_stdout;
+    int original_stderr;
+    char cwd[PATH_BUFFER_SIZE] = { 0 };
+    char path1[ABS_PATH_BUFFER_SIZE] = { 0 };
+    char path2[ABS_PATH_BUFFER_SIZE] = { 0 };
+    int ret = 0;
+
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     copy_file("check/tests/5K_file", "check/tests/5K_file_copy");
 
-    char cwd[PATH_BUFFER_SIZE];
     ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
-    char path1[ABS_PATH_BUFFER_SIZE], path2[ABS_PATH_BUFFER_SIZE];
-    snprintf(path1, sizeof(path1), "%s/check/tests/5K_file", cwd);
-    snprintf(path2, sizeof(path2), "%s/check/tests/5K_file_copy", cwd);
+
+    ret = snprintf(path1, sizeof(path1), "%s/check/tests/5K_file", cwd);
+    ck_assert_int_ge(ret, 0);
+    ck_assert_int_lt(ret, sizeof(path1));
+    ret = snprintf(path2, sizeof(path2), "%s/check/tests/5K_file_copy", cwd);
+    ck_assert_int_ge(ret, 0);
+    ck_assert_int_lt(ret, sizeof(path2));
 
     const char *argv[] = { "ftwin", "-J", "check/tests/5K_file", "check/tests/5K_file_copy", "check/tests/1K_file" };
     ftwin_main(sizeof(argv) / sizeof(argv[0]), argv);
@@ -335,16 +349,34 @@ Suite *make_ft_archive_suite(void);
 
 int main(int argc, char **argv)
 {
-    char buf[ERROR_BUFFER_SIZE];
+    char buf[ERROR_BUFFER_SIZE] = { 0 };
     int num_failed = 0;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     SRunner *suite_runner = NULL;
     int num = 0;
+    Suite *napr_heap_suite = NULL;
+    Suite *napr_hash_suite = NULL;
+    Suite *ft_file_suite = NULL;
+    Suite *human_size_suite = NULL;
+    Suite *ftwin_suite = NULL;
+    Suite *ft_system_suite = NULL;
+    Suite *parallel_hashing_suite = NULL;
+    Suite *ft_ignore_suite = NULL;
+    Suite *ft_archive_suite = NULL;
 
     if (argc > 1) {
-	char *endptr;
+	char *endptr = NULL;
 	long val = strtol(argv[1], &endptr, 10);
-	if (*endptr == '\0') {
+
+	/* Check for errors: overflow, underflow, no digits found */
+	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr)) {
+	    num = 0;		/* Default to running all tests on error */
+	}
+	else if (*endptr != '\0') {
+	    /* Non-numeric characters found, treat as invalid input */
+	    num = 0;
+	}
+	else {
 	    num = (int) val;
 	}
     }
