@@ -74,7 +74,7 @@ process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_s
     apr_size_t j;
 
     if (NULL == fsize->chksum_array[i].file) {
-	return APR_SUCCESS;		/* Already processed as a duplicate */
+	return APR_SUCCESS;	/* Already processed as a duplicate */
     }
 
     for (j = i + 1; j < fsize->nb_files; j++) {
@@ -146,8 +146,7 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
  * @brief Gets the file paths for comparison, handling archive extraction if needed.
  * @return APR_SUCCESS on success, or an error status if extraction fails.
  */
-static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file_i, ft_file_t *file_j, char **fpathi,
-					 char **fpathj)
+static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file_i, ft_file_t *file_j, char **fpathi, char **fpathj)
 {
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
 	if (file_i->subpath) {
@@ -232,7 +231,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	    (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file_i->path, file_j->path,
 			   apr_strerror(status, errbuf, sizeof(errbuf)));
 	}
-	return APR_SUCCESS;		/* Continue processing other pairs */
+	return APR_SUCCESS;	/* Continue processing other pairs */
     }
 
     if (rv == 0) {
