@@ -51,9 +51,9 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
     if (*p == '!') {
 	*flags |= FT_IGNORE_NEGATE;
 	p++;
-    while (isspace(*p)) {
+	while (isspace(*p)) {
 	    p++;
-    }
+	}
     }
 
     /* Check if pattern starts with / */
