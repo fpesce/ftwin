@@ -133,8 +133,8 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 	else if (*pattern_ptr == '?') {
 	    /* ? matches any single character except / */
 	    const char *pcre_pattern = "[^/]";
-		strcpy(result_ptr, pcre_pattern);
-		result_ptr += strlen(pcre_pattern);
+	    strcpy(result_ptr, pcre_pattern);
+	    result_ptr += strlen(pcre_pattern);
 	    pattern_ptr++;
 	}
 	else if (*pattern_ptr == '[') {
