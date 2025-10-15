@@ -21,8 +21,6 @@
 
 #include "ft_image.h"
 
-#if HAVE_PUZZLE
-
 #include <stdio.h>
 #include <puzzle.h>
 
@@ -230,5 +228,3 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	(void) fprintf(stderr, "\n");
     }
 }
-
-#endif /* HAVE_PUZZLE */

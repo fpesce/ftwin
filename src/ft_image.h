@@ -3,8 +3,6 @@
 
 #include "config.h"
 
-#if HAVE_PUZZLE
-
 #include "ft_types.h"
 
 /**
@@ -14,7 +12,5 @@
  * @ingroup ImageComparison
  */
 apr_status_t ft_image_twin_report(ft_conf_t *conf);
-
-#endif /* HAVE_PUZZLE */
 
 #endif /* FT_IMAGE_H */

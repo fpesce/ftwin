@@ -39,8 +39,6 @@ AM_CONDITIONAL([HAVE_CHECK], [test "x$have_check" = "xyes"])
 
 AM_PROG_LIBTOOL
 AC_CONFIG_SUBDIRS([third-party/libpuzzle third-party/libarchive])
-AC_DEFINE([HAVE_PUZZLE], 1, [for image comparison mode])
-AC_DEFINE([HAVE_ARCHIVE], 1, [libarchive available from submodule])
 
 # Check zlib
 ZLIB

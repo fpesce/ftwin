@@ -212,9 +212,7 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 	    else {
 		file->prioritized &= 0x0;
 	    }
-#if HAVE_PUZZLE
 	    file->cvec_ok &= 0x0;
-#endif
 	    napr_heap_insert(conf->heap, file);
 
 	    if (NULL == (fsize = napr_hash_search(conf->sizes, &finfo.size, sizeof(apr_off_t), &hash_value))) {

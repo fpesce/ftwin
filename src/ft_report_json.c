@@ -67,11 +67,9 @@ static json_t *create_file_json_object(ft_file_t *file, ft_conf_t *conf)
     const char *mtime_str = ft_format_time_iso8601_utc(file->mtime, conf->pool);
 
     json_object_set_new(obj, "path", json_string(file->path));
-#if HAVE_ARCHIVE
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
 	json_object_set_new(obj, "archive_subpath", file->subpath ? json_string(file->subpath) : json_null());
     }
-#endif
     json_object_set_new(obj, "mtime_utc", json_string(mtime_str));
     json_object_set_new(obj, "prioritized", json_boolean(file->prioritized));
     return obj;
@@ -117,7 +115,6 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 
 			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
 			char *fpathi, *fpathj;
-#if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath) {
 				fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);
@@ -144,20 +141,14 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 			    fpathi = fsize->chksum_array[i].file->path;
 			    fpathj = fsize->chksum_array[j].file->path;
 			}
-#else
-			fpathi = fsize->chksum_array[i].file->path;
-			fpathj = fsize->chksum_array[j].file->path;
-#endif
 			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
 
-#if HAVE_ARCHIVE
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath)
 				apr_file_remove(fpathi, conf->pool);
 			    if (NULL != fsize->chksum_array[j].file->subpath)
 				apr_file_remove(fpathj, conf->pool);
 			}
-#endif
 			if (APR_SUCCESS != status) {
 			    if (is_option_set(conf->mask, OPTION_VERBO))
 				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",

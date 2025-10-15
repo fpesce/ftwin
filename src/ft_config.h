@@ -17,9 +17,7 @@ typedef struct ft_conf_t
     apr_off_t minsize;
     apr_off_t maxsize;
     apr_off_t excess_size;
-#if HAVE_PUZZLE
     double threshold;
-#endif
     apr_pool_t *pool;
     napr_heap_t *heap;
     napr_hash_t *sizes;
