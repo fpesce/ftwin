@@ -23,15 +23,32 @@
 #include "debug.h"
 #include "napr_hash.h"
 
-extern apr_pool_t *main_pool;
-static apr_pool_t *pool;
+static const int INITIAL_HASH_SIZE = 16;
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static apr_pool_t *main_pool = NULL;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static apr_pool_t *pool = NULL;
 
 static void setup(void)
 {
-    apr_status_t rs;
+    apr_status_t status = APR_SUCCESS;
 
-    rs = apr_pool_create(&pool, main_pool);
-    if (rs != APR_SUCCESS) {
+    if (main_pool == NULL) {
+	status = apr_initialize();
+	if (status != APR_SUCCESS) {
+	    DEBUG_ERR("Error initializing APR");
+	    exit(1);
+	}
+	(void) atexit(apr_terminate);
+	status = apr_pool_create(&main_pool, NULL);
+	if (status != APR_SUCCESS) {
+	    DEBUG_ERR("Error creating main_pool");
+	    exit(1);
+	}
+    }
+    status = apr_pool_create(&pool, main_pool);
+    if (status != APR_SUCCESS) {
 	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
 	DEBUG_ERR("Error creating pool");
@@ -44,23 +61,25 @@ static void teardown(void)
     apr_pool_destroy(pool);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_basic)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
     char *key1 = apr_pstrdup(pool, "key1");
     char *key2 = apr_pstrdup(pool, "key2");
-    char *result;
+    char *result = NULL;
+    apr_status_t status = APR_SUCCESS;
 
     /* Create a string hash table - for string hash, the data IS the key */
-    hash = napr_hash_str_make(pool, 16, 4);
+    hash = napr_hash_str_make(pool, INITIAL_HASH_SIZE, 4);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Test insertion and search */
     result = napr_hash_search(hash, key1, strlen(key1), &hash_value);
     ck_assert_ptr_eq(result, NULL);
 
-    apr_status_t status = napr_hash_set(hash, key1, hash_value);
+    status = napr_hash_set(hash, key1, hash_value);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     result = napr_hash_search(hash, key1, strlen(key1), NULL);
@@ -75,16 +94,43 @@ START_TEST(test_napr_hash_basic)
     result = napr_hash_search(hash, key2, strlen(key2), NULL);
     ck_assert_ptr_eq(result, key2);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
+static void populate_hash_for_rebuild_test(napr_hash_t *hash, char **keys, int num_keys)
+{
+    apr_uint32_t hash_value = 0;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    for (int i = 0; i < num_keys; i++) {
+	keys[i] = apr_psprintf(pool, "key_%d", i);
+
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
+	ck_assert_ptr_eq(result, NULL);
+
+	status = napr_hash_set(hash, keys[i], hash_value);
+	ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+static void verify_hash_after_rebuild(napr_hash_t *hash, char **keys, int num_keys)
+{
+    for (int i = 0; i < num_keys; i++) {
+	char *result = napr_hash_search(hash, keys[i], strlen(keys[i]), NULL);
+	ck_assert_ptr_ne(result, NULL);
+	ck_assert_str_eq(result, keys[i]);
+    }
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_rebuild)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    char **keys;
-    int i;
+    const int num_rebuild_keys = 50;
+    napr_hash_t *hash = NULL;
+    char **keys = NULL;
 
     /* Create hash with small initial size and low fill factor to trigger rebuild */
     hash = napr_hash_str_make(pool, 2, 2);	/* 2 buckets, 2 items per bucket */
@@ -93,54 +139,49 @@ START_TEST(test_napr_hash_rebuild)
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = apr_pcalloc(pool, 50 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, num_rebuild_keys * sizeof(char *));
 
     /* Insert enough items to force a rebuild */
-    for (i = 0; i < 50; i++) {
-	keys[i] = apr_psprintf(pool, "key_%d", i);
-
-	void *result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
-	ck_assert_ptr_eq(result, NULL);
-
-	apr_status_t status = napr_hash_set(hash, keys[i], hash_value);
-	ck_assert_int_eq(status, APR_SUCCESS);
-    }
+    populate_hash_for_rebuild_test(hash, keys, num_rebuild_keys);
 
     /* Verify all items are still accessible after rebuild */
-    for (i = 0; i < 50; i++) {
-	char *result = napr_hash_search(hash, keys[i], strlen(keys[i]), NULL);
-	ck_assert_ptr_ne(result, NULL);
-	ck_assert_str_eq(result, keys[i]);
-    }
+    verify_hash_after_rebuild(hash, keys, num_rebuild_keys);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_remove_multiple)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_values[10];
-    char **keys;
-    int i;
+    const int HASH_VALUES_COUNT = 10;
+    const int LOOP_LIMIT = 5;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_values[HASH_VALUES_COUNT];
+    char **keys = NULL;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+    int i = 0;
 
+    memset(hash_values, 0, sizeof(hash_values));
     /* Create hash with very low fill factor to force collisions */
-    hash = napr_hash_str_make(pool, 1, 10);	/* 1 bucket, 10 items capacity */
+    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);	/* 1 bucket, 10 items capacity */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, HASH_VALUES_COUNT * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < LOOP_LIMIT; i++) {
 	keys[i] = apr_psprintf(pool, "key_%d", i);
 
-	void *result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_values[i]);
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_values[i]);
 	ck_assert_ptr_eq(result, NULL);
 
-	apr_status_t status = napr_hash_set(hash, keys[i], hash_values[i]);
+	status = napr_hash_set(hash, keys[i], hash_values[i]);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
@@ -148,7 +189,7 @@ START_TEST(test_napr_hash_remove_multiple)
     napr_hash_remove(hash, keys[1], hash_values[1]);
 
     /* Verify the removed item is gone */
-    char *result = napr_hash_search(hash, keys[1], strlen(keys[1]), NULL);
+    result = napr_hash_search(hash, keys[1], strlen(keys[1]), NULL);
     ck_assert_ptr_eq(result, NULL);
 
     /* Verify other items still exist */
@@ -164,85 +205,102 @@ START_TEST(test_napr_hash_remove_multiple)
     result = napr_hash_search(hash, keys[4], strlen(keys[4]), NULL);
     ck_assert_ptr_eq(result, NULL);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_iterator_multiple_elements)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    char **keys;
-    int i, count;
-    napr_hash_index_t *hi;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
+    char **keys = NULL;
+    int i = 0;
+    int count = 0;
+    napr_hash_index_t *hash_iterator = NULL;
+    void *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    const int ITEMS_PER_BUCKET = 5;
+    const int KEYS_COUNT = 10;
+    const int LOOP_LIMIT = 8;
 
     /* Create hash with configuration that promotes collisions */
-    hash = napr_hash_str_make(pool, 2, 5);	/* 2 buckets, 5 items per bucket */
+    hash = napr_hash_str_make(pool, 2, ITEMS_PER_BUCKET);	/* 2 buckets, 5 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = apr_pcalloc(pool, 10 * sizeof(char *));
+    keys = (char **) apr_pcalloc(pool, KEYS_COUNT * sizeof(char *));
 
     /* Insert multiple items */
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < LOOP_LIMIT; i++) {
 	keys[i] = apr_psprintf(pool, "key_%d", i);
 
-	void *result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
+	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
 	ck_assert_ptr_eq(result, NULL);
 
-	apr_status_t status = napr_hash_set(hash, keys[i], hash_value);
+	status = napr_hash_set(hash, keys[i], hash_value);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
     /* Iterate through all elements */
     count = 0;
-    for (hi = napr_hash_first(pool, hash); hi; hi = napr_hash_next(hi)) {
-	const void *key;
-	apr_size_t klen;
-	void *val;
-	napr_hash_this(hi, &key, &klen, &val);
+    for (hash_iterator = napr_hash_first(pool, hash); hash_iterator; hash_iterator = napr_hash_next(hash_iterator)) {
+	const void *key = NULL;
+	apr_size_t klen = 0;
+	void *val = NULL;
+	napr_hash_this(hash_iterator, &key, &klen, &val);
 	ck_assert_ptr_ne(val, NULL);
 	count++;
     }
 
     ck_assert_int_eq(count, 8);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_pool_get)
 {
-    napr_hash_t *hash;
-    apr_pool_t *hash_pool;
+    napr_hash_t *hash = NULL;
+    apr_pool_t *hash_pool = NULL;
 
-    hash = napr_hash_str_make(pool, 16, 4);
+    hash = napr_hash_str_make(pool, INITIAL_HASH_SIZE, 4);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Test napr_hash_pool_get */
     hash_pool = napr_hash_pool_get(hash);
     ck_assert_ptr_eq(hash_pool, pool);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_napr_hash_iterator_empty_buckets)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    napr_hash_index_t *hi;
-    int count;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
+    napr_hash_index_t *hash_iterator = NULL;
+    int count = 0;
+    char *key1 = NULL;
+    char *key2 = NULL;
+    const int BUCKET_COUNT = 128;
 
+    const int ITEMS_PER_BUCKET = 4;
     /* Create hash with larger size to ensure empty buckets */
-    hash = napr_hash_str_make(pool, 128, 4);
+    hash = napr_hash_str_make(pool, BUCKET_COUNT, ITEMS_PER_BUCKET);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Insert just a few items so many buckets remain empty */
-    char *key1 = apr_pstrdup(pool, "key1");
-    char *key2 = apr_pstrdup(pool, "key2");
+    key1 = apr_pstrdup(pool, "key1");
+    key2 = apr_pstrdup(pool, "key2");
 
     napr_hash_search(hash, key1, strlen(key1), &hash_value);
     napr_hash_set(hash, key1, hash_value);
@@ -252,24 +310,25 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
 
     /* Iterate - should skip empty buckets */
     count = 0;
-    for (hi = napr_hash_first(pool, hash); hi; hi = napr_hash_next(hi)) {
-	void *val;
-	napr_hash_this(hi, NULL, NULL, &val);
+    for (hash_iterator = napr_hash_first(pool, hash); hash_iterator; hash_iterator = napr_hash_next(hash_iterator)) {
+	void *val = NULL;
+	napr_hash_this(hash_iterator, NULL, NULL, &val);
 	ck_assert_ptr_ne(val, NULL);
 	count++;
     }
 
     ck_assert_int_eq(count, 2);
 }
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
 Suite *make_napr_hash_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
-    s = suite_create("Napr_Hash");
+    Suite *suite = NULL;
+    TCase *tc_core = NULL;
+    suite = suite_create("Napr_Hash");
     tc_core = tcase_create("Core Tests");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
@@ -279,7 +338,7 @@ Suite *make_napr_hash_suite(void)
     tcase_add_test(tc_core, test_napr_hash_iterator_multiple_elements);
     tcase_add_test(tc_core, test_napr_hash_pool_get);
     tcase_add_test(tc_core, test_napr_hash_iterator_empty_buckets);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

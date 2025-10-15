@@ -23,15 +23,23 @@
 #include "debug.h"
 #include "napr_heap.h"
 
-extern apr_pool_t *main_pool;
-static apr_pool_t *pool;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static apr_pool_t *main_pool = NULL;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static apr_pool_t *pool = NULL;
 
 static void setup(void)
 {
-    apr_status_t rs;
+    apr_status_t status = APR_SUCCESS;
 
-    rs = apr_pool_create(&pool, main_pool);
-    if (rs != APR_SUCCESS) {
+    if (main_pool == NULL) {
+	(void) apr_initialize();
+	(void) atexit(apr_terminate);
+	(void) apr_pool_create(&main_pool, NULL);
+    }
+
+    status = apr_pool_create(&pool, main_pool);
+    if (status != APR_SUCCESS) {
 	DEBUG_ERR("Error creating pool");
 	exit(1);
     }
@@ -56,63 +64,79 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     if (number1->size < number2->size) {
 	return -1;
     }
-    else if (number2->size < number1->size) {
+    if (number2->size < number1->size) {
 	return 1;
     }
 
     return 0;
 }
 
-START_TEST(test_napr_heap_unordered_bug)
+/**
+ * @brief Populates a heap with a given array of values.
+ *
+ * This helper function simplifies test setup by encapsulating the logic for
+ * creating and inserting multiple elements into a napr_heap.
+ *
+ * @param heap The heap to populate.
+ * @param values An array of values to insert into the heap.
+ * @param num_values The number of elements in the values array.
+ */
+static void populate_heap(napr_heap_t *heap, const apr_off_t values[], int num_values)
 {
-    apr_off_t array[] = { 6298, 43601, 193288, 30460, 193288 };
-    napr_heap_t *heap;
-    check_heap_numbers_t *number;
-    int i;
+    for (int i = 0; i < num_values; i++) {
+	check_heap_numbers_t *number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
 
-    heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
-
-    for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
-	number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
-	number->size = array[i];
+	number->size = values[i];
 	napr_heap_insert_r(heap, number);
     }
-
-    for (i = 0; i < sizeof(array) / sizeof(apr_off_t); i++) {
-	number = napr_heap_extract(heap);
-	switch (i) {
-	case 0:
-	    ck_assert_int_eq(number->size, 193288);
-	    break;
-	case 1:
-	    ck_assert_int_eq(number->size, 193288);
-	    break;
-	case 2:
-	    ck_assert_int_eq(number->size, 43601);
-	    break;
-	case 3:
-	    ck_assert_int_eq(number->size, 30460);
-	    break;
-	case 4:
-	    ck_assert_int_eq(number->size, 6298);
-	    break;
-	}
-    }
 }
+
+/**
+ * @brief Validates that elements are extracted from the heap in the expected order.
+ *
+ * This function extracts all elements from the heap and asserts that their
+ * values match the corresponding values in an array of expected sorted elements.
+ * It also verifies that the heap is empty after all elements have been extracted.
+ *
+ * @param heap The heap to validate.
+ * @param expected_values An array of the expected values in sorted order.
+ * @param num_values The number of elements in the expected_values array.
+ */
+static void validate_heap_extraction(napr_heap_t *heap, const apr_off_t expected_values[], int num_values)
+{
+    for (int i = 0; i < num_values; i++) {
+	check_heap_numbers_t *number = napr_heap_extract(heap);
+
+	ck_assert_msg(number != NULL, "Heap unexpectedly empty at index %d", i);
+	ck_assert_int_eq(number->size, expected_values[i]);
+    }
+    ck_assert_ptr_eq(napr_heap_extract(heap), NULL);
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_napr_heap_unordered_bug)
+{
+    const apr_off_t values[] = { 6298, 43601, 193288, 30460, 193288 };
+    const apr_off_t expected_sorted_values[] = { 193288, 193288, 43601, 30460, 6298 };
+    const int num_values = sizeof(values) / sizeof(apr_off_t);
+    napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
+
+    populate_heap(heap, values, num_values);
+    validate_heap_extraction(heap, expected_sorted_values, num_values);
+}
+
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
 
 Suite *make_napr_heap_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
-    s = suite_create("Napr_Heap");
-    tc_core = tcase_create("Core Tests");
+    Suite *suite = suite_create("Napr_Heap");
+    TCase *tc_core = tcase_create("Core Tests");
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_napr_heap_unordered_bug);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

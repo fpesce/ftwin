@@ -2,6 +2,84 @@
 #define FT_CONFIG_H
 
 #include "ft_types.h"
+#include <stddef.h>
+
+/**
+ * @defgroup CoreConstants Core Constants
+ * @ingroup Core
+ * @brief Fundamental constants used throughout the application.
+ *
+ * This includes buffer sizes, conversion factors, and other static values
+ * that are shared across different modules.
+ * @{
+ */
+
+/**
+ * @brief The number of bytes in one kibibyte (1024).
+ */
+static const size_t KIBIBYTE = 1024;
+
+/**
+ * @brief The number of microseconds in one second.
+ */
+static const double MICROSECONDS_PER_SECOND = 1000000.0;
+
+/**
+ * @brief The maximum length for a file path buffer.
+ */
+static const size_t MAX_PATH_BUFFER = 4096;
+
+/**
+ * @brief The maximum value of a character, often used as a buffer size.
+ */
+static const size_t CHAR_MAX_VAL = 256;
+
+/**
+ * @brief The default buffer size for small operations.
+ */
+static const size_t DEFAULT_SMALL_BUFFER_SIZE = 16;
+
+/**
+ * @brief The default buffer size for I/O operations.
+ */
+static const size_t DEFAULT_IO_BUFFER_SIZE = 8192;
+
+/**
+ * @brief The base for string-to-integer conversions.
+ */
+static const int DECIMAL_BASE = 10;
+
+/**
+ * @brief A common loop count for benchmark iterations.
+ */
+static const int BENCHMARK_ITERATIONS = 20;
+
+/**
+ * @brief A larger loop count for stress tests.
+ */
+static const int STRESS_TEST_ITERATIONS = 100;
+
+/**
+ * @brief A timeout value in seconds for parallel operations.
+ */
+static const int PARALLEL_TIMEOUT_SECONDS = 30;
+
+/**
+ * @brief A sample file size for testing purposes.
+ */
+static const int TEST_FILE_SIZE_SMALL = 5120;
+
+/**
+ * @brief A larger sample file size for testing.
+ */
+static const int TEST_FILE_SIZE_LARGE = 50000;
+
+/**
+ * @brief A sample chunk size for file operations in tests.
+ */
+static const int TEST_CHUNK_SIZE = 10;
+
+/** @} */
 
 /* Constants */
 static const int ERROR_BUFFER_SIZE = 128;
