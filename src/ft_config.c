@@ -84,7 +84,7 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     int nb_gid = 0;
 
     memset(list, 0, sizeof(list));
-    nb_gid = getgroups((int)(sizeof(list) / sizeof(gid_t)), list);
+    nb_gid = getgroups((int) (sizeof(list) / sizeof(gid_t)), list);
     if (nb_gid < 0) {
 	DEBUG_ERR("error calling getgroups()");
 	return APR_EGENERAL;
