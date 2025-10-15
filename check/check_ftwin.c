@@ -350,7 +350,8 @@ Suite *make_parallel_hashing_suite(void);
 Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
 
-enum test_suite {
+enum test_suite
+{
     ALL_TESTS = 0,
     NAPR_HEAP_SUITE,
     NAPR_HASH_SUITE,
@@ -363,7 +364,7 @@ enum test_suite {
     FT_ARCHIVE_SUITE
 };
 
-static void add_all_suites(SRunner *suite_runner)
+static void add_all_suites(SRunner * suite_runner)
 {
     srunner_add_suite(suite_runner, make_napr_heap_suite());
     srunner_add_suite(suite_runner, make_napr_hash_suite());
