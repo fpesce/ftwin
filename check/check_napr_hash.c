@@ -23,20 +23,30 @@
 #include "debug.h"
 #include "napr_hash.h"
 
+#define INITIAL_HASH_SIZE 16
+
 static apr_pool_t *main_pool = NULL;
-static apr_pool_t *pool;
+static apr_pool_t *pool = NULL;
 
 static void setup(void)
 {
-    apr_status_t rs;
+    apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	apr_initialize();
-	atexit(apr_terminate);
-	apr_pool_create(&main_pool, NULL);
+	status = apr_initialize();
+	if (status != APR_SUCCESS) {
+	    DEBUG_ERR("Error initializing APR");
+	    exit(1);
+	}
+	(void)atexit(apr_terminate);
+	status = apr_pool_create(&main_pool, NULL);
+	if (status != APR_SUCCESS) {
+	    DEBUG_ERR("Error creating main_pool");
+	    exit(1);
+	}
     }
-    rs = apr_pool_create(&pool, main_pool);
-    if (rs != APR_SUCCESS) {
+    status = apr_pool_create(&pool, main_pool);
+    if (status != APR_SUCCESS) {
 	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
 	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
 	DEBUG_ERR("Error creating pool");
@@ -51,14 +61,14 @@ static void teardown(void)
 
 START_TEST(test_napr_hash_basic)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
     char *key1 = apr_pstrdup(pool, "key1");
     char *key2 = apr_pstrdup(pool, "key2");
-    char *result;
+    char *result = NULL;
 
     /* Create a string hash table - for string hash, the data IS the key */
-    hash = napr_hash_str_make(pool, 16, 4);
+    hash = napr_hash_str_make(pool, INITIAL_HASH_SIZE, 4);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Test insertion and search */
@@ -86,10 +96,10 @@ END_TEST
 
 START_TEST(test_napr_hash_rebuild)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    char **keys;
-    int i;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
+    char **keys = NULL;
+    int i = 0;
 
     /* Create hash with small initial size and low fill factor to trigger rebuild */
     hash = napr_hash_str_make(pool, 2, 2);	/* 2 buckets, 2 items per bucket */
@@ -124,10 +134,10 @@ END_TEST
 
 START_TEST(test_napr_hash_remove_multiple)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_values[10];
-    char **keys;
-    int i;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_values[10] = { 0 };
+    char **keys = NULL;
+    int i = 0;
 
     /* Create hash with very low fill factor to force collisions */
     hash = napr_hash_str_make(pool, 1, 10);	/* 1 bucket, 10 items capacity */
@@ -175,11 +185,12 @@ END_TEST
 
 START_TEST(test_napr_hash_iterator_multiple_elements)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    char **keys;
-    int i, count;
-    napr_hash_index_t *hi;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
+    char **keys = NULL;
+    int i = 0;
+    int count = 0;
+    napr_hash_index_t *hi = NULL;
 
     /* Create hash with configuration that promotes collisions */
     hash = napr_hash_str_make(pool, 2, 5);	/* 2 buckets, 5 items per bucket */
@@ -220,10 +231,10 @@ END_TEST
 
 START_TEST(test_napr_hash_pool_get)
 {
-    napr_hash_t *hash;
-    apr_pool_t *hash_pool;
+    napr_hash_t *hash = NULL;
+    apr_pool_t *hash_pool = NULL;
 
-    hash = napr_hash_str_make(pool, 16, 4);
+    hash = napr_hash_str_make(pool, INITIAL_HASH_SIZE, 4);
     ck_assert_ptr_ne(hash, NULL);
 
     /* Test napr_hash_pool_get */
@@ -236,10 +247,10 @@ END_TEST
 
 START_TEST(test_napr_hash_iterator_empty_buckets)
 {
-    napr_hash_t *hash;
-    apr_uint32_t hash_value;
-    napr_hash_index_t *hi;
-    int count;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_value = 0;
+    napr_hash_index_t *hi = NULL;
+    int count = 0;
 
     /* Create hash with larger size to ensure empty buckets */
     hash = napr_hash_str_make(pool, 128, 4);
