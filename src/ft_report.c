@@ -74,9 +74,9 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
     const char *color_reset = use_color ? ANSI_COLOR_RESET : "";
 
     memset(errbuf, 0, sizeof(errbuf));
-    if (is_option_set(conf->mask, OPTION_VERBO))
-	fprintf(stderr, "Reporting duplicate files:\n");
-
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+	(void) fprintf(stderr, "Reporting duplicate files:\n");
+    }
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	if (file->size == old_size)
 	    continue;
@@ -121,7 +121,8 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 					    const char *color_reset)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    char *fpathi, *fpathj;
+    char *fpathi = NULL;
+    char *fpathj = NULL;
     int rv = 0;
     apr_status_t status = APR_SUCCESS;
 
@@ -171,16 +172,17 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 #endif
 
     if (APR_SUCCESS != status) {
-	if (is_option_set(conf->mask, OPTION_VERBO))
-	    fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", fsize->chksum_array[i].file->path,
-		    fsize->chksum_array[j].file->path, apr_strerror(status, errbuf, 128));
+	if (is_option_set(conf->mask, OPTION_VERBO)) {
+	    (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", fsize->chksum_array[i].file->path,
+			   fsize->chksum_array[j].file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	}
 	rv = 1;
     }
 
     if (0 == rv) {
 	if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-	    fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[i].file->path,
-		    fsize->chksum_array[j].file->path);
+	    (void) fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[i].file->path,
+			   fsize->chksum_array[j].file->path);
 	}
 	if (!*already_printed) {
 	    if (is_option_set(conf->mask, OPTION_SIZED)) {
@@ -208,7 +210,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	    printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
 	/* mark j as a twin ! */
 	fsize->chksum_array[j].file = NULL;
-	fflush(stdout);
+	(void) fflush(stdout);
     }
 
     return APR_SUCCESS;
