@@ -37,20 +37,28 @@
 
 static const int NB_WORKER = 4;
 
-struct compute_vector_ctx_t
-{
+struct compute_vector_ctx_t {
     apr_thread_mutex_t *mutex;
     PuzzleContext *contextp;
     ft_conf_t *conf;
-    int heap_size, nb_processed;
+    unsigned int heap_size;
+    int nb_processed;
 };
 typedef struct compute_vector_ctx_t compute_vector_ctx_t;
+
+struct compute_vector_task_t
+{
+    compute_vector_ctx_t *cv_ctx;
+    ft_file_t *file;
+};
+typedef struct compute_vector_task_t compute_vector_task_t;
 
 static apr_status_t compute_vector(void *ctx, void *data)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    compute_vector_ctx_t *cv_ctx = ctx;
-    ft_file_t *file = data;
+    compute_vector_ctx_t *cv_ctx = (compute_vector_ctx_t *) ctx;
+    compute_vector_task_t *task = (compute_vector_task_t *) data;
+    ft_file_t *file = task->file;
     apr_status_t status = APR_SUCCESS;
 
     memset(errbuf, 0, sizeof(errbuf));
@@ -68,7 +76,7 @@ static apr_status_t compute_vector(void *ctx, void *data)
 	return status;
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%i/%i] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
+	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
 		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0f));
     }
     cv_ctx->nb_processed += 1;
@@ -124,7 +132,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     apr_status_t status = APR_SUCCESS;
     napr_threadpool_t *threadpool = NULL;
     compute_vector_ctx_t cv_ctx;
-    int heap_size = napr_heap_size(conf->heap);
+    unsigned int heap_size = napr_heap_size(conf->heap);
 
     memset(errbuf, 0, sizeof(errbuf));
     cv_ctx.contextp = context;
@@ -144,9 +152,11 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
 	return status;
     }
 
-    for (int idx = 0; idx < heap_size; idx++) {
-	ft_file_t *file = napr_heap_get_nth(conf->heap, idx);
-	status = napr_threadpool_add(threadpool, file);
+    for (unsigned int idx = 0; idx < heap_size; idx++) {
+	compute_vector_task_t *task = apr_palloc(conf->pool, sizeof(compute_vector_task_t));
+	task->cv_ctx = &cv_ctx;
+	task->file = napr_heap_get_nth(conf->heap, idx);
+	status = napr_threadpool_add(threadpool, task);
 	if (APR_SUCCESS != status) {
 	    DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	    return status;
@@ -161,7 +171,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%d/%d] %d%% ", heap_size, heap_size, 100);
+	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", heap_size, heap_size, 100);
 	(void) fprintf(stderr, "\n");
     }
 
@@ -180,8 +190,8 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 	}
 
 	unsigned char already_printed = 0;
-	int heap_size = napr_heap_size(conf->heap);
-	for (int idx = 0; idx < heap_size; idx++) {
+	unsigned int heap_size = napr_heap_size(conf->heap);
+	for (unsigned int idx = 0; idx < heap_size; idx++) {
 	    ft_file_t *file_cmp = napr_heap_get_nth(conf->heap, idx);
 	    if (!(file_cmp->cvec_ok & 0x1)) {
 		continue;
