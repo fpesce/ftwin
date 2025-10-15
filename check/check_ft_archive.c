@@ -33,9 +33,6 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-static apr_pool_t *main_pool = NULL;
-
 enum
 {
     CAPTURE_BUFFER_SIZE = 4096,
