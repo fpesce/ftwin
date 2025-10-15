@@ -33,7 +33,16 @@
 #endif
 #include "ftwin.h"
 
-extern apr_pool_t *main_pool;
+static apr_pool_t *main_pool = NULL;
+
+static void setup(void)
+{
+    if (main_pool == NULL) {
+        apr_initialize();
+        atexit(apr_terminate);
+        apr_pool_create(&main_pool, NULL);
+    }
+}
 
 static char *capture_output(int fd)
 {
@@ -302,6 +311,7 @@ Suite *make_parallel_hashing_suite(void)
     /* Increase timeout for these tests as they create many files */
     tcase_set_timeout(tc_core, 30);
 
+    tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_parallel_correctness);
     tcase_add_test(tc_core, test_thread_counts);
     tcase_add_test(tc_core, test_various_file_sizes);

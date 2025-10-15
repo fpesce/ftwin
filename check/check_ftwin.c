@@ -33,12 +33,52 @@
 #endif
 #include "ftwin.h"
 #include <unistd.h>
+#include <ctype.h>
+#include <apr_file_io.h>
+
+#define OUTPUT_BUFFER_SIZE 4096
+#define PATH_BUFFER_SIZE 1024
+#define ABS_PATH_BUFFER_SIZE 2048
+#define XXH128_HEX_LENGTH 32
+#define ERROR_BUFFER_SIZE 256
 
 apr_pool_t *main_pool = NULL;
 
+static void copy_file(const char *src_path, const char *dest_path)
+{
+    apr_file_t *src_file, *dest_file;
+    apr_status_t rv;
+    char buffer[4096];
+    apr_size_t bytes_read, bytes_written;
+
+    rv = apr_file_open(&src_file, src_path, APR_READ, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(rv, APR_SUCCESS);
+
+    rv = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(rv, APR_SUCCESS);
+
+    do {
+        bytes_read = sizeof(buffer);
+        rv = apr_file_read(src_file, buffer, &bytes_read);
+        if (rv != APR_SUCCESS && rv != APR_EOF) {
+            ck_abort_msg("Failed to read from source file");
+        }
+
+        if (bytes_read > 0) {
+            bytes_written = bytes_read;
+            rv = apr_file_write(dest_file, buffer, &bytes_written);
+            ck_assert_int_eq(rv, APR_SUCCESS);
+            ck_assert_int_eq(bytes_read, bytes_written);
+        }
+    } while (rv != APR_EOF);
+
+    apr_file_close(src_file);
+    apr_file_close(dest_file);
+}
+
 static char *capture_output(int fd)
 {
-    static char buffer[4096];
+    static char buffer[OUTPUT_BUFFER_SIZE];
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: using sizeof(buffer) for bounds checking
     memset(buffer, 0, sizeof(buffer));
@@ -59,7 +99,7 @@ START_TEST(test_ftwin_size_options)
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
 
-    system("cp check/tests/5K_file check/tests/5K_file_copy");
+    copy_file("check/tests/5K_file", "check/tests/5K_file_copy");
 
     const char *argv[] =
 	{ "ftwin", "-m", "2K", "-M", "8K", "check/tests/1K_file", "check/tests/5K_file", "check/tests/10K_file",
@@ -185,96 +225,82 @@ END_TEST
 /* *INDENT-ON* */
 
 #if HAVE_JANSSON
-START_TEST(test_ftwin_json_output_validation)
+static void validate_json_structure(json_t *root, const char *output)
 {
-    // Setup pipes and redirection (boilerplate from existing tests)
-    int stdout_pipe[2];
-    int stderr_pipe[2];
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
-
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
-
-    dup2(stdout_pipe[1], STDOUT_FILENO);
-    dup2(stderr_pipe[1], STDERR_FILENO);
-
-    // Prepare test files
-    system("cp check/tests/5K_file check/tests/5K_file_copy");
-
-    // Determine expected absolute paths dynamically for portability
-    char cwd[1024];
-    ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
-    char expected_abs_path1[2048];
-    char expected_abs_path2[2048];
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: using sizeof() for bounds checking and buffer is sufficiently large
-    snprintf(expected_abs_path1, sizeof(expected_abs_path1), "%s/check/tests/5K_file", cwd);
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: using sizeof() for bounds checking and buffer is sufficiently large
-    snprintf(expected_abs_path2, sizeof(expected_abs_path2), "%s/check/tests/5K_file_copy", cwd);
-
-    // Run ftwin with --json using relative input paths (ftwin should resolve them)
-    const char *argv[] = { "ftwin", "-J", "check/tests/5K_file", "check/tests/5K_file_copy", "check/tests/1K_file" };
-    int argc = sizeof(argv) / sizeof(argv[0]);
-    ftwin_main(argc, argv);
-
-    // Restore stdout/stderr and capture output
-    close(stdout_pipe[1]);
-    close(stderr_pipe[1]);
-
-    dup2(original_stdout, STDOUT_FILENO);
-    dup2(original_stderr, STDERR_FILENO);
-    char *output = capture_output(stdout_pipe[0]);
-
-    // Parse and Validate JSON
-    json_error_t error;
-    json_t *root = json_loads(output, 0, &error);
-
-    ck_assert_msg(root != NULL, "JSON parsing failed: %s at line %d\nOutput:\n%s", error.text, error.line, output);
+    ck_assert_msg(root != NULL, "JSON parsing failed. Output:\n%s", output);
     ck_assert(json_is_array(root));
-    ck_assert_int_eq(json_array_size(root), 1);	// Expect 1 set (the 5K files)
+    ck_assert_int_eq(json_array_size(root), 1); // Expect 1 set (the 5K files)
+}
 
-    json_t *set = json_array_get(root, 0);
+static void validate_duplicate_set(json_t *set)
+{
     // Validate metadata (5K file size is 5120 bytes)
     ck_assert_int_eq(json_integer_value(json_object_get(set, "size_bytes")), 5120);
 
     // Validate hash format
     const char *hash = json_string_value(json_object_get(set, "hash_xxh128"));
     ck_assert_ptr_ne(hash, NULL);
-    ck_assert_int_eq(strlen(hash), 32);	// XXH128 = 32 hex chars (128 bits)
+    ck_assert_int_eq(strlen(hash), XXH128_HEX_LENGTH);
 
-    // Ensure hash contains only valid hex characters and no format specifiers
-    for (int i = 0; i < 32; i++) {
-	ck_assert_msg((hash[i] >= '0' && hash[i] <= '9') || (hash[i] >= 'a' && hash[i] <= 'f'),
-		      "Hash contains invalid character '%c' at position %d", hash[i], i);
+    for (int i = 0; i < XXH128_HEX_LENGTH; i++) {
+        ck_assert_msg(isxdigit(hash[i]), "Hash contains invalid character '%c'", hash[i]);
     }
-    ck_assert_msg(strstr(hash, "%") == NULL, "Hash contains format specifier");
-    ck_assert_msg(strstr(hash, " ") == NULL, "Hash contains spaces");
+}
 
-    json_t *duplicates = json_object_get(set, "duplicates");
+static void validate_duplicate_files(json_t *duplicates, const char *path1, const char *path2)
+{
     ck_assert_int_eq(json_array_size(duplicates), 2);
 
-    // Validate file entries
     json_t *dup1 = json_array_get(duplicates, 0);
-
-    // Check for UTC timestamp (ends with Z)
     const char *mtime1 = json_string_value(json_object_get(dup1, "mtime_utc"));
     ck_assert_ptr_ne(mtime1, NULL);
-    ck_assert_msg(mtime1[strlen(mtime1) - 1] == 'Z', "Timestamp is not in UTC format (missing Z)");
+    ck_assert_msg(mtime1[strlen(mtime1) - 1] == 'Z', "Timestamp is not UTC");
 
-    // Check paths (must be absolute)
-    const char *path1 = json_string_value(json_object_get(dup1, "path"));
-    const char *path2 = json_string_value(json_object_get(json_array_get(duplicates, 1), "path"));
+    const char *out_path1 = json_string_value(json_object_get(dup1, "path"));
+    const char *out_path2 = json_string_value(json_object_get(json_array_get(duplicates, 1), "path"));
 
-    // Check if the output paths match the expected absolute paths (order independent)
-    int match1 = (strcmp(path1, expected_abs_path1) == 0) || (strcmp(path1, expected_abs_path2) == 0);
-    int match2 = (strcmp(path2, expected_abs_path1) == 0) || (strcmp(path2, expected_abs_path2) == 0);
+    int match1 = (strcmp(out_path1, path1) == 0) || (strcmp(out_path1, path2) == 0);
+    int match2 = (strcmp(out_path2, path1) == 0) || (strcmp(out_path2, path2) == 0);
+    ck_assert_msg(match1 && match2 && strcmp(out_path1, out_path2) != 0, "JSON paths mismatch");
+}
 
-    ck_assert_msg(match1 && match2 && strcmp(path1, path2) != 0, "JSON output paths do not match expected absolute paths.");
+START_TEST(test_ftwin_json_output_validation)
+{
+    int stdout_pipe[2], stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    copy_file("check/tests/5K_file", "check/tests/5K_file_copy");
+
+    char cwd[PATH_BUFFER_SIZE];
+    ck_assert_ptr_ne(getcwd(cwd, sizeof(cwd)), NULL);
+    char path1[ABS_PATH_BUFFER_SIZE], path2[ABS_PATH_BUFFER_SIZE];
+    snprintf(path1, sizeof(path1), "%s/check/tests/5K_file", cwd);
+    snprintf(path2, sizeof(path2), "%s/check/tests/5K_file_copy", cwd);
+
+    const char *argv[] = { "ftwin", "-J", "check/tests/5K_file", "check/tests/5K_file_copy", "check/tests/1K_file" };
+    ftwin_main(sizeof(argv) / sizeof(argv[0]), argv);
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+
+    char *output = capture_output(stdout_pipe[0]);
+    json_error_t error;
+    json_t *root = json_loads(output, 0, &error);
+
+    validate_json_structure(root, output);
+    json_t *set = json_array_get(root, 0);
+    validate_duplicate_set(set);
+    validate_duplicate_files(json_object_get(set, "duplicates"), path1, path2);
 
     json_decref(root);
-    remove("check/tests/5K_file_copy");
+    (void)remove("check/tests/5K_file_copy");
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -310,14 +336,18 @@ Suite *make_ft_archive_suite(void);
 
 int main(int argc, char **argv)
 {
-    char buf[256];
-    int nf;
+    char buf[ERROR_BUFFER_SIZE];
+    int num_failed = 0;
     apr_status_t status;
-    SRunner *sr;
+    SRunner *suite_runner = NULL;
     int num = 0;
 
     if (argc > 1) {
-	num = atoi(argv[1]);
+        char *endptr;
+        long val = strtol(argv[1], &endptr, 10);
+        if (*endptr == '\0') {
+            num = (int)val;
+        }
     }
 
     status = apr_initialize();
@@ -326,49 +356,51 @@ int main(int argc, char **argv)
 	printf("error: %s\n", buf);
     }
 
-    atexit(apr_terminate);
+    (void)atexit(apr_terminate);
 
-    if ((status = apr_pool_create(&main_pool, NULL)) != APR_SUCCESS) {
+    status = apr_pool_create(&main_pool, NULL);
+    if (status != APR_SUCCESS) {
 	apr_strerror(status, buf, 200);
 	printf("error: %s\n", buf);
     }
 
-    sr = srunner_create(NULL);
+    suite_runner = srunner_create(NULL);
 
-    if (!num || num == 1)
-	srunner_add_suite(sr, make_napr_heap_suite());
+    if (!num || num == 1) {
+	srunner_add_suite(suite_runner, make_napr_heap_suite());
+    }
+    if (!num || num == 2) {
+	srunner_add_suite(suite_runner, make_napr_hash_suite());
+    }
+    if (!num || num == 3) {
+	srunner_add_suite(suite_runner, make_ft_file_suite());
+    }
+    if (!num || num == 5) {
+	srunner_add_suite(suite_runner, make_human_size_suite());
+    }
+    if (!num || num == 6) {
+	srunner_add_suite(suite_runner, make_ftwin_suite());
+    }
+    if (!num || num == 7) {
+	srunner_add_suite(suite_runner, make_ft_system_suite());
+    }
+    if (!num || num == 8) {
+	srunner_add_suite(suite_runner, make_parallel_hashing_suite());
+    }
+    if (!num || num == 9) {
+	srunner_add_suite(suite_runner, make_ft_ignore_suite());
+    }
+    if (!num || num == 10) {
+    srunner_add_suite(suite_runner, make_ft_archive_suite());
+    }
 
-    if (!num || num == 2)
-	srunner_add_suite(sr, make_napr_hash_suite());
+    srunner_set_fork_status(suite_runner, CK_NOFORK);
+    srunner_set_xml(suite_runner, "check_log.xml");
 
-    if (!num || num == 3)
-	srunner_add_suite(sr, make_ft_file_suite());
-
-    if (!num || num == 5)
-	srunner_add_suite(sr, make_human_size_suite());
-
-    if (!num || num == 6)
-	srunner_add_suite(sr, make_ftwin_suite());
-
-    if (!num || num == 7)
-	srunner_add_suite(sr, make_ft_system_suite());
-
-    if (!num || num == 8)
-	srunner_add_suite(sr, make_parallel_hashing_suite());
-
-    if (!num || num == 9)
-	srunner_add_suite(sr, make_ft_ignore_suite());
-
-    if (!num || num == 10)
-	srunner_add_suite(sr, make_ft_archive_suite());
-
-    srunner_set_fork_status(sr, CK_NOFORK);
-    srunner_set_xml(sr, "check_log.xml");
-
-    srunner_run_all(sr, CK_NORMAL);
-    nf = srunner_ntests_failed(sr);
-    srunner_free(sr);
+    srunner_run_all(suite_runner, CK_NORMAL);
+    num_failed = srunner_ntests_failed(suite_runner);
+    srunner_free(suite_runner);
 
     apr_terminate();
-    return (nf == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return (num_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

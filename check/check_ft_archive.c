@@ -30,22 +30,66 @@
 #endif
 #include "ftwin.h"
 #include <unistd.h>
+#include <archive.h>
+#include <archive_entry.h>
 
-static char *capture_output(int fd)
+#define CAPTURE_BUFFER_SIZE 4096
+
+static void create_test_archive(const char *archive_name, const char **filenames, int num_files)
 {
-    static char buffer[4096];
+    struct archive *a = archive_write_new();
+    ck_assert_ptr_ne(a, NULL);
+    archive_write_set_format_pax_restricted(a); // Use a common, safe format
+    archive_write_open_filename(a, archive_name);
+
+    for (int i = 0; i < num_files; ++i) {
+        const char *filename = filenames[i];
+        struct archive_entry *entry = archive_entry_new();
+        ck_assert_ptr_ne(entry, NULL);
+
+        archive_entry_set_pathname(entry, filename);
+        archive_entry_set_mode(entry, S_IFREG | 0644);
+
+        // Get file size
+        FILE *f = fopen(filename, "rb");
+        ck_assert_ptr_ne(f, NULL);
+        fseek(f, 0, SEEK_END);
+        long size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        archive_entry_set_size(entry, size);
+        archive_write_header(a, entry);
+
+        char buff[8192];
+        size_t len = fread(buff, 1, sizeof(buff), f);
+        while (len > 0) {
+            archive_write_data(a, buff, len);
+            len = fread(buff, 1, sizeof(buff), f);
+        }
+        fclose(f);
+        archive_entry_free(entry);
+    }
+
+    archive_write_close(a);
+    archive_write_free(a);
+}
+
+static char *capture_output(int file_descriptor)
+{
+    static char buffer[CAPTURE_BUFFER_SIZE];
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
     // Safe: using sizeof(buffer) for bounds checking
     memset(buffer, 0, sizeof(buffer));
-    read(fd, buffer, sizeof(buffer) - 1);
+    read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
 }
 
 static void create_test_file(const char *path, const char *content)
 {
-    FILE *f = fopen(path, "w");
-    fputs(content, f);
-    fclose(f);
+    FILE *file = fopen(path, "w");
+    ck_assert_ptr_ne(file, NULL);
+    ck_assert_int_ge(fputs(content, file), 0);
+    ck_assert_int_eq(fclose(file), 0);
 }
 
 START_TEST(test_ftwin_archive_duplicates)
@@ -54,9 +98,10 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
-    create_test_file("d.txt", "identical content");	// Standalone duplicate
+    create_test_file("d.txt", "identical content"); // Standalone duplicate
 
-    system("tar -cf test_archive.tar a.txt b.txt c.txt");
+    const char *files_to_archive[] = {"a.txt", "b.txt", "c.txt"};
+    create_test_archive("test_archive.tar", files_to_archive, 3);
 
     // 2. Setup: Capture ftwin's output
     int stdout_pipe[2];
@@ -98,11 +143,11 @@ START_TEST(test_ftwin_archive_duplicates)
 
 
     // 6. Teardown
-    remove("a.txt");
-    remove("b.txt");
-    remove("c.txt");
-    remove("d.txt");
-    remove("test_archive.tar");
+    (void)remove("a.txt");
+    (void)remove("b.txt");
+    (void)remove("c.txt");
+    (void)remove("d.txt");
+    (void)remove("test_archive.tar");
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -110,12 +155,12 @@ END_TEST
 
 Suite *make_ft_archive_suite(void)
 {
-    Suite *s = suite_create("Archive");
+    Suite *suite = suite_create("Archive");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_ftwin_archive_duplicates);
 
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

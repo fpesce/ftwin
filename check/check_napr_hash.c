@@ -23,13 +23,18 @@
 #include "debug.h"
 #include "napr_hash.h"
 
-extern apr_pool_t *main_pool;
+static apr_pool_t *main_pool = NULL;
 static apr_pool_t *pool;
 
 static void setup(void)
 {
     apr_status_t rs;
 
+    if (main_pool == NULL) {
+        apr_initialize();
+        atexit(apr_terminate);
+        apr_pool_create(&main_pool, NULL);
+    }
     rs = apr_pool_create(&pool, main_pool);
     if (rs != APR_SUCCESS) {
 	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
