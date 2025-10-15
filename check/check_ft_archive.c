@@ -37,39 +37,48 @@
 #define DEFAULT_FILE_MODE 0644
 #define ARCHIVE_BUFFER_SIZE 8192
 
+static void add_file_to_archive(struct archive *archive, const char *filename)
+{
+    struct archive_entry *entry = NULL;
+    FILE *file = NULL;
+    char buff[ARCHIVE_BUFFER_SIZE] = { 0 };
+    size_t len = 0;
+
+    entry = archive_entry_new();
+    ck_assert_ptr_ne(entry, NULL);
+
+    archive_entry_set_pathname(entry, filename);
+    archive_entry_set_mode(entry, S_IFREG | DEFAULT_FILE_MODE);
+
+    file = fopen(filename, "rb");
+    ck_assert_ptr_ne(file, NULL);
+    ck_assert_int_eq(fseek(file, 0, SEEK_END), 0);
+    long size = ftell(file);
+    ck_assert_int_eq(fseek(file, 0, SEEK_SET), 0);
+
+    archive_entry_set_size(entry, size);
+    archive_write_header(archive, entry);
+
+    len = fread(buff, 1, sizeof(buff), file);
+    while (len > 0) {
+	archive_write_data(archive, buff, len);
+	len = fread(buff, 1, sizeof(buff), file);
+    }
+
+    ck_assert_int_eq(fclose(file), 0);
+    archive_entry_free(entry);
+}
+
 static void create_test_archive(const char *archive_name, const char **filenames, int num_files)
 {
     struct archive *archive = archive_write_new();
     ck_assert_ptr_ne(archive, NULL);
-    archive_write_set_format_pax_restricted(archive);	// Use a common, safe format
+
+    archive_write_set_format_pax_restricted(archive);
     archive_write_open_filename(archive, archive_name);
 
     for (int i = 0; i < num_files; ++i) {
-	const char *filename = filenames[i];
-	struct archive_entry *entry = archive_entry_new();
-	ck_assert_ptr_ne(entry, NULL);
-
-	archive_entry_set_pathname(entry, filename);
-	archive_entry_set_mode(entry, S_IFREG | DEFAULT_FILE_MODE);
-
-	// Get file size
-	FILE *file = fopen(filename, "rb");
-	ck_assert_ptr_ne(file, NULL);
-	ck_assert_int_eq(fseek(file, 0, SEEK_END), 0);
-	long size = ftell(file);
-	ck_assert_int_eq(fseek(file, 0, SEEK_SET), 0);
-
-	archive_entry_set_size(entry, size);
-	archive_write_header(archive, entry);
-
-	char buff[ARCHIVE_BUFFER_SIZE];
-	size_t len = fread(buff, 1, sizeof(buff), file);
-	while (len > 0) {
-	    archive_write_data(archive, buff, len);
-	    len = fread(buff, 1, sizeof(buff), file);
-	}
-	ck_assert_int_eq(fclose(file), 0);
-	archive_entry_free(entry);
+	add_file_to_archive(archive, filenames[i]);
     }
 
     archive_write_close(archive);
