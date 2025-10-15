@@ -34,7 +34,7 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 
 static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {
-    char errbuf[128] = {0};
+    char errbuf[128] = { 0 };
     apr_file_t *fd = NULL;
     apr_mmap_t *mm = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -69,8 +69,8 @@ static apr_status_t checksum_small_file(const char *filename, apr_off_t size, ft
 
 static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {
-    unsigned char data_chunk[HUGE_LEN] = {0};
-    char errbuf[128] = {0};
+    unsigned char data_chunk[HUGE_LEN] = { 0 };
+    char errbuf[128] = { 0 };
     apr_size_t rbytes = 0;
     apr_file_t *fd = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -130,7 +130,7 @@ extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_
 
 static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
 {
-    char errbuf[128] = {0};
+    char errbuf[128] = { 0 };
     apr_file_t *fd1 = NULL, *fd2 = NULL;
     apr_mmap_t *mm1 = NULL, *mm2 = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -179,7 +179,7 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
     status = apr_file_close(fd2);
     if (APR_SUCCESS != status) {
 	DEBUG_ERR("error calling apr_file_close: %s", apr_strerror(status, errbuf, 128));
-	(void)apr_mmap_delete(mm1);
+	(void) apr_mmap_delete(mm1);
 	(void) apr_file_close(fd1);
 	return status;
     }
@@ -201,8 +201,8 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
 
 static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *i)
 {
-    unsigned char data_chunk1[HUGE_LEN] = {0}, data_chunk2[HUGE_LEN] = {0};
-    char errbuf[128] = {0};
+    unsigned char data_chunk1[HUGE_LEN] = { 0 }, data_chunk2[HUGE_LEN] = { 0 };
+    char errbuf[128] = { 0 };
     apr_size_t rbytes1 = 0, rbytes2 = 0;
     apr_file_t *fd1 = NULL, *fd2 = NULL;
     apr_status_t status1 = APR_SUCCESS, status2 = APR_SUCCESS;

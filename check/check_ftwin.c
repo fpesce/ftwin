@@ -114,18 +114,18 @@ START_TEST(test_ftwin_size_options)
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
 
-    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void)dup2(stderr_pipe[1], STDERR_FILENO);
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
 
     copy_file("check/tests/5K_file", "check/tests/5K_file_copy");
 
-    (void)ftwin_main(argc, argv);
+    (void) ftwin_main(argc, argv);
 
-    (void)close(stdout_pipe[1]);
-    (void)close(stderr_pipe[1]);
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
 
-    (void)dup2(original_stdout, STDOUT_FILENO);
-    (void)dup2(original_stderr, STDERR_FILENO);
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
 
@@ -158,16 +158,16 @@ START_TEST(test_ftwin_no_recurse)
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
 
-    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void)dup2(stderr_pipe[1], STDERR_FILENO);
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
 
-    (void)ftwin_main(argc, argv);
+    (void) ftwin_main(argc, argv);
 
-    (void)close(stdout_pipe[1]);
-    (void)close(stderr_pipe[1]);
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
 
-    (void)dup2(original_stdout, STDOUT_FILENO);
-    (void)dup2(original_stderr, STDERR_FILENO);
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
 
@@ -195,16 +195,16 @@ START_TEST(test_ftwin_hidden_files)
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
 
-    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void)dup2(stderr_pipe[1], STDERR_FILENO);
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
 
-    (void)ftwin_main(argc, argv);
+    (void) ftwin_main(argc, argv);
 
-    (void)close(stdout_pipe[1]);
-    (void)close(stderr_pipe[1]);
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
 
-    (void)dup2(original_stdout, STDOUT_FILENO);
-    (void)dup2(original_stderr, STDERR_FILENO);
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
 
@@ -232,16 +232,16 @@ START_TEST(test_ftwin_show_hidden_files)
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
 
-    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void)dup2(stderr_pipe[1], STDERR_FILENO);
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
 
-    (void)ftwin_main(argc, argv);
+    (void) ftwin_main(argc, argv);
 
-    (void)close(stdout_pipe[1]);
-    (void)close(stderr_pipe[1]);
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
 
-    (void)dup2(original_stdout, STDOUT_FILENO);
-    (void)dup2(original_stderr, STDERR_FILENO);
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
 
@@ -313,8 +313,8 @@ START_TEST(test_ftwin_json_output_validation)
     ck_assert_int_eq(pipe(stderr_pipe), 0);
     original_stdout = dup(STDOUT_FILENO);
     original_stderr = dup(STDERR_FILENO);
-    (void)dup2(stdout_pipe[1], STDOUT_FILENO);
-    (void)dup2(stderr_pipe[1], STDERR_FILENO);
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
 
     copy_file("check/tests/5K_file", "check/tests/5K_file_copy");
 
@@ -328,12 +328,12 @@ START_TEST(test_ftwin_json_output_validation)
     ck_assert_int_lt(result, sizeof(path2));
 
     const char *argv[] = { "ftwin", "-J", "check/tests/5K_file", "check/tests/5K_file_copy", "check/tests/1K_file" };
-    (void)ftwin_main(sizeof(argv) / sizeof(argv[0]), argv);
+    (void) ftwin_main(sizeof(argv) / sizeof(argv[0]), argv);
 
-    (void)close(stdout_pipe[1]);
-    (void)close(stderr_pipe[1]);
-    (void)dup2(original_stdout, STDOUT_FILENO);
-    (void)dup2(original_stderr, STDERR_FILENO);
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
 
     output = capture_output(stdout_pipe[0]);
     root = json_loads(output, 0, &error);
@@ -429,8 +429,8 @@ int main(int argc, char **argv)
 
     status = apr_initialize();
     if (APR_SUCCESS != status) {
-	(void)apr_strerror(status, error_buffer, sizeof(error_buffer));
-	(void)fprintf(stderr, "APR Initialization error: %s\n", error_buffer);
+	(void) apr_strerror(status, error_buffer, sizeof(error_buffer));
+	(void) fprintf(stderr, "APR Initialization error: %s\n", error_buffer);
 	return EXIT_FAILURE;
     }
 
@@ -438,8 +438,8 @@ int main(int argc, char **argv)
 
     status = apr_pool_create(&main_pool, NULL);
     if (status != APR_SUCCESS) {
-	(void)apr_strerror(status, error_buffer, sizeof(error_buffer));
-	(void)fprintf(stderr, "APR Pool Creation error: %s\n", error_buffer);
+	(void) apr_strerror(status, error_buffer, sizeof(error_buffer));
+	(void) fprintf(stderr, "APR Pool Creation error: %s\n", error_buffer);
 	return EXIT_FAILURE;
 
     }
