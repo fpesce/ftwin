@@ -67,7 +67,7 @@ static void run_hash_benchmark(apr_pool_t *pool)
 {
     unsigned char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
-	fprintf(stderr, "Failed to allocate buffer for hash benchmark.\n");
+	(void) fprintf(stderr, "Failed to allocate buffer for hash benchmark.\n");
 	return;
     }
 
@@ -106,7 +106,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 	apr_file_mktemp(&file, template, APR_CREATE | APR_READ | APR_WRITE | APR_TRUNCATE | APR_BINARY, pool);
 
     if (status != APR_SUCCESS) {
-	fprintf(stderr, "Failed to create temp file for checksum benchmark.\n");
+	(void) fprintf(stderr, "Failed to create temp file for checksum benchmark.\n");
 	return;
     }
 
@@ -114,7 +114,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 
     char *buffer = malloc(BUFFER_SIZE);
     if (!buffer) {
-	fprintf(stderr, "Failed to allocate buffer for file writing.\n");
+	(void) fprintf(stderr, "Failed to allocate buffer for file writing.\n");
 	(void) apr_file_close(file);
 	return;
     }

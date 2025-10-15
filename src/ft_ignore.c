@@ -26,7 +26,13 @@
 #include <string.h>
 #include <ctype.h>
 
-#define MAX_PATTERN_LEN 4096
+/**
+ * @brief The maximum length of a pattern string.
+ *
+ * This constant defines the maximum buffer size for reading and processing
+ * a single pattern from a .gitignore file.
+ */
+static const size_t MAX_PATTERN_LEN = 4096;
 
 /**
  * Convert Git glob pattern to PCRE regex
@@ -45,8 +51,9 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
     if (*p == '!') {
 	*flags |= FT_IGNORE_NEGATE;
 	p++;
-	while (isspace(*p))
+    while (isspace(*p)) {
 	    p++;
+    }
     }
 
     /* Check if pattern starts with / */
@@ -57,8 +64,9 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 
     /* Check if pattern ends with / (directory only) */
     const char *end = p + strlen(p) - 1;
-    while (end > p && isspace(*end))
+    while (end > p && isspace(*end)) {
 	end--;
+    }
     if (*end == '/') {
 	*flags |= FT_IGNORE_DIR_ONLY;
     }

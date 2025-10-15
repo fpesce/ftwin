@@ -80,7 +80,7 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_h
 {
     unsigned char data_chunk[HUGE_LEN];
     char errbuf[CHAR_MAX_VAL];
-    apr_size_t rbytes;
+    apr_size_t rbytes = 0;
     apr_file_t *file_descriptor = NULL;
     memset(data_chunk, 0, sizeof(data_chunk));
     memset(errbuf, 0, sizeof(errbuf));
@@ -133,8 +133,9 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_h
 extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out,
 				  apr_pool_t *gc_pool)
 {
-    if (size < excess_size)
+    if (size < excess_size) {
 	return checksum_small_file(filename, size, hash_out, gc_pool);
+    }
 
     return checksum_big_file(filename, size, hash_out, gc_pool);
 }
@@ -142,8 +143,10 @@ extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_
 static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *result_out)
 {
     char errbuf[CHAR_MAX_VAL];
-    apr_file_t *fd1 = NULL, *fd2 = NULL;
-    apr_mmap_t *mm1 = NULL, *mm2 = NULL;
+    apr_file_t *fd1 = NULL;
+    apr_file_t *fd2 = NULL;
+    apr_mmap_t *mm1 = NULL;
+    apr_mmap_t *mm2 = NULL;
     memset(errbuf, 0, sizeof(errbuf));
     apr_status_t status = APR_SUCCESS;
 
@@ -213,14 +216,18 @@ static apr_status_t small_filecmp(apr_pool_t *pool, const char *fname1, const ch
 
 static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *result_out)
 {
-    unsigned char data_chunk1[HUGE_LEN], data_chunk2[HUGE_LEN];
+    unsigned char data_chunk1[HUGE_LEN];
+    unsigned char data_chunk2[HUGE_LEN];
     char errbuf[CHAR_MAX_VAL];
-    apr_size_t rbytes1, rbytes2;
-    apr_file_t *fd1 = NULL, *fd2 = NULL;
+    apr_size_t rbytes1 = 0;
+    apr_size_t rbytes2 = 0;
+    apr_file_t *fd1 = NULL;
+    apr_file_t *fd2 = NULL;
     memset(data_chunk1, 0, sizeof(data_chunk1));
     memset(data_chunk2, 0, sizeof(data_chunk2));
     memset(errbuf, 0, sizeof(errbuf));
-    apr_status_t status1 = APR_SUCCESS, status2 = APR_SUCCESS;
+    apr_status_t status1 = APR_SUCCESS;
+    apr_status_t status2 = APR_SUCCESS;
 
     if (0 == size) {
 	*result_out = 0;
@@ -275,8 +282,9 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
 extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
 			    int *result_out)
 {
-    if (size < excess_size)
+    if (size < excess_size) {
 	return small_filecmp(pool, fname1, fname2, size, result_out);
+    }
 
     return big_filecmp(pool, fname1, fname2, size, result_out);
 }
