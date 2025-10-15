@@ -145,9 +145,9 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath)
-				apr_file_remove(fpathi, conf->pool);
+				(void) apr_file_remove(fpathi, conf->pool);
 			    if (NULL != fsize->chksum_array[j].file->subpath)
-				apr_file_remove(fpathj, conf->pool);
+				(void) apr_file_remove(fpathj, conf->pool);
 			}
 			if (APR_SUCCESS != status) {
 			    if (is_option_set(conf->mask, OPTION_VERBO))

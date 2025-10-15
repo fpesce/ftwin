@@ -128,13 +128,13 @@ char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *pool)
 		result_value = copy_data(archive_handle, ext);
 		if (result_value != ARCHIVE_OK) {
 		    DEBUG_ERR("error while copying data from archive (%s)", file->path);
-		    apr_file_remove(tmpfile, pool);
+		    (void) apr_file_remove(tmpfile, pool);
 		    return NULL;
 		}
 	    }
 	    else {
 		DEBUG_ERR("error in archive (%s): %s", file->path, archive_error_string(archive_handle));
-		apr_file_remove(tmpfile, pool);
+		(void) apr_file_remove(tmpfile, pool);
 		return NULL;
 	    }
 

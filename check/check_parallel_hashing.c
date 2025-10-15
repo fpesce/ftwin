@@ -62,9 +62,9 @@ static void create_test_file(const char *path, size_t size)
     FILE *file = fopen(path, "wb");
     if (file) {
 	for (size_t i = 0; i < size; i++) {
-	    fputc((i % 256), file);
+	    fputc((int) (i % 256), file);
 	}
-	fclose(file);
+	(void) fclose(file);
     }
 }
 
@@ -82,10 +82,10 @@ START_TEST(test_parallel_correctness)
     /* Create test files with duplicates */
     mkdir("check/tests/parallel_test", MKDIR_MODE);
     create_test_file("check/tests/parallel_test/file1.dat", TEST_FILE_SIZE);
-    system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file2.dat");
-    system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file3.dat");
+    (void) system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file2.dat");
+    (void) system("cp check/tests/parallel_test/file1.dat check/tests/parallel_test/file3.dat");
     create_test_file("check/tests/parallel_test/file4.dat", TEST_FILE_SIZE);
-    system("cp check/tests/parallel_test/file4.dat check/tests/parallel_test/file5.dat");
+    (void) system("cp check/tests/parallel_test/file4.dat check/tests/parallel_test/file5.dat");
 
     /* Test with single thread */
     pipe(stdout_pipe1);
@@ -142,7 +142,7 @@ START_TEST(test_parallel_correctness)
 
     /* Cleanup */
     free(output1);
-    system("rm -rf check/tests/parallel_test");
+    (void) system("rm -rf check/tests/parallel_test");
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -159,8 +159,8 @@ START_TEST(test_thread_counts)
 
     mkdir("check/tests/thread_test", MKDIR_MODE);
     create_test_file("check/tests/thread_test/a.dat", 5120);
-    system("cp check/tests/thread_test/a.dat check/tests/thread_test/b.dat");
-    system("cp check/tests/thread_test/a.dat check/tests/thread_test/c.dat");
+    (void) system("cp check/tests/thread_test/a.dat check/tests/thread_test/b.dat");
+    (void) system("cp check/tests/thread_test/a.dat check/tests/thread_test/c.dat");
 
     /* Test with various thread counts: 1, 2, 4, 8 */
     const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
@@ -193,7 +193,7 @@ START_TEST(test_thread_counts)
 	ck_assert_ptr_ne(strstr(output, "c.dat"), NULL);
     }
 
-    system("rm -rf check/tests/thread_test");
+    (void) system("rm -rf check/tests/thread_test");
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -212,13 +212,13 @@ START_TEST(test_various_file_sizes)
 
     /* Create files of different sizes with duplicates */
     create_test_file("check/tests/size_test/tiny1.dat", 10);
-    system("cp check/tests/size_test/tiny1.dat check/tests/size_test/tiny2.dat");
+    (void) system("cp check/tests/size_test/tiny1.dat check/tests/size_test/tiny2.dat");
 
     create_test_file("check/tests/size_test/small1.dat", 1024);
-    system("cp check/tests/size_test/small1.dat check/tests/size_test/small2.dat");
+    (void) system("cp check/tests/size_test/small1.dat check/tests/size_test/small2.dat");
 
     create_test_file("check/tests/size_test/medium1.dat", 50000);
-    system("cp check/tests/size_test/medium1.dat check/tests/size_test/medium2.dat");
+    (void) system("cp check/tests/size_test/medium1.dat check/tests/size_test/medium2.dat");
 
     pipe(stdout_pipe);
     pipe(stderr_pipe);
@@ -250,7 +250,7 @@ START_TEST(test_various_file_sizes)
     ck_assert_ptr_ne(strstr(output, "medium1.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "medium2.dat"), NULL);
 
-    system("rm -rf check/tests/size_test");
+    (void) system("rm -rf check/tests/size_test");
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -278,7 +278,7 @@ START_TEST(test_many_files)
 
 	for (int j = 1; j <= 2; j++) {
 	    snprintf(command, sizeof(command), "cp %s check/tests/many_test/dup%d_%d.dat", base_path, i, j);
-	    system(command);
+	    (void) system(command);
 	}
     }
 
@@ -310,7 +310,7 @@ START_TEST(test_many_files)
     ck_assert_ptr_ne(strstr(output, "base19.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup19_1.dat"), NULL);
 
-    system("rm -rf check/tests/many_test");
+    (void) system("rm -rf check/tests/many_test");
 }
 /* *INDENT-OFF* */
 END_TEST

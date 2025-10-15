@@ -162,7 +162,7 @@ static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file_i, ft_
 	    *fpathj = ft_archive_untar_file(file_j, conf->pool);
 	    if (!*fpathj) {
 		if (file_i->subpath) {
-		    apr_file_remove(*fpathi, conf->pool);
+		    (void) apr_file_remove(*fpathi, conf->pool);
 		}
 		return APR_EGENERAL;
 	    }
@@ -185,10 +185,10 @@ static void cleanup_comparison_paths(ft_conf_t *conf, ft_file_t *file_i, ft_file
 {
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
 	if (file_i->subpath) {
-	    apr_file_remove(fpathi, conf->pool);
+	    (void) apr_file_remove(fpathi, conf->pool);
 	}
 	if (file_j->subpath) {
-	    apr_file_remove(fpathj, conf->pool);
+	    (void) apr_file_remove(fpathj, conf->pool);
 	}
     }
 }

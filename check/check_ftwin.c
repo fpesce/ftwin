@@ -81,8 +81,8 @@ static void copy_file(const char *src_path, const char *dest_path)
     } while (status_code == APR_SUCCESS);
 
     /* 3. Close files */
-    apr_file_close(src_file);
-    apr_file_close(dest_file);
+    (void) apr_file_close(src_file);
+    (void) apr_file_close(dest_file);
 }
 
 static char *capture_output(int file_descriptor)
@@ -134,7 +134,7 @@ START_TEST(test_ftwin_size_options)
     ck_assert_ptr_eq(strstr(output, "check/tests/1K_file"), NULL);
     ck_assert_ptr_eq(strstr(output, "check/tests/10K_file"), NULL);
 
-    remove("check/tests/5K_file_copy");
+    (void) remove("check/tests/5K_file_copy");
 }
 
 /* *INDENT-OFF* */

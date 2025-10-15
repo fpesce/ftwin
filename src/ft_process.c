@@ -49,7 +49,7 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 			   &fsize->chksum_array[task->index].hash_value, subpool);
 
     if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
-	apr_file_remove(filepath, subpool);
+	(void) apr_file_remove(filepath, subpool);
     }
 
     if (APR_SUCCESS == status) {
