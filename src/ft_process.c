@@ -78,7 +78,8 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
     }
     else {
 	if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-	    (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	    (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path,
+			   apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	}
     }
 
