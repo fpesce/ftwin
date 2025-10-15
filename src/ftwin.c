@@ -118,7 +118,6 @@ int ftwin_main(int argc, const char **argv)
     }
 
     if (0 < napr_heap_size(conf->heap)) {
-#if HAVE_PUZZLE
 	if (is_option_set(conf->mask, OPTION_PUZZL)) {
 #if HAVE_JANSSON
 	    if (is_option_set(conf->mask, OPTION_JSON)) {
@@ -135,7 +134,6 @@ int ftwin_main(int argc, const char **argv)
 	    }
 	}
 	else {
-#endif
 	    /* Step 2: Process the sizes set */
 	    if (APR_SUCCESS != (status = ft_process_files(conf))) {
 		DEBUG_ERR("error calling ft_process_files: %s", apr_strerror(status, errbuf, 128));
@@ -161,9 +159,7 @@ int ftwin_main(int argc, const char **argv)
 #if HAVE_JANSSON
 	    }
 #endif
-#if HAVE_PUZZLE
 	}
-#endif
     }
     else {
 	fprintf(stderr, "Please submit at least two files...\n");

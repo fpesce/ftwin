@@ -30,7 +30,6 @@
 #include "config.h"
 #include "debug.h"
 
-#if HAVE_ARCHIVE
 #include <archive.h>
 #include <archive_entry.h>
 
@@ -148,14 +147,3 @@ char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *pool)
 
     return tmpfile;
 }
-
-#else /* !HAVE_ARCHIVE */
-
-char *ft_archive_untar_file(ft_file_t *file, apr_pool_t *pool)
-{
-    (void) file;
-    (void) pool;
-    return NULL;
-}
-
-#endif /* HAVE_ARCHIVE */

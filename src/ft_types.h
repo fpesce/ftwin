@@ -16,9 +16,7 @@
 #include "ft_ignore.h"
 #include "napr_heap.h"
 
-#if HAVE_PUZZLE
 #include <puzzle.h>
-#endif
 
 #if HAVE_JANSSON
 #include <jansson.h>
@@ -43,12 +41,8 @@
 #define OPTION_REGEX 0x0020
 #define OPTION_SIZED 0x0040
 #define OPTION_SHOW_HIDDEN 0x0080
-#if HAVE_PUZZLE
 #define OPTION_PUZZL 0x0100
-#endif
-#if HAVE_ARCHIVE
 #define OPTION_UNTAR 0x0200
-#endif
 #define OPTION_DRY_RUN 0x0400
 #define OPTION_JSON 0x0800
 
@@ -65,13 +59,9 @@ typedef struct ft_file_t
     apr_off_t size;
     apr_time_t mtime;
     char *path;
-#if HAVE_ARCHIVE
     char *subpath;
-#endif
-#if HAVE_PUZZLE
     PuzzleCvec cvec;
     int cvec_ok:1;
-#endif
     int prioritized:1;
 } ft_file_t;
 

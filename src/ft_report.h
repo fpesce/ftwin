@@ -13,6 +13,17 @@
 int ft_chksum_cmp(const void *chksum1, const void *chksum2);
 
 /**
+ * @brief A struct to hold the ANSI color codes for reporting.
+ * This simplifies passing color-related parameters between functions.
+ */
+typedef struct reporting_colors_t
+{
+    const char *size;
+    const char *path;
+    const char *reset;
+} reporting_colors_t;
+
+/**
  * @brief Reports duplicate files in text format to stdout.
  * @param conf The configuration structure containing file information.
  * @return APR_SUCCESS on success, or an error code.

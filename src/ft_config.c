@@ -227,16 +227,12 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     conf->global_ignores = ft_ignore_context_create(pool, NULL, "/");	/* Initialize global ignores */
     ft_load_defaults(conf);	/* Load default ignore patterns */
     conf->mask = OPTION_RECSD;
-#if HAVE_PUZZLE
     conf->threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
-#endif
 
     return conf;
 }
 
-#if HAVE_PUZZLE
 static const double DEFAULT_THRESHOLD = 0.5;
-#endif
 
 static const apr_getopt_option_t opt_option[] = {
     {"hidden", 'a', FALSE, "do not ignore hidden files."},
@@ -246,11 +242,9 @@ static const apr_getopt_option_t opt_option[] = {
     {"regex-ignore-file", 'e', TRUE, "filenames that match this are ignored."},
     {"follow-symlink", 'f', FALSE, "follow symbolic links."},
     {"help", 'h', FALSE, "\t\tdisplay usage."},
-#if HAVE_PUZZLE
     {"image-cmp", 'I', FALSE, "\twill run ftwin in image cmp mode (using libpuzzle)."},
     {"image-threshold", 'T', TRUE,
      "will change the image similarity threshold\n\t\t\t\t (default is [1], accepted [2/3/4/5])."},
-#endif
     {"ignore-list", 'i', TRUE, "\tcomma-separated list of file names to ignore."},
 #if HAVE_JANSSON
     {"json", 'J', FALSE, "\t\toutput results in machine-readable JSON format."},
@@ -431,17 +425,16 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
     }
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
-				  const char *name, const apr_getopt_option_t *opt_option)
+/**
+ * @brief Handles image-specific command-line options ('I' and 'T').
+ *
+ * This function centralizes the logic for image comparison options,
+ * reducing the complexity of the main option handling switch.
+ */
+static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name,
+				 const apr_getopt_option_t *opt_option)
 {
     switch (option) {
-    case 'h':
-	usage(name, opt_option);
-	exit(0);
-    case 'V':
-	version();
-	exit(0);
-#if HAVE_PUZZLE
     case 'I':
 	set_option(&conf->mask, OPTION_ICASE, 1);
 	set_option(&conf->mask, OPTION_PUZZL, 1);
@@ -468,7 +461,26 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 	    print_usage_and_exit(name, opt_option, "invalid threshold:", optarg);
 	}
 	break;
-#endif
+    default:
+	/* Should not be reached */
+	break;
+    }
+}
+
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, char **wregex, char **arregex,
+				  const char *name, const apr_getopt_option_t *opt_option)
+{
+    switch (option) {
+    case 'h':
+	usage(name, opt_option);
+	exit(0);
+    case 'V':
+	version();
+	exit(0);
+    case 'I':
+    case 'T':
+	handle_image_options(option, optarg, conf, wregex, name, opt_option);
+	break;
 #if HAVE_JANSSON
     case 'J':
 	set_option(&conf->mask, OPTION_JSON, 1);

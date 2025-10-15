@@ -37,6 +37,7 @@
 -T napr_list_t
 -T napr_threadpool_t
 -T pthread_mutex_t
+-T reporting_colors_t
 -T size_t
 -T threadpool_process_data_callback_fn_t
 -T time_t
