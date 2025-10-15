@@ -51,30 +51,31 @@ static void copy_file(const char *src_path, const char *dest_path)
 {
     apr_file_t *src_file = NULL;
     apr_file_t *dest_file = NULL;
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t status_code = APR_SUCCESS;
     char buffer[4096] = { 0 };
 
     /* 1. Open files */
-    rv = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status_code = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
 
-    rv = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status_code =
+	apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
 
     /* 2. Loop and copy data */
     do {
 	apr_size_t bytes_read = sizeof(buffer);
-	rv = apr_file_read(src_file, buffer, &bytes_read);
-	if (rv != APR_SUCCESS && rv != APR_EOF) {
+	status_code = apr_file_read(src_file, buffer, &bytes_read);
+	if (status_code != APR_SUCCESS && status_code != APR_EOF) {
 	    ck_abort_msg("Failed to read from source file");
 	}
 	if (bytes_read > 0) {
 	    apr_size_t bytes_written = bytes_read;
-	    rv = apr_file_write(dest_file, buffer, &bytes_written);
-	    ck_assert_int_eq(rv, APR_SUCCESS);
+	    status_code = apr_file_write(dest_file, buffer, &bytes_written);
+	    ck_assert_int_eq(status_code, APR_SUCCESS);
 	    ck_assert_int_eq(bytes_read, bytes_written);
 	}
-    } while (rv == APR_SUCCESS);
+    } while (status_code == APR_SUCCESS);
 
     /* 3. Close files */
     apr_file_close(src_file);
@@ -98,8 +99,10 @@ START_TEST(test_ftwin_size_options)
     ck_assert_int_eq(pipe(stdout_pipe), 0);
     ck_assert_int_eq(pipe(stderr_pipe), 0);
 
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    int original_stdout = 0;
+    int original_stderr = 0;
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
@@ -140,8 +143,10 @@ START_TEST(test_ftwin_no_recurse)
     ck_assert_int_eq(pipe(stdout_pipe), 0);
     ck_assert_int_eq(pipe(stderr_pipe), 0);
 
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    int original_stdout = 0;
+    int original_stderr = 0;
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
@@ -172,8 +177,10 @@ START_TEST(test_ftwin_hidden_files)
     ck_assert_int_eq(pipe(stdout_pipe), 0);
     ck_assert_int_eq(pipe(stderr_pipe), 0);
 
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    int original_stdout = 0;
+    int original_stderr = 0;
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
@@ -204,8 +211,10 @@ START_TEST(test_ftwin_show_hidden_files)
     ck_assert_int_eq(pipe(stdout_pipe), 0);
     ck_assert_int_eq(pipe(stderr_pipe), 0);
 
-    int original_stdout = dup(STDOUT_FILENO);
-    int original_stderr = dup(STDERR_FILENO);
+    int original_stdout = 0;
+    int original_stderr = 0;
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
 
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
@@ -273,8 +282,8 @@ START_TEST(test_ftwin_json_output_validation)
 {
     int stdout_pipe[2] = { 0 };
     int stderr_pipe[2] = { 0 };
-    int original_stdout;
-    int original_stderr;
+    int original_stdout = 0;
+    int original_stderr = 0;
     char cwd[PATH_BUFFER_SIZE] = { 0 };
     char path1[ABS_PATH_BUFFER_SIZE] = { 0 };
     char path2[ABS_PATH_BUFFER_SIZE] = { 0 };
@@ -325,7 +334,7 @@ END_TEST
 #endif
 Suite *make_ftwin_suite(void)
 {
-    Suite *s = suite_create("Ftwin");
+    Suite *suite = suite_create("Ftwin");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_ftwin_size_options);
@@ -336,9 +345,9 @@ Suite *make_ftwin_suite(void)
     tcase_add_test(tc_core, test_ftwin_json_output_validation);
 #endif
 
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }
 
 Suite *make_napr_heap_suite(void);
@@ -389,8 +398,8 @@ int main(int argc, char **argv)
 	char *endptr = NULL;
 	long val = strtol(argv[1], &endptr, 10);
 
-	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr) || *endptr != '\0') {
-	    num = ALL_TESTS;
+	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr) || (*endptr != '\0')) {
+	    num = 0;
 	}
 	else {
 	    num = (enum test_suite) val;
@@ -411,6 +420,7 @@ int main(int argc, char **argv)
 	apr_strerror(status, buf, sizeof(buf));
 	fprintf(stderr, "APR Pool Creation error: %s\n", buf);
 	return EXIT_FAILURE;
+
     }
 
     suite_runner = srunner_create(NULL);
