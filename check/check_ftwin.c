@@ -54,12 +54,14 @@ static void copy_file(const char *src_path, const char *dest_path)
     apr_status_t rv = APR_SUCCESS;
     char buffer[4096] = { 0 };
 
+    /* 1. Open files */
     rv = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
 
     rv = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(rv, APR_SUCCESS);
 
+    /* 2. Loop and copy data */
     do {
 	apr_size_t bytes_read = sizeof(buffer);
 	rv = apr_file_read(src_file, buffer, &bytes_read);
@@ -74,6 +76,7 @@ static void copy_file(const char *src_path, const char *dest_path)
 	}
     } while (rv == APR_SUCCESS);
 
+    /* 3. Close files */
     apr_file_close(src_file);
     apr_file_close(dest_file);
 }
@@ -347,82 +350,107 @@ Suite *make_parallel_hashing_suite(void);
 Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
 
+enum test_suite
+{
+    ALL_TESTS = 0,
+    NAPR_HEAP_SUITE,
+    NAPR_HASH_SUITE,
+    FT_FILE_SUITE,
+    HUMAN_SIZE_SUITE,
+    FTWIN_SUITE,
+    FT_SYSTEM_SUITE,
+    PARALLEL_HASHING_SUITE,
+    FT_IGNORE_SUITE,
+    FT_ARCHIVE_SUITE
+};
+
+static void add_all_suites(SRunner * suite_runner)
+{
+    srunner_add_suite(suite_runner, make_napr_heap_suite());
+    srunner_add_suite(suite_runner, make_napr_hash_suite());
+    srunner_add_suite(suite_runner, make_ft_file_suite());
+    srunner_add_suite(suite_runner, make_human_size_suite());
+    srunner_add_suite(suite_runner, make_ftwin_suite());
+    srunner_add_suite(suite_runner, make_ft_system_suite());
+    srunner_add_suite(suite_runner, make_parallel_hashing_suite());
+    srunner_add_suite(suite_runner, make_ft_ignore_suite());
+    srunner_add_suite(suite_runner, make_ft_archive_suite());
+}
+
 int main(int argc, char **argv)
 {
     char buf[ERROR_BUFFER_SIZE] = { 0 };
     int num_failed = 0;
     apr_status_t status = APR_SUCCESS;
     SRunner *suite_runner = NULL;
-    int num = 0;
-    Suite *napr_heap_suite = NULL;
-    Suite *napr_hash_suite = NULL;
-    Suite *ft_file_suite = NULL;
-    Suite *human_size_suite = NULL;
-    Suite *ftwin_suite = NULL;
-    Suite *ft_system_suite = NULL;
-    Suite *parallel_hashing_suite = NULL;
-    Suite *ft_ignore_suite = NULL;
-    Suite *ft_archive_suite = NULL;
+    enum test_suite num = ALL_TESTS;
 
     if (argc > 1) {
 	char *endptr = NULL;
 	long val = strtol(argv[1], &endptr, 10);
 
-	/* Check for errors: overflow, underflow, no digits found */
-	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr)) {
-	    num = 0;		/* Default to running all tests on error */
-	}
-	else if (*endptr != '\0') {
-	    /* Non-numeric characters found, treat as invalid input */
-	    num = 0;
+	if ((val == LONG_MAX || val == LONG_MIN) || (val == 0 && argv[1] == endptr) || *endptr != '\0') {
+	    num = ALL_TESTS;
 	}
 	else {
-	    num = (int) val;
+	    num = (enum test_suite) val;
 	}
     }
 
     status = apr_initialize();
     if (APR_SUCCESS != status) {
-	apr_strerror(status, buf, 200);
-	printf("error: %s\n", buf);
+	apr_strerror(status, buf, sizeof(buf));
+	fprintf(stderr, "APR Initialization error: %s\n", buf);
+	return EXIT_FAILURE;
     }
 
     (void) atexit(apr_terminate);
 
     status = apr_pool_create(&main_pool, NULL);
     if (status != APR_SUCCESS) {
-	apr_strerror(status, buf, 200);
-	printf("error: %s\n", buf);
+	apr_strerror(status, buf, sizeof(buf));
+	fprintf(stderr, "APR Pool Creation error: %s\n", buf);
+	return EXIT_FAILURE;
     }
 
     suite_runner = srunner_create(NULL);
-
-    if (!num || num == 1) {
-	srunner_add_suite(suite_runner, make_napr_heap_suite());
+    if (num == ALL_TESTS) {
+	add_all_suites(suite_runner);
     }
-    if (!num || num == 2) {
-	srunner_add_suite(suite_runner, make_napr_hash_suite());
-    }
-    if (!num || num == 3) {
-	srunner_add_suite(suite_runner, make_ft_file_suite());
-    }
-    if (!num || num == 5) {
-	srunner_add_suite(suite_runner, make_human_size_suite());
-    }
-    if (!num || num == 6) {
-	srunner_add_suite(suite_runner, make_ftwin_suite());
-    }
-    if (!num || num == 7) {
-	srunner_add_suite(suite_runner, make_ft_system_suite());
-    }
-    if (!num || num == 8) {
-	srunner_add_suite(suite_runner, make_parallel_hashing_suite());
-    }
-    if (!num || num == 9) {
-	srunner_add_suite(suite_runner, make_ft_ignore_suite());
-    }
-    if (!num || num == 10) {
-	srunner_add_suite(suite_runner, make_ft_archive_suite());
+    else {
+	switch (num) {
+	case NAPR_HEAP_SUITE:
+	    srunner_add_suite(suite_runner, make_napr_heap_suite());
+	    break;
+	case NAPR_HASH_SUITE:
+	    srunner_add_suite(suite_runner, make_napr_hash_suite());
+	    break;
+	case FT_FILE_SUITE:
+	    srunner_add_suite(suite_runner, make_ft_file_suite());
+	    break;
+	case HUMAN_SIZE_SUITE:
+	    srunner_add_suite(suite_runner, make_human_size_suite());
+	    break;
+	case FTWIN_SUITE:
+	    srunner_add_suite(suite_runner, make_ftwin_suite());
+	    break;
+	case FT_SYSTEM_SUITE:
+	    srunner_add_suite(suite_runner, make_ft_system_suite());
+	    break;
+	case PARALLEL_HASHING_SUITE:
+	    srunner_add_suite(suite_runner, make_parallel_hashing_suite());
+	    break;
+	case FT_IGNORE_SUITE:
+	    srunner_add_suite(suite_runner, make_ft_ignore_suite());
+	    break;
+	case FT_ARCHIVE_SUITE:
+	    srunner_add_suite(suite_runner, make_ft_archive_suite());
+	    break;
+	default:
+	    /* Run all tests if the number is unrecognized */
+	    add_all_suites(suite_runner);
+	    break;
+	}
     }
 
     srunner_set_fork_status(suite_runner, CK_NOFORK);
@@ -432,6 +460,5 @@ int main(int argc, char **argv)
     num_failed = srunner_ntests_failed(suite_runner);
     srunner_free(suite_runner);
 
-    apr_terminate();
     return (num_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
