@@ -33,9 +33,12 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-#define CAPTURE_BUFFER_SIZE 4096
-#define DEFAULT_FILE_MODE 0644
-#define ARCHIVE_BUFFER_SIZE 8192
+enum
+{
+    CAPTURE_BUFFER_SIZE = 4096,
+    DEFAULT_FILE_MODE = 0644,
+    ARCHIVE_BUFFER_SIZE = 8192
+};
 
 static void add_file_to_archive(struct archive *archive, const char *filename)
 {

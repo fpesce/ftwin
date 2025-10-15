@@ -217,7 +217,7 @@ START_TEST(test_filecmp_empty)
     (void) apr_file_close(empty2);
 
     /* Compare empty files with small path */
-    status = filecmp(pool, empty_fname1, empty_fname2, 0, BUFFER_SIZE_1K, &return_value);
+    status = filecmp(pool, empty_fname1, empty_fname2, 0, (apr_off_t) BUFFER_SIZE_1K, &return_value);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_eq(return_value, 0);
 
@@ -297,7 +297,7 @@ Suite *make_ft_file_suite(void)
     suite = suite_create("Ft_File");
     tc_core = tcase_create("Core Tests");
 
-    (void) tcase_add_checked_fixture(tc_core, setup, teardown);
+    tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_checksum_empty_file);
     tcase_add_test(tc_core, test_checksum_small_files);
     tcase_add_test(tc_core, test_checksum_file);
