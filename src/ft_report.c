@@ -52,6 +52,11 @@ int ft_chksum_cmp(const void *chksum1, const void *chksum2)
     return i;
 }
 
+/* Forward declaration for helper function */
+static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t i, apr_size_t j,
+					    unsigned char *already_printed, const char *color_size, const char *color_path,
+					    const char *color_reset);
+
 apr_status_t ft_report_duplicates(ft_conf_t *conf)
 {
     char errbuf[ERROR_BUFFER_SIZE];
@@ -61,8 +66,6 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
     apr_uint32_t hash_value = 0;
     apr_size_t i = 0;
     apr_size_t j = 0;
-    int rv = 0;
-    apr_status_t status = APR_SUCCESS;
     unsigned char already_printed = 0;
     apr_uint32_t chksum_array_sz = 0U;
     int use_color = isatty(STDOUT_FILENO);
@@ -89,96 +92,9 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
 		for (j = i + 1; j < fsize->nb_files; j++) {
 		    if (0 ==
 			memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
-			char *fpathi, *fpathj;
-#if HAVE_ARCHIVE
-			if (is_option_set(conf->mask, OPTION_UNTAR)) {
-			    if (NULL != fsize->chksum_array[i].file->subpath) {
-				fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);
-				if (NULL == fpathi) {
-				    DEBUG_ERR("error calling ft_archive_untar_file");
-				    return APR_EGENERAL;
-				}
-			    }
-			    else {
-				fpathi = fsize->chksum_array[i].file->path;
-			    }
-			    if (NULL != fsize->chksum_array[j].file->subpath) {
-				fpathj = ft_archive_untar_file(fsize->chksum_array[j].file, conf->pool);
-				if (NULL == fpathj) {
-				    DEBUG_ERR("error calling ft_archive_untar_file");
-				    return APR_EGENERAL;
-				}
-			    }
-			    else {
-				fpathj = fsize->chksum_array[j].file->path;
-			    }
-			}
-			else {
-			    fpathi = fsize->chksum_array[i].file->path;
-			    fpathj = fsize->chksum_array[j].file->path;
-			}
-#else
-			fpathi = fsize->chksum_array[i].file->path;
-			fpathj = fsize->chksum_array[j].file->path;
-#endif
-			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
-#if HAVE_ARCHIVE
-			if (is_option_set(conf->mask, OPTION_UNTAR)) {
-			    if (NULL != fsize->chksum_array[i].file->subpath)
-				apr_file_remove(fpathi, conf->pool);
-			    if (NULL != fsize->chksum_array[j].file->subpath)
-				apr_file_remove(fpathj, conf->pool);
-			}
-#endif
-			/*
-			 * no return status if != APR_SUCCESS , because :
-			 * Fault-check has been removed in case files disappear
-			 * between collecting and comparing or special files (like
-			 * device or /proc) are tried to access
-			 */
-			if (APR_SUCCESS != status) {
-			    if (is_option_set(conf->mask, OPTION_VERBO))
-				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
-					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
-					apr_strerror(status, errbuf, 128));
-			    rv = 1;
-			}
-
-			if (0 == rv) {
-			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
-					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
-			    }
-			    if (!already_printed) {
-				if (is_option_set(conf->mask, OPTION_SIZED)) {
-				    const char *human_size = format_human_size(fsize->val, conf->pool);
-				    printf("%sSize: %s%s\n", color_size, human_size, color_reset);
-				}
-#if HAVE_ARCHIVE
-				if (is_option_set(conf->mask, OPTION_UNTAR)
-				    && (NULL != fsize->chksum_array[i].file->subpath))
-				    printf("%s%s%c%s%s%c", color_path, fsize->chksum_array[i].file->path,
-					   (':' != conf->sep) ? ':' : '|', fsize->chksum_array[i].file->subpath,
-					   color_reset, conf->sep);
-				else
-#endif
-				    printf("%s%s%s%c", color_path, fsize->chksum_array[i].file->path, color_reset,
-					   conf->sep);
-				already_printed = 1;
-			    }
-			    else {
-				printf("%c", conf->sep);
-			    }
-#if HAVE_ARCHIVE
-			    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
-				printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path,
-				       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[j].file->subpath, color_reset);
-			    else
-#endif
-				printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
-			    /* mark j as a twin ! */
-			    fsize->chksum_array[j].file = NULL;
-			    fflush(stdout);
+			if (compare_and_report_pair(conf, fsize, i, j, &already_printed, color_size, color_path,
+						    color_reset) != APR_SUCCESS) {
+			    return APR_EGENERAL;
 			}
 		    }
 		    else {
@@ -195,6 +111,104 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
 	    DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
 	    return APR_EGENERAL;
 	}
+    }
+
+    return APR_SUCCESS;
+}
+
+static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t i, apr_size_t j,
+					    unsigned char *already_printed, const char *color_size, const char *color_path,
+					    const char *color_reset)
+{
+    char errbuf[ERROR_BUFFER_SIZE];
+    char *fpathi, *fpathj;
+    int rv = 0;
+    apr_status_t status = APR_SUCCESS;
+
+    memset(errbuf, 0, sizeof(errbuf));
+
+#if HAVE_ARCHIVE
+    if (is_option_set(conf->mask, OPTION_UNTAR)) {
+	if (NULL != fsize->chksum_array[i].file->subpath) {
+	    fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);
+	    if (NULL == fpathi) {
+		DEBUG_ERR("error calling ft_archive_untar_file");
+		return APR_EGENERAL;
+	    }
+	}
+	else {
+	    fpathi = fsize->chksum_array[i].file->path;
+	}
+	if (NULL != fsize->chksum_array[j].file->subpath) {
+	    fpathj = ft_archive_untar_file(fsize->chksum_array[j].file, conf->pool);
+	    if (NULL == fpathj) {
+		DEBUG_ERR("error calling ft_archive_untar_file");
+		return APR_EGENERAL;
+	    }
+	}
+	else {
+	    fpathj = fsize->chksum_array[j].file->path;
+	}
+    }
+    else {
+	fpathi = fsize->chksum_array[i].file->path;
+	fpathj = fsize->chksum_array[j].file->path;
+    }
+#else
+    fpathi = fsize->chksum_array[i].file->path;
+    fpathj = fsize->chksum_array[j].file->path;
+#endif
+
+    status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
+
+#if HAVE_ARCHIVE
+    if (is_option_set(conf->mask, OPTION_UNTAR)) {
+	if (NULL != fsize->chksum_array[i].file->subpath)
+	    apr_file_remove(fpathi, conf->pool);
+	if (NULL != fsize->chksum_array[j].file->subpath)
+	    apr_file_remove(fpathj, conf->pool);
+    }
+#endif
+
+    if (APR_SUCCESS != status) {
+	if (is_option_set(conf->mask, OPTION_VERBO))
+	    fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", fsize->chksum_array[i].file->path,
+		    fsize->chksum_array[j].file->path, apr_strerror(status, errbuf, 128));
+	rv = 1;
+    }
+
+    if (0 == rv) {
+	if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
+	    fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[i].file->path,
+		    fsize->chksum_array[j].file->path);
+	}
+	if (!*already_printed) {
+	    if (is_option_set(conf->mask, OPTION_SIZED)) {
+		const char *human_size = format_human_size(fsize->val, conf->pool);
+		printf("%sSize: %s%s\n", color_size, human_size, color_reset);
+	    }
+#if HAVE_ARCHIVE
+	    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[i].file->subpath))
+		printf("%s%s%c%s%s%c", color_path, fsize->chksum_array[i].file->path,
+		       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[i].file->subpath, color_reset, conf->sep);
+	    else
+#endif
+		printf("%s%s%s%c", color_path, fsize->chksum_array[i].file->path, color_reset, conf->sep);
+	    *already_printed = 1;
+	}
+	else {
+	    printf("%c", conf->sep);
+	}
+#if HAVE_ARCHIVE
+	if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath))
+	    printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path, (':' != conf->sep) ? ':' : '|',
+		   fsize->chksum_array[j].file->subpath, color_reset);
+	else
+#endif
+	    printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
+	/* mark j as a twin ! */
+	fsize->chksum_array[j].file = NULL;
+	fflush(stdout);
     }
 
     return APR_SUCCESS;
