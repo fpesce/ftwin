@@ -95,7 +95,6 @@ static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_he
 
 apr_status_t ft_process_files(ft_conf_t *conf)
 {
-    char errbuf[128];
     napr_heap_t *tmp_heap;
     apr_pool_t *gc_pool;
     apr_status_t status;
@@ -106,6 +105,7 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     }
 
     if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
+	char errbuf[128];
 	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
 	return status;
     }
