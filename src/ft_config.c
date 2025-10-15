@@ -262,9 +262,7 @@ static const apr_getopt_option_t opt_option[] = {
     {"recurse-subdir", 'r', FALSE, "recurse subdirectories (default: on)."},
     {"no-recurse", 'R', FALSE, "do not recurse in subdirectories."},
     {"separator", 's', TRUE, "\tseparator character between twins, default: \\n."},
-#if HAVE_ARCHIVE
     {"tar-cmp", 't', FALSE, "\twill process files archived in .tar default: off."},
-#endif
     {"threads", 'j', TRUE, "\tnumber of threads for parallel hashing (default: CPU cores)."},
     {"verbose", 'v', FALSE, "\tdisplay a progress bar."},
     {"version", 'V', FALSE, "\tdisplay version."},
@@ -364,6 +362,9 @@ static void handle_flag_option(int option, ft_conf_t *conf)
 	    set_option(&conf->mask, OPTION_VERBO, 1);
 	}
 	break;
+    default:
+	/* Should not happen. */
+	break;
     }
 }
 
@@ -386,6 +387,9 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
 	break;
     case 'w':
 	*wregex = apr_pstrdup(conf->pool, optarg);
+	break;
+    default:
+	/* Should not happen. */
 	break;
     }
 }
@@ -420,6 +424,9 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
 	if (ULONG_MAX == conf->minsize) {
 	    print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
 	}
+	break;
+    default:
+	/* Should not happen. */
 	break;
     }
 }
@@ -471,12 +478,13 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 	}
 	break;
 #endif
-#if HAVE_ARCHIVE
     case 't':
 	set_option(&conf->mask, OPTION_UNTAR, 1);
 	*arregex = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
 	break;
-#endif
+    default:
+	/* Should not happen. */
+	break;
     }
 }
 

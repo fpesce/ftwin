@@ -12,10 +12,8 @@
 
 int ft_file_cmp(const void *param1, const void *param2);
 
-#if HAVE_ARCHIVE
 #include <archive.h>
-#include "ft_archive.h"		/* This will be created later */
-#endif
+#include "ft_archive.h"
 
 static apr_status_t hashing_worker_callback(void *ctx, void *data)
 {
@@ -35,7 +33,6 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 	return status;
     }
 
-#if HAVE_ARCHIVE
     if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
 	filepath = ft_archive_untar_file(file, subpool);
 	if (NULL == filepath) {
@@ -47,18 +44,13 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
     else {
 	filepath = file->path;
     }
-#else
-    filepath = file->path;
-#endif
 
     status = checksum_file(filepath, file->size, h_ctx->conf->excess_size,
 			   &fsize->chksum_array[task->index].hash_value, subpool);
 
-#if HAVE_ARCHIVE
     if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
 	apr_file_remove(filepath, subpool);
     }
-#endif
 
     if (APR_SUCCESS == status) {
 	apr_status_t lock_status = APR_SUCCESS;
@@ -104,7 +96,8 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 	(void) fprintf(stderr, "Referencing files and sizes:\n");
     }
 
-    if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
+    status = apr_pool_create(&gc_pool, conf->pool);
+    if (APR_SUCCESS != status) {
 	char errbuf[ERROR_BUFFER_SIZE];
 	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return status;
@@ -145,7 +138,8 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
     apr_uint32_t hash_value;
 
     while (NULL != (file = napr_heap_extract(conf->heap))) {
-	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
+	fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value);
+	if (NULL != fsize) {
 	    if (1 == fsize->nb_files) {
 		napr_hash_remove(conf->sizes, fsize, hash_value);
 	    }
