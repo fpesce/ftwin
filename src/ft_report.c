@@ -190,17 +190,20 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	    if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[i].file->subpath)) {
 		printf("%s%s%c%s%s%c", color_path, fsize->chksum_array[i].file->path,
 		       (':' != conf->sep) ? ':' : '|', fsize->chksum_array[i].file->subpath, color_reset, conf->sep);
-	    } else {
+	    }
+	    else {
 		printf("%s%s%s%c", color_path, fsize->chksum_array[i].file->path, color_reset, conf->sep);
 	    }
 	    *already_printed = 1;
-	} else {
+	}
+	else {
 	    printf("%c", conf->sep);
 	}
 	if (is_option_set(conf->mask, OPTION_UNTAR) && (NULL != fsize->chksum_array[j].file->subpath)) {
 	    printf("%s%s%c%s%s", color_path, fsize->chksum_array[j].file->path, (':' != conf->sep) ? ':' : '|',
 		   fsize->chksum_array[j].file->subpath, color_reset);
-	} else {
+	}
+	else {
 	    printf("%s%s%s", color_path, fsize->chksum_array[j].file->path, color_reset);
 	}
 	/* mark j as a twin ! */
