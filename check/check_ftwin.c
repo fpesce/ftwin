@@ -51,33 +51,33 @@ static void copy_file(const char *src_path, const char *dest_path)
 {
     apr_file_t *src_file = NULL;
     apr_file_t *dest_file = NULL;
-    apr_status_t return_value = APR_SUCCESS;
+    apr_status_t status_code = APR_SUCCESS;
     char buffer[4096] = { 0 };
     apr_size_t bytes_read = 0;
     apr_size_t bytes_written = 0;
 
     /* 1. Open files */
-    return_value = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(return_value, APR_SUCCESS);
+    status_code = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
 
-    return_value =
+    status_code =
 	apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(return_value, APR_SUCCESS);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
 
     /* 2. Loop and copy data */
     do {
-	bytes_read = sizeof(buffer);
-	return_value = apr_file_read(src_file, buffer, &bytes_read);
-	if (return_value != APR_SUCCESS && return_value != APR_EOF) {
+	apr_size_t bytes_read = sizeof(buffer);
+	status_code = apr_file_read(src_file, buffer, &bytes_read);
+	if (status_code != APR_SUCCESS && status_code != APR_EOF) {
 	    ck_abort_msg("Failed to read from source file");
 	}
 	if (bytes_read > 0) {
-	    bytes_written = bytes_read;
-	    return_value = apr_file_write(dest_file, buffer, &bytes_written);
-	    ck_assert_int_eq(return_value, APR_SUCCESS);
+	    apr_size_t bytes_written = bytes_read;
+	    status_code = apr_file_write(dest_file, buffer, &bytes_written);
+	    ck_assert_int_eq(status_code, APR_SUCCESS);
 	    ck_assert_int_eq(bytes_read, bytes_written);
 	}
-    } while (return_value == APR_SUCCESS);
+    } while (status_code == APR_SUCCESS);
 
     /* 3. Close files */
     apr_file_close(src_file);
@@ -435,6 +435,7 @@ int main(int argc, char **argv)
 	apr_strerror(status, error_buffer, sizeof(error_buffer));
 	fprintf(stderr, "APR Pool Creation error: %s\n", error_buffer);
 	return EXIT_FAILURE;
+
     }
 
     suite_runner = srunner_create(NULL);

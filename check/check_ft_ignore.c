@@ -289,7 +289,7 @@ Suite *make_ft_ignore_suite(void)
     Suite *suite = suite_create("FtIgnore");
     TCase *tc_core = tcase_create("Core");
 
-    (void) tcase_add_checked_fixture(tc_core, setup, NULL);
+    tcase_add_checked_fixture(tc_core, setup, NULL);
     tcase_add_test(tc_core, test_ignore_simple_pattern);
     tcase_add_test(tc_core, test_ignore_directory_pattern);
     tcase_add_test(tc_core, test_ignore_doublestar_pattern);
