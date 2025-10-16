@@ -4,7 +4,7 @@
  * @ingroup DataStructures
  */
 /*
- * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
+ * Copyright (C) 2007 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,18 +68,40 @@ typedef int (key_cmp_callback_fn_t) (const void *, const void *, apr_size_t);
 typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_size_t);
 
 /**
- * @brief Create a hash table with custom key handling and hashing functions.
- * @param[in] pool The pool to allocate the hash table from.
- * @param[in] nel The desired number of pre-allocated buckets (will be rounded up to the next power of 2).
- * @param[in] ffactor The maximum number of collisions for a given key before resizing.
- * @param[in] get_key A callback to extract the key from a data item.
- * @param[in] get_key_len A callback to get the length of the key.
- * @param[in] key_cmp A callback to compare two keys.
- * @param[in] hash A callback to compute the hash of a key.
- * @return A pointer to the newly created hash table.
+ * @brief Arguments for creating a napr_hash_t.
+ *
+ * This structure encapsulates all the parameters needed to create a hash table,
+ * improving readability and type safety by avoiding long, ambiguous parameter lists.
+ */
+typedef struct napr_hash_create_args_t
+{
+    apr_pool_t *pool;			/**< The pool to use for all allocations. */
+    apr_size_t nel;			/**< The expected number of elements to store. */
+    apr_size_t ffactor;			/**< The desired filling factor (density). */
+    get_key_callback_fn_t *get_key;	 /**< Function to get the key from a datum. */
+    get_key_len_callback_fn_t *get_key_len; /**< Function to get the key length from a datum. */
+    key_cmp_callback_fn_t *key_cmp;	 /**< Function to compare two keys. */
+    hash_callback_fn_t *hash;		 /**< The hash function to use. */
+} napr_hash_create_args_t;
+
+/**
+ * Create a new hash table from a structure of arguments.
+ * @param args A pointer to the napr_hash_create_args_t structure.
+ * @return A pointer to the new hash table.
+ */
+napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args);
+
+/**
+ * @brief Creates a new hash table (deprecated).
+ * @deprecated Please use napr_hash_make_ex with napr_hash_create_args_t instead.
+ * @see napr_hash_make_ex
  */
 napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
-			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash);
+			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((deprecated("Use napr_hash_make_ex instead")))
+#endif
+    ;
 
 /**
  * @brief Create a hash table optimized for storing C strings as keys.
@@ -88,7 +110,7 @@ napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor
  * @param[in] ffactor The maximum number of collisions for a given key.
  * @return A pointer to the newly created string-keyed hash table.
  */
-napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor);
+     napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor);
 
 /**
  * @brief Searches the hash table for an item.
@@ -99,7 +121,7 @@ napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffa
  * @return A pointer to the found data item, or NULL if not found. If an item is not found,
  *         the computed hash value is stored in `hash_value` for efficient subsequent insertion.
  */
-void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value);
+     void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value);
 
 /**
  * @brief Removes an item from the hash table.
@@ -107,7 +129,7 @@ void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, a
  * @param[in] data The data item to remove.
  * @param[in] hash_value The pre-computed hash of the item's key.
  */
-void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
+     void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
 
 /**
  * @brief Inserts or updates an item in the hash table.
@@ -116,14 +138,14 @@ void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
  * @param[in] hash_value The pre-computed hash of the item's key.
  * @return APR_SUCCESS on success.
  */
-apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
+     apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value);
 
 /**
  * @brief Get a pointer to the pool from which the hash table was allocated.
  * @param[in] thehash The hash table.
  * @return The APR pool.
  */
-apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
+     apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
 
 /**
  * @brief Start iterating over the entries in a hash table.
@@ -141,22 +163,22 @@ apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash);
  * }
  * @endcode
  */
-napr_hash_index_t *napr_hash_first(apr_pool_t *pool, napr_hash_t *hash);
+     napr_hash_index_t *napr_hash_first(apr_pool_t *pool, napr_hash_t *hash);
 
 /**
  * @brief Continue iterating over the entries in a hash table.
  * @param[in] index The current iteration state.
  * @return A pointer to the next iteration state, or NULL if there are no more entries.
  */
-napr_hash_index_t *napr_hash_next(napr_hash_index_t *index);
+     napr_hash_index_t *napr_hash_next(napr_hash_index_t *index);
 
 /**
  * @brief Get the current entry's details from the iteration state.
- * @param[in] hi The iteration state.
+ * @param[in] hash_index The iteration state.
  * @param[out] key Pointer to store the key. Can be NULL.
  * @param[out] klen Pointer to store the key length. Can be NULL.
  * @param[out] val Pointer to store the value (the data item). Can be NULL.
  */
-void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val);
+     void napr_hash_this(napr_hash_index_t *hash_index, const void **key, apr_size_t *klen, void **val);
 
 #endif /* NAPR_HASH_H */

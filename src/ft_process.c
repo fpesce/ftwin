@@ -2,6 +2,7 @@
 
 #include "debug.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_process.h"
 #include "ft_system.h"
 #include "ft_types.h"
@@ -133,9 +134,9 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 
 static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_size_t *total_hash_tasks)
 {
-    ft_file_t *file;
-    ft_fsize_t *fsize;
-    apr_uint32_t hash_value;
+    ft_file_t *file = NULL;
+    ft_fsize_t *fsize = NULL;
+    apr_uint32_t hash_value = 0;
 
     while (NULL != (file = napr_heap_extract(conf->heap))) {
 	fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value);
@@ -144,8 +145,9 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
 		napr_hash_remove(conf->sizes, fsize, hash_value);
 	    }
 	    else {
-		if (NULL == fsize->chksum_array)
+		if (NULL == fsize->chksum_array) {
 		    fsize->chksum_array = apr_palloc(conf->pool, fsize->nb_files * sizeof(struct ft_chksum_t));
+		}
 
 		fsize->chksum_array[fsize->nb_checksumed].file = file;
 
@@ -171,10 +173,10 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
 static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    ft_fsize_t *fsize;
+    ft_fsize_t *fsize = NULL;
     napr_threadpool_t *threadpool = NULL;
     hashing_context_t h_ctx;
-    apr_status_t status;
+    apr_status_t status = 0;
 
     h_ctx.conf = conf;
     h_ctx.pool = gc_pool;
@@ -243,7 +245,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
 static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_pool_t *gc_pool)
 {
-    ft_fsize_t *fsize;
+    ft_fsize_t *fsize = NULL;
 
     for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index;
 	 hash_index = napr_hash_next(hash_index)) {

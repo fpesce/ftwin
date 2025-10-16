@@ -1,8 +1,3 @@
-/**
- * @file ft_system.h
- * @brief System-related utility functions.
- * @ingroup Utilities
- */
 /*
  * Copyright (C) 2025 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
@@ -19,17 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef FT_SYSTEM_H
-#define FT_SYSTEM_H
+#ifndef FT_CONSTANTS_H
+#define FT_CONSTANTS_H
 
-/**
- * @brief Get the number of available CPU cores on the current system.
+/** @def ERROR_BUFFER_SIZE
+ * @brief Default size for error message buffers.
  *
- * This function attempts to determine the number of online processors.
- * It serves as a sensible default for setting the number of worker threads.
- *
- * @return The number of CPU cores, or a reasonable fallback (e.g., 4) if detection fails.
+ * This constant defines a standard size for character arrays used to store
+ * error messages, ensuring consistency across the application.
  */
-unsigned int ft_get_cpu_cores(void);
+#define ERROR_BUFFER_SIZE 128
 
-#endif /* FT_SYSTEM_H */
+/** @def XXH32_SEED
+ * @brief Seed for the XXH32 hashing algorithm.
+ *
+ * This constant defines the seed value used for the XXH32 string hashing
+ * function to ensure consistent hash results.
+ */
+#define XXH32_SEED 0
+
+#endif /* FT_CONSTANTS_H */

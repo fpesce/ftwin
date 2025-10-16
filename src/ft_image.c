@@ -4,7 +4,7 @@
  * @ingroup ImageComparison
  */
 /*
- * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
+ * Copyright (C) 2007 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include "config.h"
 #include "debug.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_file.h"
 #include "napr_threadpool.h"
 #include "napr_heap.h"

@@ -82,7 +82,6 @@ static const int TEST_CHUNK_SIZE = 10;
 /** @} */
 
 /* Constants */
-static const int ERROR_BUFFER_SIZE = 128;
 static const int MAX_THREADS = 256;
 static const int BASE_TEN = 10;
 

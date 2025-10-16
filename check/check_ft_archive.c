@@ -99,11 +99,11 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
-static void create_test_file(const char *path, const char *content)
+static void create_test_file(const char *file_path, const char *file_content)
 {
-    FILE *file = fopen(path, "w");
+    FILE *file = fopen(file_path, "w");
     ck_assert_ptr_ne(file, NULL);
-    ck_assert_int_ge(fputs(content, file), 0);
+    ck_assert_int_ge(fputs(file_content, file), 0);
     ck_assert_int_eq(fclose(file), 0);
 }
 

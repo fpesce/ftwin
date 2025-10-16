@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2025 Francois Pesce : francois.pesce (at) gmail (dot) com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *	http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <apr_getopt.h>
 #include <apr_strings.h>
 #include <apr_user.h>
@@ -8,6 +24,7 @@
 #include "config.h"
 #include "debug.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_system.h"
 #include "ft_types.h"
 #include "human_size.h"
@@ -202,10 +219,23 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     conf->pool = pool;
     conf->heap = napr_heap_make(pool, ft_file_cmp);
     conf->ig_files = napr_hash_str_make(pool, HASH_STR_BUCKET_SIZE, HASH_STR_MAX_ENTRIES);
-    conf->sizes = napr_hash_make(pool, HASH_SIZE_BUCKET_SIZE, HASH_SIZE_MAX_ENTRIES, ft_fsize_get_key,
-				 ft_fsize_get_key_len, apr_off_t_key_cmp, apr_off_t_key_hash);
-    conf->gids = napr_hash_make(pool, HASH_SIZE_BUCKET_SIZE, HASH_SIZE_MAX_ENTRIES, ft_gids_get_key, ft_gid_get_key_len,
-				gid_t_key_cmp, gid_t_key_hash);
+
+    napr_hash_create_args_t hash_args = {
+	.pool = pool,
+	.nel = HASH_SIZE_BUCKET_SIZE,
+	.ffactor = HASH_SIZE_MAX_ENTRIES,
+	.get_key = ft_fsize_get_key,
+	.get_key_len = ft_fsize_get_key_len,
+	.key_cmp = apr_off_t_key_cmp,
+	.hash = apr_off_t_key_hash
+    };
+    conf->sizes = napr_hash_make_ex(&hash_args);
+
+    hash_args.get_key = ft_gids_get_key;
+    hash_args.get_key_len = ft_gid_get_key_len;
+    hash_args.key_cmp = gid_t_key_cmp;
+    hash_args.hash = gid_t_key_hash;
+    conf->gids = napr_hash_make_ex(&hash_args);
 
     /* To avoid endless loop, ignore looping directory ;) */
     napr_hash_search(conf->ig_files, ".", 1, &hash_value);

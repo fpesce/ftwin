@@ -4,7 +4,7 @@
  * @ingroup DataStructures
  */
 /*
- * Copyright (C) 2007 François Pesce : francois.pesce (at) gmail (dot) com
+ * Copyright (C) 2007 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
  */
 
 #include "debug.h"
+#include "ft_constants.h"
 #include "napr_hash.h"
 
 #define XXH_STATIC_LINKING_ONLY
@@ -50,7 +51,7 @@ static int str_key_cmp(const void *opaque1, const void *opaque2, apr_size_t len)
 static apr_uint32_t str_hash(register const void *opaque, register apr_size_t len)
 {
     /* Use XXH32 for string hashing - faster and more consistent with file hashing */
-    return XXH32(opaque, len, 0x1337cafe);
+    return XXH32(opaque, len, XXH32_SEED);
 }
 
 struct napr_hash_index_t
@@ -92,49 +93,76 @@ struct napr_hash_t
     unsigned char power;
 };
 
-extern napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor)
+napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor)
 {
-    return napr_hash_make(pool, nel, ffactor, str_get_key, str_get_key_len, str_key_cmp, str_hash);
+    napr_hash_create_args_t args = {
+	.pool = pool,
+	.nel = nel,
+	.ffactor = ffactor,
+	.get_key = str_get_key,
+	.get_key_len = str_get_key_len,
+	.key_cmp = str_key_cmp,
+	.hash = str_hash
+    };
+    return napr_hash_make_ex(&args);
 }
 
-extern napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
-				   get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp,
-				   hash_callback_fn_t hash)
+napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
+			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
 {
-    napr_hash_t *result;
-    apr_status_t status;
+    napr_hash_create_args_t args = {
+	.pool = pool,
+	.nel = nel,
+	.ffactor = ffactor,
+	.get_key = get_key,
+	.get_key_len = get_key_len,
+	.key_cmp = key_cmp,
+	.hash = hash
+    };
+    return napr_hash_make_ex(&args);
+}
 
-    if (NULL == (result = apr_pcalloc(pool, sizeof(struct napr_hash_t)))) {
+napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
+{
+    napr_hash_t *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    result = apr_pcalloc(args->pool, sizeof(struct napr_hash_t));
+    if (NULL == result) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
 
-    while (hashsize(result->power) < nel)
+    while (hashsize(result->power) < args->nel) {
 	result->power++;
+    }
 
     result->size = hashsize(result->power);
     result->mask = hashmask(result->power);
-    result->ffactor = ffactor;
-    result->get_key = get_key;
-    result->get_key_len = get_key_len;
-    result->key_cmp = key_cmp;
-    result->hash = hash;
-    result->pool = pool;
+    result->ffactor = args->ffactor;
+    result->get_key = args->get_key;
+    result->get_key_len = args->get_key_len;
+    result->key_cmp = args->key_cmp;
+    result->hash = args->hash;
+    result->pool = args->pool;
 
-    if (APR_SUCCESS != (status = apr_pool_create(&(result->own_pool), pool))) {
-	char errbuf[128];
-	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&(result->own_pool), args->pool);
+    if (APR_SUCCESS != status) {
+	char errbuf[ERROR_BUFFER_SIZE];
+	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return NULL;
     }
     /*DEBUG_DBG("readjusting size to %" APR_SIZE_T_FMT " to store %" APR_SIZE_T_FMT " elements", result->size, nel); */
     /*DEBUG_DBG("bit mask will be 0x%x", result->mask); */
 
-    if (NULL == (result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **)))) {
+    result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **));
+    if (NULL == result->table) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
 
-    if (NULL == (result->filling_table = apr_pcalloc(result->own_pool, result->size * sizeof(apr_size_t)))) {
+    result->filling_table = apr_pcalloc(result->own_pool, result->size * sizeof(apr_size_t));
+    if (NULL == result->filling_table) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
@@ -144,21 +172,28 @@ extern napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t 
 
 extern void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value)
 {
-    apr_uint32_t key_hash;
-    apr_size_t i, nel, bucket;
+    apr_uint32_t key_hash = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t bucket_index;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
 
     key_hash = hash->hash(key, key_len);
 
-    if (NULL != hash_value)
+    if (NULL != hash_value) {
 	*hash_value = key_hash;
+    }
 
     bucket = key_hash & hash->mask;
-    if (0 != (nel = hash->filling_table[bucket])) {
-	for (i = 0; i < nel; i++) {
-	    /*DEBUG_DBG( "key[%p] bucket[%"APR_SIZE_T_FMT"][%"APR_SIZE_T_FMT"]=[%p]", key, bucket, i, hash->get_key(hash->table[bucket][i])); */
-	    if (key_len == hash->get_key_len(hash->table[bucket][i]))
-		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][i]), key_len)))
-		    return hash->table[bucket][i];
+    nel = hash->filling_table[bucket];
+    if (0 != nel) {
+	for (bucket_index = 0; bucket_index < nel; bucket_index++) {
+	    /*DEBUG_DBG( "key[%p] bucket[%"APR_SIZE_T_FMT"][%"APR_SIZE_T_FMT"]=[%p]", key, bucket, bucket_index, hash->get_key(hash->table[bucket][bucket_index])); */
+	    if (key_len == hash->get_key_len(hash->table[bucket][bucket_index])) {
+		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][bucket_index]), key_len))) {
+		    return hash->table[bucket][bucket_index];
+		}
+	    }
 	}
     }
 
@@ -167,30 +202,40 @@ extern void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key
 
 static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 {
-    napr_hash_t *tmp;
-    apr_size_t i, j;
+    napr_hash_t *tmp = NULL;
+    apr_size_t index = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t sub_index;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
+    napr_hash_create_args_t args = {
+	.pool = hash->pool,
+	.nel = hashsize(hash->power + 1),
+	.ffactor = hash->ffactor,
+	.get_key = hash->get_key,
+	.get_key_len = hash->get_key_len,
+	.key_cmp = hash->key_cmp,
+	.hash = hash->hash
+    };
 
-    if (NULL ==
-	(tmp =
-	 napr_hash_make(hash->pool, hashsize(hash->power + 1), hash->ffactor, hash->get_key, hash->get_key_len,
-			hash->key_cmp, hash->hash))) {
+    tmp = napr_hash_make_ex(&args);
+    if (NULL == tmp) {
 	DEBUG_ERR("error calling napr_hash_init");
 	return APR_EGENERAL;
     }
 
-    for (i = 0; i < hash->size; i++) {
-	for (j = 0; j < hash->filling_table[i]; j++) {
+    for (index = 0; index < hash->size; index++) {
+	for (sub_index = 0; sub_index < hash->filling_table[index]; sub_index++) {
 	    /*
 	     * no need to do doublon test here as we take data directly from a
 	     * hash table
 	     */
-	    if (APR_SUCCESS !=
-		(status =
-		 napr_hash_set(tmp, hash->table[i][j],
-			       hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j]))))) {
-		char errbuf[128];
-		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, 128));
+	    status = napr_hash_set(tmp, hash->table[index][sub_index],
+				   hash->hash(hash->get_key(hash->table[index][sub_index]),
+					      hash->get_key_len(hash->table[index][sub_index])));
+	    if (APR_SUCCESS != status) {
+		char errbuf[ERROR_BUFFER_SIZE];
+		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		return status;
 	    }
 	}
@@ -209,29 +254,35 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 
 extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value)
 {
-    apr_size_t nel, bucket, i, key_len;
-    const void *key;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t index;
+    apr_size_t key_len = 0;
+    const void *key = NULL;
 
     bucket = hash_value & hash->mask;
     key = hash->get_key(data);
     key_len = hash->get_key_len(data);
-    if (0 != (nel = hash->filling_table[bucket])) {
-	for (i = 0; i < nel; i++) {
-	    //DEBUG_DBG( "key[%.*s] bucket[%i]=[%.*s]", key_len, key, i, hash->get_key_len(hash->table[bucket][i]), hash->get_key(hash->table[bucket][i]));
-	    if (key_len == hash->get_key_len(hash->table[bucket][i]))
-		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][i]), key_len))) {
+    nel = hash->filling_table[bucket];
+    if (0 != nel) {
+	for (index = 0; index < nel; index++) {
+	    //DEBUG_DBG( "key[%.*s] bucket[%i]=[%.*s]", key_len, key, index, hash->get_key_len(hash->table[bucket][index]), hash->get_key(hash->table[bucket][index]));
+	    if (key_len == hash->get_key_len(hash->table[bucket][index])) {
+		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][index]), key_len))) {
 		    /* Remove it, by replacing with the last element if present */
-		    if (i != nel - 1) {
-			hash->table[bucket][i] = hash->table[bucket][nel - 1];
+		    if (index != nel - 1) {
+			hash->table[bucket][index] = hash->table[bucket][nel - 1];
 			hash->table[bucket][nel - 1] = NULL;
 		    }
 		    else {
-			hash->table[bucket][i] = NULL;
+			hash->table[bucket][index] = NULL;
 		    }
 		    hash->filling_table[bucket]--;
 		    hash->nel--;
 		    break;
 		}
+	    }
 	}
     }
     else {
@@ -241,12 +292,15 @@ extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_va
 
 extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value)
 {
-    apr_size_t nel, bucket;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
 
     bucket = hash_value & hash->mask;
 
-    if ((0 == (nel = hash->filling_table[bucket])) && (NULL == hash->table[bucket])) {
+    nel = hash->filling_table[bucket];
+    if ((0 == nel) && (NULL == hash->table[bucket])) {
 	hash->table[bucket] = (void **) apr_pcalloc(hash->own_pool, hash->ffactor * sizeof(void *));
     }
     // DEBUG_DBG( "set data %.*s in bucket %u at nel %u", hash->datum_get_key_len(data), hash->datum_get_key(data), bucket, nel);
@@ -262,9 +316,10 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 	//     DEBUG_DBG( "%.*s", hash->datum_get_key_len(hash->table[bucket][i]), hash->datum_get_key(hash->table[bucket][i]));
 	// }
 
-	if (APR_SUCCESS != (status = napr_hash_rebuild(hash))) {
-	    char errbuf[128];
-	    DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, 128));
+	status = napr_hash_rebuild(hash);
+	if (APR_SUCCESS != status) {
+	    char errbuf[ERROR_BUFFER_SIZE];
+	    DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	    return status;
 	}
     }
@@ -279,14 +334,15 @@ apr_pool_t *napr_hash_pool_get(const napr_hash_t *thehash)
 
 napr_hash_index_t *napr_hash_first(apr_pool_t *pool, napr_hash_t *hash)
 {
-    napr_hash_index_t *hash_index;
+    napr_hash_index_t *hash_index = NULL;
     hash_index = apr_palloc(pool, sizeof(struct napr_hash_index_t));
     hash_index->hash = hash;
     hash_index->bucket = 0;
     hash_index->element = 0;
 
-    if (hash->filling_table[0] > 0)
+    if (hash->filling_table[0] > 0) {
 	return hash_index;
+    }
 
     return napr_hash_next(hash_index);
 }
@@ -301,22 +357,27 @@ napr_hash_index_t *napr_hash_next(napr_hash_index_t *index)
     else {
 	index->element = 0;
 	for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
-	    if (0 != index->hash->filling_table[index->bucket])
+	    if (0 != index->hash->filling_table[index->bucket]) {
 		break;
+	    }
 	}
-	if (index->bucket < index->hash->size)
+	if (index->bucket < index->hash->size) {
 	    return index;
+	}
     }
 
     return NULL;
 }
 
-void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val)
+void napr_hash_this(napr_hash_index_t *hash_index, const void **key, apr_size_t *klen, void **val)
 {
-    if (key)
-	*key = hi->hash->get_key(hi->hash->table[hi->bucket][hi->element]);
-    if (klen)
-	*klen = hi->hash->get_key_len(hi->hash->table[hi->bucket][hi->element]);
-    if (val)
-	*val = hi->hash->table[hi->bucket][hi->element];
+    if (key) {
+	*key = hash_index->hash->get_key(hash_index->hash->table[hash_index->bucket][hash_index->element]);
+    }
+    if (klen) {
+	*klen = hash_index->hash->get_key_len(hash_index->hash->table[hash_index->bucket][hash_index->element]);
+    }
+    if (val) {
+	*val = hash_index->hash->table[hash_index->bucket][hash_index->element];
+    }
 }
