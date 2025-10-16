@@ -48,12 +48,12 @@ struct napr_list_t
     unsigned long nb_cells;
 };
 
-static inline napr_list_t *napr_list_make(apr_pool_t *p)
+static inline napr_list_t *napr_list_make(apr_pool_t *pool)
 {
-    apr_pool_t *local_pool;
-    napr_list_t *napr_list;
+    apr_pool_t *local_pool = NULL;
+    napr_list_t *napr_list = NULL;
 
-    apr_pool_create(&local_pool, p);
+    apr_pool_create(&local_pool, pool);
     napr_list = apr_palloc(local_pool, sizeof(struct napr_list_t));
 
     if (napr_list != NULL) {
@@ -68,30 +68,29 @@ static inline napr_list_t *napr_list_make(apr_pool_t *p)
 
 static int napr_list_cons(napr_list_t *napr_list, void *element)
 {
-    napr_cell_t *cell;
-    int rc; /** return code. */
+    napr_cell_t *cell = NULL;
+    int return_code = -1; /** return code. */
 
-    if (NULL != (cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t)))) {
+    cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t));
+    if (NULL != cell) {
 	cell->data = element;
 	cell->next = napr_list->head;
 	napr_list->head = cell;
 	napr_list->nb_cells += 1;
 
-	if (napr_list->nb_cells == 1)
+	if (napr_list->nb_cells == 1) {
 	    napr_list->tail = napr_list->head;
+	}
 
-	rc = 0;
-    }
-    else {
-	rc = -1;
+	return_code = 0;
     }
 
-    return rc;
+    return return_code;
 }
 
 static inline void napr_list_cdr(napr_list_t *napr_list)
 {
-    void *cell;
+    void *cell = NULL;
 
     cell = napr_list->head->next;
     napr_list->nb_cells -= 1UL;
@@ -100,33 +99,36 @@ static inline void napr_list_cdr(napr_list_t *napr_list)
 
 static inline void napr_list_delete(napr_list_t *napr_list)
 {
-    while (napr_list->head != NULL)
+    while (napr_list->head != NULL) {
 	napr_list_cdr(napr_list);
+    }
 
     apr_pool_destroy(napr_list->p);
 }
 
 static inline int napr_list_enqueue(napr_list_t *napr_list, void *element)
 {
-    napr_cell_t *cell;
-    int rc = 0;
+    napr_cell_t *cell = NULL;
+    int return_code = 0;
 
     if (0 != napr_list->nb_cells) {
-	if (NULL != (cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t)))) {
+	cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t));
+	if (NULL != cell) {
 	    napr_list->nb_cells += 1UL;
 	    cell->data = element;
 	    cell->next = NULL;
 	    napr_list->tail->next = cell;
 	    napr_list->tail = cell;
 	}
-	else
-	    rc = -1;
+	else {
+	    return_code = -1;
+	}
     }
     else {
-	rc = napr_list_cons(napr_list, element);
+	return_code = napr_list_cons(napr_list, element);
     }
 
-    return rc;
+    return return_code;
 }
 
 static inline napr_cell_t *napr_list_first(napr_list_t *napr_list)

@@ -211,34 +211,38 @@ unsigned int napr_heap_size(const napr_heap_t *heap)
  */
 napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 {
-    napr_heap_t *heap;
+    napr_heap_t *heap = NULL;
 
-    if (NULL != (heap = napr_heap_make(pool, cmp))) {
-	if (APR_SUCCESS != apr_thread_mutex_create(&(heap->mutex), APR_THREAD_MUTEX_DEFAULT, pool))
+    heap = napr_heap_make(pool, cmp);
+    if (heap != NULL) {
+	if (APR_SUCCESS != apr_thread_mutex_create(&(heap->mutex), APR_THREAD_MUTEX_DEFAULT, pool)) {
 	    heap = NULL;
+	}
     }
 
-    if (NULL != heap)
+    if (NULL != heap) {
 	heap->mutex_set = 1;
+    }
 
     return heap;
 }
 
 int napr_heap_insert_r(napr_heap_t *heap, void *datum)
 {
-    int return_code;
+    int return_code = -1;
 
     if (1 == heap->mutex_set) {
-	if (APR_SUCCESS == (return_code = apr_thread_mutex_lock(heap->mutex))) {
-	    if (0 == (return_code = napr_heap_insert(heap, datum)))
+	return_code = apr_thread_mutex_lock(heap->mutex);
+	if (APR_SUCCESS == return_code) {
+	    return_code = napr_heap_insert(heap, datum);
+	    if (0 == return_code) {
 		return_code = apr_thread_mutex_unlock(heap->mutex);
+	    }
 	}
 	else {
 	    DEBUG_ERR("locking failed");
 	}
     }
-    else
-	return_code = -1;
 
     return return_code;
 }
