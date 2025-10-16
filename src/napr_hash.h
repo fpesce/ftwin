@@ -68,18 +68,39 @@ typedef int (key_cmp_callback_fn_t) (const void *, const void *, apr_size_t);
 typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_size_t);
 
 /**
- * @brief Create a hash table with custom key handling and hashing functions.
- * @param[in] pool The pool to allocate the hash table from.
- * @param[in] nel The desired number of pre-allocated buckets (will be rounded up to the next power of 2).
- * @param[in] ffactor The maximum number of collisions for a given key before resizing.
- * @param[in] get_key A callback to extract the key from a data item.
- * @param[in] get_key_len A callback to get the length of the key.
- * @param[in] key_cmp A callback to compare two keys.
- * @param[in] hash A callback to compute the hash of a key.
- * @return A pointer to the newly created hash table.
+ * @brief Arguments for creating a napr_hash_t.
+ *
+ * This structure encapsulates all the parameters needed to create a hash table,
+ * improving readability and type safety by avoiding long, ambiguous parameter lists.
+ */
+typedef struct napr_hash_create_args_t {
+    apr_pool_t *pool;                   /**< The pool to use for all allocations. */
+    apr_size_t nel;                     /**< The expected number of elements to store. */
+    apr_size_t ffactor;                 /**< The desired filling factor (density). */
+    get_key_callback_fn_t *get_key;      /**< Function to get the key from a datum. */
+    get_key_len_callback_fn_t *get_key_len; /**< Function to get the key length from a datum. */
+    key_cmp_callback_fn_t *key_cmp;      /**< Function to compare two keys. */
+    hash_callback_fn_t *hash;            /**< The hash function to use. */
+} napr_hash_create_args_t;
+
+/**
+ * Create a new hash table from a structure of arguments.
+ * @param args A pointer to the napr_hash_create_args_t structure.
+ * @return A pointer to the new hash table.
+ */
+napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t *args);
+
+/**
+ * @brief Creates a new hash table (deprecated).
+ * @deprecated Please use napr_hash_make_ex with napr_hash_create_args_t instead.
+ * @see napr_hash_make_ex
  */
 napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
-			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash);
+			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((deprecated("Use napr_hash_make_ex instead")))
+#endif
+;
 
 /**
  * @brief Create a hash table optimized for storing C strings as keys.

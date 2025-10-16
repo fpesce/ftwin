@@ -29,6 +29,7 @@
 #include "config.h"
 #include "debug.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_file.h"
 #include "napr_threadpool.h"
 #include "napr_heap.h"

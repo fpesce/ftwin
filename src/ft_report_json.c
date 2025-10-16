@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "ft_archive.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_file.h"
 #include "ft_report.h"
 #include "napr_hash.h"
@@ -80,25 +81,27 @@ static json_t *create_file_json_object(ft_file_t *file, ft_conf_t *conf)
 apr_status_t ft_report_json(ft_conf_t *conf)
 {
     // Variable declarations (mirroring ft_conf_twin_report)
-    char errbuf[128];
+    char errbuf[ERROR_BUFFER_SIZE];
     apr_off_t old_size = -1;
     ft_file_t *file = NULL;
     ft_fsize_t *fsize = NULL;
     apr_uint32_t hash_value = 0;
     apr_size_t index1 = 0;
     apr_size_t index2 = 0;
-    int rv = 0;
+    int return_value = 0;
     apr_status_t status = APR_SUCCESS;
     apr_uint32_t chksum_array_sz = 0U;
 
     json_t *root_array = json_array();
-    if (!root_array)
+    if (!root_array) {
 	return APR_ENOMEM;
+    }
 
     // Iterate through the heap (logic adapted from ft_conf_twin_report)
     while (NULL != (file = napr_heap_extract(conf->heap))) {
-	if (file->size == old_size)
+	if (file->size == old_size) {
 	    continue;
+	}
 	old_size = file->size;
 
 	if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
@@ -106,8 +109,9 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
 
 	    for (index1 = 0; index1 < fsize->nb_files; index1++) {
-		if (NULL == fsize->chksum_array[index1].file)
+		if (NULL == fsize->chksum_array[index1].file) {
 		    continue;
+		}
 
 		json_t *current_set_obj = NULL;
 		json_t *duplicates_array = NULL;
@@ -146,24 +150,27 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 			    fpathi = fsize->chksum_array[index1].file->path;
 			    fpathj = fsize->chksum_array[index2].file->path;
 			}
-			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
+			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &return_value);
 
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
-			    if (NULL != fsize->chksum_array[index1].file->subpath)
+			    if (NULL != fsize->chksum_array[index1].file->subpath) {
 				(void) apr_file_remove(fpathi, conf->pool);
-			    if (NULL != fsize->chksum_array[index2].file->subpath)
+			    }
+			    if (NULL != fsize->chksum_array[index2].file->subpath) {
 				(void) apr_file_remove(fpathj, conf->pool);
+			    }
 			}
 			if (APR_SUCCESS != status) {
-			    if (is_option_set(conf->mask, OPTION_VERBO))
+			    if (is_option_set(conf->mask, OPTION_VERBO)) {
 				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
 					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path,
-					apr_strerror(status, errbuf, 128));
-			    rv = 1;
+					apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+			    }
+			    return_value = 1;
 			}
 			// -------------------------------------------------------------
 
-			if (0 == rv) {
+			if (0 == return_value) {
 			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
 				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
 					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path);
@@ -209,13 +216,16 @@ apr_status_t ft_report_json(ft_conf_t *conf)
     }
 
     // Dump the JSON output to stdout
-    json_dumpf(root_array, stdout, JSON_INDENT(2) | JSON_ENSURE_ASCII);
+    if (json_dumpf(root_array, stdout, JSON_INDENT(2) | JSON_ENSURE_ASCII) != 0) {
+	fprintf(stderr, "Error: failed to write JSON to stdout.\n");
+	status = APR_EGENERAL;
+    }
     printf("\n");
     fflush(stdout);
     // Free the JSON structure
     json_decref(root_array);
 
-    return APR_SUCCESS;
+    return status;
 }
 
 #endif /* HAVE_JANSSON */
