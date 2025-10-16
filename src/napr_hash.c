@@ -173,7 +173,8 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
 extern void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value)
 {
     apr_uint32_t key_hash = 0;
-    apr_size_t bucket_index = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t bucket_index;
     apr_size_t nel = 0;
     apr_size_t bucket = 0;
 
@@ -203,8 +204,10 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 {
     napr_hash_t *tmp = NULL;
     apr_size_t index = 0;
-    apr_size_t sub_index = 0;
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t sub_index;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     napr_hash_create_args_t args = {
 	.pool = hash->pool,
 	.nel = hashsize(hash->power + 1),
@@ -228,7 +231,8 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 	     * hash table
 	     */
 	    status = napr_hash_set(tmp, hash->table[index][sub_index],
-				   hash->hash(hash->get_key(hash->table[index][sub_index]), hash->get_key_len(hash->table[index][sub_index])));
+				   hash->hash(hash->get_key(hash->table[index][sub_index]),
+					      hash->get_key_len(hash->table[index][sub_index])));
 	    if (APR_SUCCESS != status) {
 		char errbuf[ERROR_BUFFER_SIZE];
 		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
@@ -252,7 +256,8 @@ extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_va
 {
     apr_size_t nel = 0;
     apr_size_t bucket = 0;
-    apr_size_t index = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t index;
     apr_size_t key_len = 0;
     const void *key = NULL;
 
@@ -289,7 +294,8 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 {
     apr_size_t nel = 0;
     apr_size_t bucket = 0;
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     bucket = hash_value & hash->mask;
 

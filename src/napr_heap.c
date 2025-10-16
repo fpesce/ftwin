@@ -138,10 +138,14 @@ void *napr_heap_extract(napr_heap_t *heap)
 {
     void *ret = NULL;
     void *tmp = NULL;
-    unsigned int ipos = 0;
-    unsigned int rpos = 0;
-    unsigned int lpos = 0;
-    unsigned int mpos = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    unsigned int ipos;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    unsigned int rpos;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    unsigned int lpos;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    unsigned int mpos;
 
     if ((0 != heap->count) && (NULL != heap->tree)) {
 	/* keep the value to return */
