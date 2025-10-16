@@ -174,11 +174,11 @@ napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor
 
 /**
  * @brief Get the current entry's details from the iteration state.
- * @param[in] hi The iteration state.
+ * @param[in] hash_index The iteration state.
  * @param[out] key Pointer to store the key. Can be NULL.
  * @param[out] klen Pointer to store the key length. Can be NULL.
  * @param[out] val Pointer to store the value (the data item). Can be NULL.
  */
-     void napr_hash_this(napr_hash_index_t *hi, const void **key, apr_size_t *klen, void **val);
+     void napr_hash_this(napr_hash_index_t *hash_index, const void **key, apr_size_t *klen, void **val);
 
 #endif /* NAPR_HASH_H */

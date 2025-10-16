@@ -26,9 +26,21 @@
 #include "napr_heap.h"
 
 #define INITIAL_MAX 256
-#define NAPR_HEAP_PARENT(position) (((position) - 1) >> 1)
-#define NAPR_HEAP_LEFT(position)   (((position) << 1) + 1)
-#define NAPR_HEAP_RIGHT(position)  (((position) + 1) << 1)
+
+static inline unsigned int napr_heap_parent(unsigned int position)
+{
+    return (position - 1) >> 1;
+}
+
+static inline unsigned int napr_heap_left(unsigned int position)
+{
+    return (position << 1) + 1;
+}
+
+static inline unsigned int napr_heap_right(unsigned int position)
+{
+    return (position + 1) << 1;
+}
 
 struct napr_heap_t
 {
@@ -48,7 +60,7 @@ struct napr_heap_t
 napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 {
     napr_heap_t *heap = NULL;
-    apr_pool_t *local_pool;
+    apr_pool_t *local_pool = NULL;
 
     if (APR_SUCCESS == (apr_pool_create(&local_pool, pool))) {
 	heap = apr_palloc(local_pool, sizeof(napr_heap_t));
@@ -69,16 +81,19 @@ napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 
 int napr_heap_insert(napr_heap_t *heap, void *datum)
 {
-    void **tmp;
-    unsigned int ipos, ppos;
+    void **tmp = NULL;
+    unsigned int ipos = 0;
+    unsigned int ppos = 0;
 
     if (heap->max <= heap->count) {
 	/*
 	 * reallocation by power of 2:
 	 */
-	unsigned int new_max;
+	unsigned int new_max = 0;
 
-	for (new_max = 1; new_max <= heap->max; new_max *= 2);
+	for (new_max = 1; new_max <= heap->max; new_max *= 2) {
+	    /* empty */
+	}
 
 	tmp = apr_palloc(heap->pool, new_max * sizeof(void *));
 	if (NULL != tmp) {
@@ -100,7 +115,7 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
     heap->tree[heap->count] = datum;
 
     ipos = heap->count;
-    ppos = NAPR_HEAP_PARENT(ipos);
+    ppos = napr_heap_parent(ipos);
 
     while (ipos > 0 && (heap->cmp(heap->tree[ppos], heap->tree[ipos]) < 0)) {
 	/*
@@ -111,7 +126,7 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
 	heap->tree[ipos] = tmp;
 
 	ipos = ppos;
-	ppos = NAPR_HEAP_PARENT(ipos);
+	ppos = napr_heap_parent(ipos);
     }
 
     heap->count++;
@@ -121,8 +136,12 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
 
 void *napr_heap_extract(napr_heap_t *heap)
 {
-    void *ret = NULL, *tmp;
-    unsigned int ipos, rpos, lpos, mpos;
+    void *ret = NULL;
+    void *tmp = NULL;
+    unsigned int ipos = 0;
+    unsigned int rpos = 0;
+    unsigned int lpos = 0;
+    unsigned int mpos = 0;
 
     if ((0 != heap->count) && (NULL != heap->tree)) {
 	/* keep the value to return */
@@ -134,8 +153,8 @@ void *napr_heap_extract(napr_heap_t *heap)
 	ipos = 0;
 
 	while (1) {
-	    lpos = NAPR_HEAP_LEFT(ipos);
-	    rpos = NAPR_HEAP_RIGHT(ipos);
+	    lpos = napr_heap_left(ipos);
+	    rpos = napr_heap_right(ipos);
 
 	    if (lpos < heap->count) {
 		if (heap->cmp(heap->tree[lpos], heap->tree[ipos]) > 0) {
@@ -203,19 +222,19 @@ napr_heap_t *napr_heap_make_r(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp
 
 int napr_heap_insert_r(napr_heap_t *heap, void *datum)
 {
-    int rc;
+    int return_code;
 
     if (1 == heap->mutex_set) {
-	if (APR_SUCCESS == (rc = apr_thread_mutex_lock(heap->mutex))) {
-	    if (0 == (rc = napr_heap_insert(heap, datum)))
-		rc = apr_thread_mutex_unlock(heap->mutex);
+	if (APR_SUCCESS == (return_code = apr_thread_mutex_lock(heap->mutex))) {
+	    if (0 == (return_code = napr_heap_insert(heap, datum)))
+		return_code = apr_thread_mutex_unlock(heap->mutex);
 	}
 	else {
 	    DEBUG_ERR("locking failed");
 	}
     }
     else
-	rc = -1;
+	return_code = -1;
 
-    return rc;
+    return return_code;
 }
