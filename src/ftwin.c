@@ -67,7 +67,7 @@ int ftwin_main(int argc, const char **argv)
     char errbuf[128];
     ft_conf_t *conf;
     apr_pool_t *pool, *gc_pool;
-    int i, first_arg_index;
+    int arg_index, first_arg_index;
     apr_status_t status;
 
     if (APR_SUCCESS != (status = apr_initialize())) {
@@ -94,8 +94,8 @@ int ftwin_main(int argc, const char **argv)
 	apr_terminate();
 	return -1;
     }
-    for (i = first_arg_index; i < argc; i++) {
-	const char *current_arg = argv[i];
+    for (arg_index = first_arg_index; arg_index < argc; arg_index++) {
+	const char *current_arg = argv[arg_index];
 	char *resolved_path = (char *) current_arg;
 
 	// Requirement: JSON output must contain absolute paths.

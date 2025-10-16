@@ -40,16 +40,18 @@
 #include "napr_hash.h"
 #include "napr_heap.h"
 
+#define EPOCH_YEAR_START 1900
+
 /* Formats apr_time_t to ISO 8601 UTC string (YYYY-MM-DDTHH:MM:SSZ). */
-static const char *ft_format_time_iso8601_utc(apr_time_t t, apr_pool_t *pool)
+static const char *ft_format_time_iso8601_utc(apr_time_t time_value, apr_pool_t *pool)
 {
     apr_time_exp_t exploded;
     // Use apr_time_exp_gmt to get the time in UTC (GMT).
-    if (apr_time_exp_gmt(&exploded, t) != APR_SUCCESS) {
+    if (apr_time_exp_gmt(&exploded, time_value) != APR_SUCCESS) {
 	return apr_pstrdup(pool, "UNKNOWN_TIME");
     }
     return apr_psprintf(pool, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-			exploded.tm_year + 1900, exploded.tm_mon + 1, exploded.tm_mday,
+			exploded.tm_year + EPOCH_YEAR_START, exploded.tm_mon + 1, exploded.tm_mday,
 			exploded.tm_hour, exploded.tm_min, exploded.tm_sec);
 }
 
@@ -83,8 +85,8 @@ apr_status_t ft_report_json(ft_conf_t *conf)
     ft_file_t *file = NULL;
     ft_fsize_t *fsize = NULL;
     apr_uint32_t hash_value = 0;
-    apr_size_t i = 0;
-    apr_size_t j = 0;
+    apr_size_t index1 = 0;
+    apr_size_t index2 = 0;
     int rv = 0;
     apr_status_t status = APR_SUCCESS;
     apr_uint32_t chksum_array_sz = 0U;
@@ -103,58 +105,59 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 	    chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
 	    qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
 
-	    for (i = 0; i < fsize->nb_files; i++) {
-		if (NULL == fsize->chksum_array[i].file)
+	    for (index1 = 0; index1 < fsize->nb_files; index1++) {
+		if (NULL == fsize->chksum_array[index1].file)
 		    continue;
 
 		json_t *current_set_obj = NULL;
 		json_t *duplicates_array = NULL;
 
-		for (j = i + 1; j < fsize->nb_files; j++) {
+		for (index2 = index1 + 1; index2 < fsize->nb_files; index2++) {
 		    if (0 ==
-			memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
+			memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value,
+			       sizeof(ft_hash_t))) {
 
 			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
 			char *fpathi = NULL;
 			char *fpathj = NULL;
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
-			    if (NULL != fsize->chksum_array[i].file->subpath) {
-				fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);
+			    if (NULL != fsize->chksum_array[index1].file->subpath) {
+				fpathi = ft_archive_untar_file(fsize->chksum_array[index1].file, conf->pool);
 				if (NULL == fpathi) {
 				    DEBUG_ERR("error calling ft_archive_untar_file");
 				    return APR_EGENERAL;
 				}
 			    }
 			    else {
-				fpathi = fsize->chksum_array[i].file->path;
+				fpathi = fsize->chksum_array[index1].file->path;
 			    }
-			    if (NULL != fsize->chksum_array[j].file->subpath) {
-				fpathj = ft_archive_untar_file(fsize->chksum_array[j].file, conf->pool);
+			    if (NULL != fsize->chksum_array[index2].file->subpath) {
+				fpathj = ft_archive_untar_file(fsize->chksum_array[index2].file, conf->pool);
 				if (NULL == fpathj) {
 				    DEBUG_ERR("error calling ft_archive_untar_file");
 				    return APR_EGENERAL;
 				}
 			    }
 			    else {
-				fpathj = fsize->chksum_array[j].file->path;
+				fpathj = fsize->chksum_array[index2].file->path;
 			    }
 			}
 			else {
-			    fpathi = fsize->chksum_array[i].file->path;
-			    fpathj = fsize->chksum_array[j].file->path;
+			    fpathi = fsize->chksum_array[index1].file->path;
+			    fpathj = fsize->chksum_array[index2].file->path;
 			}
 			status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &rv);
 
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
-			    if (NULL != fsize->chksum_array[i].file->subpath)
+			    if (NULL != fsize->chksum_array[index1].file->subpath)
 				(void) apr_file_remove(fpathi, conf->pool);
-			    if (NULL != fsize->chksum_array[j].file->subpath)
+			    if (NULL != fsize->chksum_array[index2].file->subpath)
 				(void) apr_file_remove(fpathj, conf->pool);
 			}
 			if (APR_SUCCESS != status) {
 			    if (is_option_set(conf->mask, OPTION_VERBO))
 				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
-					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path,
+					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path,
 					apr_strerror(status, errbuf, 128));
 			    rv = 1;
 			}
@@ -163,30 +166,30 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 			if (0 == rv) {
 			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
 				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
-					fsize->chksum_array[i].file->path, fsize->chksum_array[j].file->path);
+					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path);
 			    }
 
-			    // Initialize JSON set if first match for file[i]
+			    // Initialize JSON set if first match for file[index1]
 			    if (NULL == current_set_obj) {
 				current_set_obj = json_object();
 				duplicates_array = json_array();
 
 				// Add metadata
 				json_object_set_new(current_set_obj, "size_bytes", json_integer(fsize->val));
-				char *hex_hash = ft_hash_to_hex(fsize->chksum_array[i].hash_value, conf->pool);
+				char *hex_hash = ft_hash_to_hex(fsize->chksum_array[index1].hash_value, conf->pool);
 				json_object_set_new(current_set_obj, "hash_xxh128", json_string(hex_hash));
 				json_object_set_new(current_set_obj, "duplicates", duplicates_array);
 
-				// Add file[i] details
+				// Add file[index1] details
 				json_array_append_new(duplicates_array,
-						      create_file_json_object(fsize->chksum_array[i].file, conf));
+						      create_file_json_object(fsize->chksum_array[index1].file, conf));
 			    }
 
-			    // Add file[j] details
+			    // Add file[index2] details
 			    json_array_append_new(duplicates_array,
-						  create_file_json_object(fsize->chksum_array[j].file, conf));
+						  create_file_json_object(fsize->chksum_array[index2].file, conf));
 
-			    fsize->chksum_array[j].file = NULL;	// Mark as processed
+			    fsize->chksum_array[index2].file = NULL;	// Mark as processed
 			}
 		    }
 		    else {

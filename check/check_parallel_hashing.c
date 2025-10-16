@@ -195,16 +195,8 @@ START_TEST(test_parallel_correctness)
 END_TEST
 /* *INDENT-ON* */
 
-/**
- * Test thread pool with various thread counts
- */
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-START_TEST(test_thread_counts)
+static void create_thread_test_files(const char *test_dir)
 {
-    int stdout_pipe[2] = { 0 };
-    int stderr_pipe[2] = { 0 };
-    const char *test_dir = "check/tests/thread_test";
-
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/thread_test/a.dat", TEST_FILE_SIZE_SMALL);
     ck_assert_int_eq(apr_file_copy
@@ -213,37 +205,57 @@ START_TEST(test_thread_counts)
     ck_assert_int_eq(apr_file_copy
 		     ("check/tests/thread_test/a.dat", "check/tests/thread_test/c.dat", APR_OS_DEFAULT, main_pool),
 		     APR_SUCCESS);
+}
 
+/**
+ * Test thread pool with various thread counts
+ */
+static void run_ftwin_with_thread_count(const char *thread_count)
+{
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+
+    int original_stdout = dup(STDOUT_FILENO);
+    int original_stderr = dup(STDERR_FILENO);
+
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+
+    const char *argv[] = { "ftwin", "-j", thread_count, "check/tests/thread_test" };
+    int return_value = ftwin_main(4, argv);
+
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+    dup2(original_stdout, STDOUT_FILENO);
+    dup2(original_stderr, STDERR_FILENO);
+
+    char *output = capture_output(stdout_pipe[0]);
+    close(stdout_pipe[0]);
+    close(stderr_pipe[0]);
+
+    /* Verify duplicates found regardless of thread count */
+    ck_assert_int_eq(return_value, 0);
+    ck_assert_ptr_ne(strstr(output, "a.dat"), NULL);
+    ck_assert_ptr_ne(strstr(output, "b.dat"), NULL);
+    ck_assert_ptr_ne(strstr(output, "c.dat"), NULL);
+}
+
+/**
+ * Test thread pool with various thread counts
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_thread_counts)
+{
+    const char *test_dir = "check/tests/thread_test";
+    create_thread_test_files(test_dir);
 
     /* Test with various thread counts: 1, 2, 4, 8 */
     const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
     for (size_t i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
-	pipe(stdout_pipe);
-	pipe(stderr_pipe);
-
-	int original_stdout = dup(STDOUT_FILENO);
-	int original_stderr = dup(STDERR_FILENO);
-
-	dup2(stdout_pipe[1], STDOUT_FILENO);
-	dup2(stderr_pipe[1], STDERR_FILENO);
-
-	const char *argv[] = { "ftwin", "-j", thread_counts[i], "check/tests/thread_test" };
-	int return_value = ftwin_main(4, argv);
-
-	close(stdout_pipe[1]);
-	close(stderr_pipe[1]);
-	dup2(original_stdout, STDOUT_FILENO);
-	dup2(original_stderr, STDERR_FILENO);
-
-	char *output = capture_output(stdout_pipe[0]);
-	close(stdout_pipe[0]);
-	close(stderr_pipe[0]);
-
-	/* Verify duplicates found regardless of thread count */
-	ck_assert_int_eq(return_value, 0);
-	ck_assert_ptr_ne(strstr(output, "a.dat"), NULL);
-	ck_assert_ptr_ne(strstr(output, "b.dat"), NULL);
-	ck_assert_ptr_ne(strstr(output, "c.dat"), NULL);
+	run_ftwin_with_thread_count(thread_counts[i]);
     }
 
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
