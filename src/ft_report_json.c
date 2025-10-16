@@ -221,7 +221,10 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 	status = APR_EGENERAL;
     }
     printf("\n");
-    fflush(stdout);
+    if (fflush(stdout) != 0) {
+	perror("Error flushing stdout");
+	status = APR_EGENERAL;
+    }
     // Free the JSON structure
     json_decref(root_array);
 

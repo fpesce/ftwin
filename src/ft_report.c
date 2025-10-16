@@ -254,7 +254,11 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	format_and_print_duplicate(conf, file2, colors);
 
 	fsize->chksum_array[index2].file = NULL;	/* Mark as a twin */
-	(void) fflush(stdout);
+	if (fflush(stdout) != 0) {
+	    perror("Error flushing stdout");
+	    /* Optionally, return an error status */
+	    return APR_EGENERAL;
+	}
     }
 
     return APR_SUCCESS;

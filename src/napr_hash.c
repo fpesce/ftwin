@@ -221,10 +221,9 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 	     * no need to do doublon test here as we take data directly from a
 	     * hash table
 	     */
-	    if (APR_SUCCESS !=
-		(status =
-		 napr_hash_set(tmp, hash->table[i][j],
-			       hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j]))))) {
+	    status = napr_hash_set(tmp, hash->table[i][j],
+				   hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j])));
+	    if (APR_SUCCESS != status) {
 		char errbuf[ERROR_BUFFER_SIZE];
 		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		return status;
