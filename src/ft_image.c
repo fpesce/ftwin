@@ -53,11 +53,11 @@ struct compute_vector_task_t
 };
 typedef struct compute_vector_task_t compute_vector_task_t;
 
-static apr_status_t compute_vector(void *ctx, void *data)
+static apr_status_t compute_vector(void *context, void *task_data)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    compute_vector_ctx_t *cv_ctx = (compute_vector_ctx_t *) ctx;
-    compute_vector_task_t *task = (compute_vector_task_t *) data;
+    compute_vector_ctx_t *cv_ctx = (compute_vector_ctx_t *) context;
+    compute_vector_task_t *task = (compute_vector_task_t *) task_data;
     ft_file_t *file = task->file;
     apr_status_t status = APR_SUCCESS;
 

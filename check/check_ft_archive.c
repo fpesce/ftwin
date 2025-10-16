@@ -99,11 +99,11 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
-static void create_test_file(const char *file_path, const char *file_content)
+static void create_test_file(const char *path, const char *content)
 {
-    FILE *file = fopen(file_path, "w");
+    FILE *file = fopen(path, "w");
     ck_assert_ptr_ne(file, NULL);
-    ck_assert_int_ge(fputs(file_content, file), 0);
+    ck_assert_int_ge(fputs(content, file), 0);
     ck_assert_int_eq(fclose(file), 0);
 }
 
@@ -123,7 +123,8 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
-    create_test_file("d.txt", "identical content");     // Standalone duplicate
+    create_test_file("d.txt", "identical content");
+
 
     create_test_archive("test_archive.tar", files_to_archive, 3);
 
