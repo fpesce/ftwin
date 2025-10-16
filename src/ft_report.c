@@ -54,8 +54,7 @@ int ft_chksum_cmp(const void *chksum1, const void *chksum2)
 }
 
 /* Forward declaration for helper function */
-static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index1, apr_size_t index2,
-					    unsigned char *already_printed, const reporting_colors_t *colors);
+static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index1, apr_size_t index2, unsigned char *already_printed, const reporting_colors_t *colors);
 
 /**
  * @brief Processes a single file to find and report its duplicates.
@@ -68,9 +67,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
  *
  * @return APR_SUCCESS on success, or an error status if reporting fails.
  */
-static apr_status_t
-process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index,
-				       const reporting_colors_t *colors)
+static apr_status_t process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index, const reporting_colors_t *colors)
 {
     unsigned char already_printed = 0;
     apr_size_t j_index = 0;
@@ -208,8 +205,7 @@ static void format_and_print_duplicate(ft_conf_t *conf, const ft_file_t *file, c
     }
 }
 
-static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index1, apr_size_t index2,
-					    unsigned char *already_printed, const reporting_colors_t *colors)
+static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index1, apr_size_t index2, unsigned char *already_printed, const reporting_colors_t *colors)
 {
     char *fpathi = NULL;
     char *fpathj = NULL;
@@ -230,8 +226,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
     if (status != APR_SUCCESS) {
 	if (is_option_set(conf->mask, OPTION_VERBO)) {
 	    char errbuf[ERROR_BUFFER_SIZE];
-	    (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file1->path, file2->path,
-			   apr_strerror(status, errbuf, sizeof(errbuf)));
+	    (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file1->path, file2->path, apr_strerror(status, errbuf, sizeof(errbuf)));
 	}
 	return APR_SUCCESS;	/* Continue processing other pairs */
     }

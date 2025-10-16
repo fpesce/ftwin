@@ -51,9 +51,7 @@ static const char *ft_format_time_iso8601_utc(apr_time_t time_value, apr_pool_t 
     if (apr_time_exp_gmt(&exploded, time_value) != APR_SUCCESS) {
 	return apr_pstrdup(pool, "UNKNOWN_TIME");
     }
-    return apr_psprintf(pool, "%04d-%02d-%02dT%02d:%02d:%02dZ",
-			exploded.tm_year + EPOCH_YEAR_START, exploded.tm_mon + 1, exploded.tm_mday,
-			exploded.tm_hour, exploded.tm_min, exploded.tm_sec);
+    return apr_psprintf(pool, "%04d-%02d-%02dT%02d:%02d:%02dZ", exploded.tm_year + EPOCH_YEAR_START, exploded.tm_mon + 1, exploded.tm_mday, exploded.tm_hour, exploded.tm_min, exploded.tm_sec);
 }
 
 /* Converts XXH128 hash to a hex string. Assumes XXH128_hash_t has high64/low64 members. */
@@ -117,9 +115,7 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 		json_t *duplicates_array = NULL;
 
 		for (index2 = index1 + 1; index2 < fsize->nb_files; index2++) {
-		    if (0 ==
-			memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value,
-			       sizeof(ft_hash_t))) {
+		    if (0 == memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value, sizeof(ft_hash_t))) {
 
 			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
 			char *fpathi = NULL;
@@ -163,8 +159,7 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 			if (APR_SUCCESS != status) {
 			    if (is_option_set(conf->mask, OPTION_VERBO)) {
 				fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
-					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path,
-					apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 			    }
 			    return_value = 1;
 			}
@@ -172,8 +167,7 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 
 			if (0 == return_value) {
 			    if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-				fprintf(stderr, "Dry run: would perform action on %s and %s\n",
-					fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path);
+				fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path);
 			    }
 
 			    // Initialize JSON set if first match for file[index1]
@@ -188,13 +182,11 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 				json_object_set_new(current_set_obj, "duplicates", duplicates_array);
 
 				// Add file[index1] details
-				json_array_append_new(duplicates_array,
-						      create_file_json_object(fsize->chksum_array[index1].file, conf));
+				json_array_append_new(duplicates_array, create_file_json_object(fsize->chksum_array[index1].file, conf));
 			    }
 
 			    // Add file[index2] details
-			    json_array_append_new(duplicates_array,
-						  create_file_json_object(fsize->chksum_array[index2].file, conf));
+			    json_array_append_new(duplicates_array, create_file_json_object(fsize->chksum_array[index2].file, conf));
 
 			    fsize->chksum_array[index2].file = NULL;	// Mark as processed
 			}

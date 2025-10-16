@@ -61,8 +61,7 @@ static void copy_file(const char *src_path, const char *dest_path)
     status_code = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(status_code, APR_SUCCESS);
 
-    status_code =
-	apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    status_code = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
     ck_assert_int_eq(status_code, APR_SUCCESS);
 
     /* 2. Loop and copy data */

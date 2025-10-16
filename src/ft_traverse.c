@@ -9,15 +9,12 @@
 
 #define MATCH_VECTOR_SIZE 210
 
-static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats,
-				       ft_ignore_context_t * parent_ctx)
+static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats, ft_ignore_context_t * parent_ctx)
 {
     char errbuf[128];
     apr_finfo_t finfo;
     apr_dir_t *dir;
-    apr_int32_t statmask =
-	APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT |
-	APR_FINFO_GPROT;
+    apr_int32_t statmask = APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
     apr_size_t fname_len;
     apr_uint32_t hash_value;
     apr_status_t status;

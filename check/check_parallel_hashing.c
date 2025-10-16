@@ -123,16 +123,10 @@ START_TEST(test_parallel_correctness)
     /* Create test files with duplicates */
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/parallel_test/file1.dat", TEST_FILE_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file2.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file3.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file3.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/parallel_test/file4.dat", TEST_FILE_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file4.dat", "check/tests/parallel_test/file5.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file4.dat", "check/tests/parallel_test/file5.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     /* Test with single thread */
     pipe(stdout_pipe1);
@@ -199,12 +193,8 @@ static void create_thread_test_files(const char *test_dir)
 {
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/thread_test/a.dat", TEST_FILE_SIZE_SMALL);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/thread_test/a.dat", "check/tests/thread_test/b.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/thread_test/a.dat", "check/tests/thread_test/c.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/thread_test/a.dat", "check/tests/thread_test/b.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/thread_test/a.dat", "check/tests/thread_test/c.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 }
 
 /**
@@ -278,19 +268,13 @@ START_TEST(test_various_file_sizes)
 
     /* Create files of different sizes with duplicates */
     create_test_file("check/tests/size_test/tiny1.dat", TEST_CHUNK_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/tiny1.dat", "check/tests/size_test/tiny2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/tiny1.dat", "check/tests/size_test/tiny2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     create_test_file("check/tests/size_test/small1.dat", KIBIBYTE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/small1.dat", "check/tests/size_test/small2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/small1.dat", "check/tests/size_test/small2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     create_test_file("check/tests/size_test/medium1.dat", TEST_FILE_SIZE_LARGE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/medium1.dat", "check/tests/size_test/medium2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/medium1.dat", "check/tests/size_test/medium2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     pipe(stdout_pipe);
     pipe(stderr_pipe);

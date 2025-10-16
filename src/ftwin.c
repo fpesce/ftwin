@@ -110,8 +110,7 @@ int ftwin_main(int argc, const char **argv)
 	    // Use apr_filepath_merge with NULL rootpath to resolve the absolute path.
 	    status = apr_filepath_merge(&resolved_path, NULL, current_arg, APR_FILEPATH_TRUENAME, gc_pool);
 	    if (APR_SUCCESS != status) {
-		DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg,
-			  apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+		DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		apr_terminate();
 		return -1;	// Fail if path resolution fails for JSON mode
 	    }

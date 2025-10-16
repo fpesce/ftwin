@@ -85,8 +85,7 @@ static void run_hash_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time *
-	(double) MICROSECONDS_PER_SECOND / (double) (KIBIBYTE * KIBIBYTE);
+    double throughput_mb_s = (double) (BUFFER_SIZE * ITERATIONS) / (double) total_time * (double) MICROSECONDS_PER_SECOND / (double) (KIBIBYTE * KIBIBYTE);
 
     (void) printf("  {\n");
     (void) printf("    \"name\": \"hash_throughput\",\n");
@@ -102,8 +101,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
     apr_file_t *file = NULL;
     const char *filename = NULL;
     char template[] = "bench_ftwin.XXXXXX";
-    apr_status_t status =
-	apr_file_mktemp(&file, template, APR_CREATE | APR_READ | APR_WRITE | APR_TRUNCATE | APR_BINARY, pool);
+    apr_status_t status = apr_file_mktemp(&file, template, APR_CREATE | APR_READ | APR_WRITE | APR_TRUNCATE | APR_BINARY, pool);
 
     if (status != APR_SUCCESS) {
 	(void) fprintf(stderr, "Failed to create temp file for checksum benchmark.\n");
@@ -136,8 +134,7 @@ static void run_checksum_file_benchmark(apr_pool_t *pool)
 
     apr_time_t end_time = apr_time_now();
     apr_time_t total_time = end_time - start_time;
-    double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time *
-	(double) MICROSECONDS_PER_SECOND / (double) (KIBIBYTE * KIBIBYTE);
+    double throughput_mb_s = (double) (FILE_SIZE * ITERATIONS) / (double) total_time * (double) MICROSECONDS_PER_SECOND / (double) (KIBIBYTE * KIBIBYTE);
 
     (void) printf("  {\n");
     (void) printf("    \"name\": \"checksum_file_throughput\",\n");

@@ -195,8 +195,7 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     }
 }
 
-static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg,
-				 const char *arg)
+static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg, const char *arg)
 {
     if (error_msg) {
 	(void) fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
@@ -322,10 +321,8 @@ typedef struct
 
 static void handle_flag_option(int option, ft_conf_t *conf);
 static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts);
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
-				  const apr_getopt_option_t *opt_option);
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
-				  const char *name, const apr_getopt_option_t *opt_option);
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option);
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option);
 
 static void process_options(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name)
 {
@@ -429,8 +426,7 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
     }
 }
 
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
-				  const apr_getopt_option_t *opt_option)
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'j':{
@@ -472,8 +468,7 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
  * This function centralizes the logic for image comparison options,
  * reducing the complexity of the main option handling switch.
  */
-static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name,
-				 const apr_getopt_option_t *opt_option)
+static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'I':
@@ -508,8 +503,7 @@ static void handle_image_options(int option, const char *optarg, ft_conf_t *conf
     }
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
-				  const char *name, const apr_getopt_option_t *opt_option)
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'h':

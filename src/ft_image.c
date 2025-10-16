@@ -76,8 +76,7 @@ static apr_status_t compute_vector(void *ctx, void *data)
 	return status;
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
-	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size,
-		       (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0F));
+	(void) fprintf(stderr, "\rProgress [%u/%u] %d%% ", cv_ctx->nb_processed, cv_ctx->heap_size, (int) ((float) cv_ctx->nb_processed / (float) cv_ctx->heap_size * 100.0F));
     }
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
@@ -198,8 +197,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 		continue;
 	    }
 
-	    double distance =
-		puzzle_vector_normalized_distance(context, &(file->cvec), &(file_cmp->cvec), FIX_FOR_CLUSTERING);
+	    double distance = puzzle_vector_normalized_distance(context, &(file->cvec), &(file_cmp->cvec), FIX_FOR_CLUSTERING);
 	    if (distance < conf->threshold) {
 		if (!already_printed) {
 		    (void) printf("%s%c", file->path, conf->sep);
@@ -211,8 +209,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 		(void) printf("%s", file_cmp->path);
 	    }
 	    if (is_option_set(conf->mask, OPTION_VERBO)) {
-		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp,
-			       (double) ((double) cnt_cmp / (double) nb_cmp * 100.0F));
+		(void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp, (double) ((double) cnt_cmp / (double) nb_cmp * 100.0F));
 	    }
 	    cnt_cmp++;
 	}

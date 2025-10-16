@@ -131,8 +131,7 @@ static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_h
     return APR_SUCCESS;
 }
 
-extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out,
-				  apr_pool_t *gc_pool)
+extern apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out, apr_pool_t *gc_pool)
 {
     if (size < excess_size) {
 	return checksum_small_file(filename, size, hash_out, gc_pool);
@@ -259,10 +258,8 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
     } while ((APR_SUCCESS == status1) && (APR_SUCCESS == status2) && (0 == *result_out) && (rbytes2 == rbytes1));
 
     if ((APR_EOF != status1) && (APR_EOF != status2) && (0 == *result_out)) {
-	DEBUG_ERR("1:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname1, rbytes1,
-		  apr_strerror(status1, errbuf, sizeof(errbuf)));
-	DEBUG_ERR("2:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname2, rbytes2,
-		  apr_strerror(status2, errbuf, sizeof(errbuf)));
+	DEBUG_ERR("1:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname1, rbytes1, apr_strerror(status1, errbuf, sizeof(errbuf)));
+	DEBUG_ERR("2:unable to read %s (%" APR_SIZE_T_FMT "): %s", fname2, rbytes2, apr_strerror(status2, errbuf, sizeof(errbuf)));
 	return status1;
     }
 
@@ -282,8 +279,7 @@ static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char
     return APR_SUCCESS;
 }
 
-extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
-			    int *result_out)
+extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size, int *result_out)
 {
     if (size < excess_size) {
 	return small_filecmp(pool, fname1, fname2, size, result_out);

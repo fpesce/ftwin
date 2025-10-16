@@ -46,8 +46,7 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 	filepath = file->path;
     }
 
-    status = checksum_file(filepath, file->size, h_ctx->conf->excess_size,
-			   &fsize->chksum_array[task->index].hash_value, subpool);
+    status = checksum_file(filepath, file->size, h_ctx->conf->excess_size, &fsize->chksum_array[task->index].hash_value, subpool);
 
     if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
 	(void) apr_file_remove(filepath, subpool);
@@ -62,8 +61,7 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
 
 	    if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
 		(void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-			       h_ctx->files_processed, h_ctx->total_files,
-			       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
+			       h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
 	    }
 
 	    apr_thread_mutex_unlock(h_ctx->stats_mutex);
@@ -71,8 +69,7 @@ static apr_status_t hashing_worker_callback(void *ctx, void *data)
     }
     else {
 	if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-	    (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path,
-			   apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+	    (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	}
     }
 
@@ -196,8 +193,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 	return status;
     }
 
-    for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index;
-	 hash_index = napr_hash_next(hash_index)) {
+    for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index; hash_index = napr_hash_next(hash_index)) {
 	napr_hash_this(hash_index, NULL, NULL, (void **) &fsize);
 
 	int should_hash = (fsize->nb_files > 2) && (0 != fsize->val);
@@ -247,8 +243,7 @@ static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_he
 {
     ft_fsize_t *fsize = NULL;
 
-    for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index;
-	 hash_index = napr_hash_next(hash_index)) {
+    for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index; hash_index = napr_hash_next(hash_index)) {
 	napr_hash_this(hash_index, NULL, NULL, (void **) &fsize);
 
 	int should_insert = (fsize->nb_files > 2) && (0 != fsize->val);
