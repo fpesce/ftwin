@@ -105,23 +105,23 @@ static void populate_hash_for_rebuild_test(napr_hash_t *hash, char **keys, int n
     void *result = NULL;
     apr_status_t status = APR_SUCCESS;
 
-    for (int i = 0; i < num_keys; i++) {
-	keys[i] = apr_psprintf(pool, "key_%d", i);
+    for (int index = 0; index < num_keys; index++) {
+	keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
+	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
 	ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[i], hash_value);
+	status = napr_hash_set(hash, keys[index], hash_value);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 }
 
 static void verify_hash_after_rebuild(napr_hash_t *hash, char **keys, int num_keys)
 {
-    for (int i = 0; i < num_keys; i++) {
-	char *result = napr_hash_search(hash, keys[i], strlen(keys[i]), NULL);
+    for (int index = 0; index < num_keys; index++) {
+	char *result = napr_hash_search(hash, keys[index], strlen(keys[index]), NULL);
 	ck_assert_ptr_ne(result, NULL);
-	ck_assert_str_eq(result, keys[i]);
+	ck_assert_str_eq(result, keys[index]);
     }
 }
 
@@ -162,7 +162,7 @@ START_TEST(test_napr_hash_remove_multiple)
     char **keys = NULL;
     void *result = NULL;
     apr_status_t status = APR_SUCCESS;
-    int i = 0;
+    int index = 0;
 
     memset(hash_values, 0, sizeof(hash_values));
     /* Create hash with very low fill factor to force collisions */
@@ -175,13 +175,13 @@ START_TEST(test_napr_hash_remove_multiple)
     keys = (char **) apr_pcalloc(pool, HASH_VALUES_COUNT * sizeof(char *));
 
     /* Insert multiple items that will collide in the same bucket */
-    for (i = 0; i < LOOP_LIMIT; i++) {
-	keys[i] = apr_psprintf(pool, "key_%d", i);
+    for (index = 0; index < LOOP_LIMIT; index++) {
+	keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_values[i]);
+	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_values[index]);
 	ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[i], hash_values[i]);
+	status = napr_hash_set(hash, keys[index], hash_values[index]);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
@@ -216,7 +216,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     napr_hash_t *hash = NULL;
     apr_uint32_t hash_value = 0;
     char **keys = NULL;
-    int i = 0;
+    int index = 0;
     int count = 0;
     napr_hash_index_t *hash_iterator = NULL;
     void *result = NULL;
@@ -236,13 +236,13 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     keys = (char **) apr_pcalloc(pool, KEYS_COUNT * sizeof(char *));
 
     /* Insert multiple items */
-    for (i = 0; i < LOOP_LIMIT; i++) {
-	keys[i] = apr_psprintf(pool, "key_%d", i);
+    for (index = 0; index < LOOP_LIMIT; index++) {
+	keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[i], strlen(keys[i]), &hash_value);
+	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
 	ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[i], hash_value);
+	status = napr_hash_set(hash, keys[index], hash_value);
 	ck_assert_int_eq(status, APR_SUCCESS);
     }
 
