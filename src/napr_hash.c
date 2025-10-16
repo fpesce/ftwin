@@ -96,13 +96,13 @@ struct napr_hash_t
 napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor)
 {
     napr_hash_create_args_t args = {
-        .pool = pool,
-        .nel = nel,
-        .ffactor = ffactor,
-        .get_key = str_get_key,
-        .get_key_len = str_get_key_len,
-        .key_cmp = str_key_cmp,
-        .hash = str_hash
+	.pool = pool,
+	.nel = nel,
+	.ffactor = ffactor,
+	.get_key = str_get_key,
+	.get_key_len = str_get_key_len,
+	.key_cmp = str_key_cmp,
+	.hash = str_hash
     };
     return napr_hash_make_ex(&args);
 }
@@ -111,18 +111,18 @@ napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor
 			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
 {
     napr_hash_create_args_t args = {
-        .pool = pool,
-        .nel = nel,
-        .ffactor = ffactor,
-        .get_key = get_key,
-        .get_key_len = get_key_len,
-        .key_cmp = key_cmp,
-        .hash = hash
+	.pool = pool,
+	.nel = nel,
+	.ffactor = ffactor,
+	.get_key = get_key,
+	.get_key_len = get_key_len,
+	.key_cmp = key_cmp,
+	.hash = hash
     };
     return napr_hash_make_ex(&args);
 }
 
-napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t *args)
+napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
 {
     napr_hash_t *result = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -197,16 +197,18 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 {
     napr_hash_t *tmp = NULL;
     apr_size_t i = 0;
-    apr_size_t j = 0;
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_size_t j;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     napr_hash_create_args_t args = {
-        .pool = hash->pool,
-        .nel = hashsize(hash->power + 1),
-        .ffactor = hash->ffactor,
-        .get_key = hash->get_key,
-        .get_key_len = hash->get_key_len,
-        .key_cmp = hash->key_cmp,
-        .hash = hash->hash
+	.pool = hash->pool,
+	.nel = hashsize(hash->power + 1),
+	.ffactor = hash->ffactor,
+	.get_key = hash->get_key,
+	.get_key_len = hash->get_key_len,
+	.key_cmp = hash->key_cmp,
+	.hash = hash->hash
     };
 
     tmp = napr_hash_make_ex(&args);
@@ -221,10 +223,9 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 	     * no need to do doublon test here as we take data directly from a
 	     * hash table
 	     */
-	    if (APR_SUCCESS !=
-		(status =
-		 napr_hash_set(tmp, hash->table[i][j],
-			       hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j]))))) {
+	    status = napr_hash_set(tmp, hash->table[i][j],
+				   hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j])));
+	    if (APR_SUCCESS != status) {
 		char errbuf[ERROR_BUFFER_SIZE];
 		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		return status;

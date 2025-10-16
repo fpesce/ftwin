@@ -87,7 +87,8 @@ int ftwin_main(int argc, const char **argv)
     }
 
     conf = ft_config_create(pool);
-    if (APR_SUCCESS != (status = ft_config_parse_args(conf, argc, argv, &first_arg_index))) {
+    status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
+    if (APR_SUCCESS != status) {
 	/* Error message is printed inside the function */
 	apr_terminate();
 	return -1;
