@@ -80,12 +80,13 @@ apr_status_t ft_report_json(ft_conf_t *conf)
     // Variable declarations (mirroring ft_conf_twin_report)
     char errbuf[128];
     apr_off_t old_size = -1;
-    ft_file_t *file;
-    ft_fsize_t *fsize;
-    apr_uint32_t hash_value;
-    apr_size_t i, j;
-    int rv;
-    apr_status_t status;
+    ft_file_t *file = NULL;
+    ft_fsize_t *fsize = NULL;
+    apr_uint32_t hash_value = 0;
+    apr_size_t i = 0;
+    apr_size_t j = 0;
+    int rv = 0;
+    apr_status_t status = APR_SUCCESS;
     apr_uint32_t chksum_array_sz = 0U;
 
     json_t *root_array = json_array();
@@ -114,7 +115,8 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 			memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t))) {
 
 			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
-			char *fpathi, *fpathj;
+			char *fpathi = NULL;
+			char *fpathj = NULL;
 			if (is_option_set(conf->mask, OPTION_UNTAR)) {
 			    if (NULL != fsize->chksum_array[i].file->subpath) {
 				fpathi = ft_archive_untar_file(fsize->chksum_array[i].file, conf->pool);

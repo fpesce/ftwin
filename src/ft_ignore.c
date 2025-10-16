@@ -299,18 +299,19 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
 
 apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str)
 {
-    const char *trimmed;
+    const char *trimmed = NULL;
     unsigned int flags = 0;
-    char *regex_str;
-    pcre *regex;
-    const char *error;
-    int erroffset;
-    ft_ignore_pattern_t *pattern;
+    char *regex_str = NULL;
+    pcre *regex = NULL;
+    const char *error = NULL;
+    int erroffset = 0;
+    ft_ignore_pattern_t *pattern = NULL;
 
     /* Trim whitespace */
     trimmed = pattern_str;
-    while (isspace(*trimmed))
+    while (isspace(*trimmed)) {
 	trimmed++;
+    }
 
     /* Skip empty lines and comments */
     if (*trimmed == '\0' || *trimmed == '#') {
@@ -341,8 +342,8 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
 
 apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath)
 {
-    apr_file_t *file;
-    apr_status_t status;
+    apr_file_t *file = NULL;
+    apr_status_t status = APR_SUCCESS;
     char line[MAX_PATTERN_LEN];
 
     status = apr_file_open(&file, filepath, APR_READ, APR_OS_DEFAULT, ctx->pool);
@@ -370,9 +371,9 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
 
 ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir)
 {
-    ft_ignore_context_t *current_ctx;
+    ft_ignore_context_t *current_ctx = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
-    const char *relative_path;
+    const char *relative_path = NULL;
 
     if (!ctx || !fullpath) {
 	return FT_IGNORE_MATCH_NONE;
@@ -380,14 +381,15 @@ ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *
 
     /* Walk up the context hierarchy */
     for (current_ctx = ctx; current_ctx != NULL; current_ctx = current_ctx->parent) {
-	int i;
+	int i = 0;
 
 	/* Calculate relative path from this context's base_dir */
 	if (strncmp(fullpath, current_ctx->base_dir, current_ctx->base_dir_len) == 0) {
 	    relative_path = fullpath + current_ctx->base_dir_len;
 	    /* Skip leading slash */
-	    while (*relative_path == '/')
+	    while (*relative_path == '/') {
 		relative_path++;
+	    }
 	}
 	else {
 	    /* Path not under this context's base, try parent */
@@ -397,7 +399,7 @@ ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *
 	/* Check patterns in order (last match wins) */
 	for (i = 0; i < current_ctx->patterns->nelts; i++) {
 	    ft_ignore_pattern_t *pattern = APR_ARRAY_IDX(current_ctx->patterns, i, ft_ignore_pattern_t *);
-	    int match;
+	    int match = 0;
 
 	    /* Skip directory-only patterns if this is not a directory */
 	    if ((pattern->flags & FT_IGNORE_DIR_ONLY) && !is_dir) {
@@ -405,7 +407,7 @@ ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *
 	    }
 
 	    /* Try to match */
-	    match = pcre_exec(pattern->regex, NULL, relative_path, strlen(relative_path), 0, 0, NULL, 0);
+	    match = pcre_exec(pattern->regex, NULL, relative_path, (int)strlen(relative_path), 0, 0, NULL, 0);
 
 	    if (match >= 0) {
 		/* Pattern matched */
