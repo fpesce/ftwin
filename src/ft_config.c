@@ -221,13 +221,13 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     conf->ig_files = napr_hash_str_make(pool, HASH_STR_BUCKET_SIZE, HASH_STR_MAX_ENTRIES);
 
     napr_hash_create_args_t hash_args = {
-        .pool = pool,
-        .nel = HASH_SIZE_BUCKET_SIZE,
-        .ffactor = HASH_SIZE_MAX_ENTRIES,
-        .get_key = ft_fsize_get_key,
-        .get_key_len = ft_fsize_get_key_len,
-        .key_cmp = apr_off_t_key_cmp,
-        .hash = apr_off_t_key_hash
+	.pool = pool,
+	.nel = HASH_SIZE_BUCKET_SIZE,
+	.ffactor = HASH_SIZE_MAX_ENTRIES,
+	.get_key = ft_fsize_get_key,
+	.get_key_len = ft_fsize_get_key_len,
+	.key_cmp = apr_off_t_key_cmp,
+	.hash = apr_off_t_key_hash
     };
     conf->sizes = napr_hash_make_ex(&hash_args);
 
