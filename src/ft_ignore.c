@@ -119,11 +119,20 @@ static void append_pcre_sequence(char **cursor, const char *sequence)
  * @param starts_with_slash Indicates if the pattern began with '/'.
  * @param flags Flags that may include FT_IGNORE_DIR_ONLY.
  */
-static void set_pcre_anchors(char **result_cursor, int starts_with_slash, unsigned int flags)
+/**
+ * @brief Parameters for setting PCRE anchors.
+ */
+struct pcre_anchor_params_t
+{
+    int starts_with_slash;
+    unsigned int flags;
+};
+
+static void set_pcre_anchors(char **result_cursor, const struct pcre_anchor_params_t *params)
 {
     char *cursor = *result_cursor;
 
-    if (starts_with_slash) {
+    if (params->starts_with_slash) {
         append_pcre_sequence(&cursor, "^");
     }
     else {
@@ -263,11 +272,13 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 {
     char *result = apr_pcalloc(pool, MAX_PATTERN_LEN);
     char *result_cursor = result;
-    int starts_with_slash = 0;
-    const char *pattern_cursor = handle_negation_and_slashes(pattern, flags, &starts_with_slash);
+    struct pcre_anchor_params_t anchor_params = { 0 };
+    const char *pattern_cursor = handle_negation_and_slashes(pattern, flags, &anchor_params.starts_with_slash);
+
+    anchor_params.flags = *flags;
 
     /* Set start anchor based on whether the pattern had a leading slash */
-    set_pcre_anchors(&result_cursor, starts_with_slash, *flags);
+    set_pcre_anchors(&result_cursor, &anchor_params);
 
     /* Convert the main body of the glob pattern */
     convert_glob_body_to_pcre(&pattern_cursor, &result_cursor, *flags);

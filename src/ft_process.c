@@ -16,11 +16,11 @@ int ft_file_cmp(const void *param1, const void *param2);
 #include <archive.h>
 #include "ft_archive.h"
 
-static apr_status_t hashing_worker_callback(void *ctx, void *data)
+static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
     char errbuf[ERROR_BUFFER_SIZE];
-    hashing_context_t *h_ctx = (hashing_context_t *) ctx;
-    hashing_task_t *task = (hashing_task_t *) data;
+    hashing_context_t *h_ctx = (hashing_context_t *) hashing_ctx;
+    hashing_task_t *task = (hashing_task_t *) task_data;
     ft_fsize_t *fsize = task->fsize;
     ft_file_t *file = fsize->chksum_array[task->index].file;
     apr_pool_t *subpool = NULL;

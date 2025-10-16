@@ -29,8 +29,15 @@ static void run_hash_benchmark(apr_pool_t *pool);
 static void run_checksum_file_benchmark(apr_pool_t *pool);
 
 #ifdef FTWIN_TEST_BUILD
+struct bench_file_params_t
+{
+    int number_of_files;
+    size_t size_of_each_file;
+};
+typedef struct bench_file_params_t bench_file_params_t;
+
 static void run_parallel_hashing_benchmark(apr_pool_t *pool);
-static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files, size_t size_of_each_file);
+static void create_bench_files(apr_pool_t *pool, const char *directory_path, const bench_file_params_t *params);
 static void cleanup_bench_files(const char *dir, apr_pool_t *pool);
 #endif
 
@@ -184,7 +191,7 @@ static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
     return apr_dir_remove(path, pool);
 }
 
-static void create_bench_files(apr_pool_t *pool, const char *directory_path, int number_of_files, size_t size_of_each_file)
+static void create_bench_files(apr_pool_t *pool, const char *directory_path, const bench_file_params_t *params)
 {
     (void) apr_dir_make_recursive(directory_path, APR_OS_DEFAULT, pool);
 
@@ -200,11 +207,11 @@ static void create_bench_files(apr_pool_t *pool, const char *directory_path, int
     }
 
     /* Create base files and duplicates */
-    for (int i = 0; i < number_of_files / 3; i++) {
+    for (int i = 0; i < params->number_of_files / 3; i++) {
         char *filename = apr_pstrcat(pool, directory_path, "/base", apr_itoa(pool, i), ".dat", NULL);
         apr_file_t *file_handle = NULL;
         if (apr_file_open(&file_handle, filename, APR_CREATE | APR_WRITE | APR_BINARY, APR_OS_DEFAULT, pool) == APR_SUCCESS) {
-            for (size_t j = 0; j < size_of_each_file / BUFFER_SIZE; j++) {
+            for (size_t j = 0; j < params->size_of_each_file / BUFFER_SIZE; j++) {
                 apr_size_t bytes_to_write = BUFFER_SIZE;
                 (void) apr_file_write(file_handle, buffer, &bytes_to_write);
             }
@@ -238,7 +245,11 @@ static void run_parallel_hashing_benchmark(apr_pool_t *pool)
     (void) fflush(stdout);
     (void) fflush(stderr);
     (void) fprintf(stderr, "Creating benchmark files...\n");
-    create_bench_files(pool, bench_dir, NUM_BENCH_FILES, BENCH_FILE_SIZE);
+    bench_file_params_t params = {
+        .number_of_files = NUM_BENCH_FILES,
+        .size_of_each_file = BENCH_FILE_SIZE
+    };
+    create_bench_files(pool, bench_dir, &params);
 
     for (int thread_idx = 0; thread_idx < num_thread_configs; thread_idx++) {
         unsigned int num_threads = thread_counts[thread_idx];
