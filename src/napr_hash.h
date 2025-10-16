@@ -75,13 +75,13 @@ typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_s
  */
 typedef struct napr_hash_create_args_t
 {
-    apr_pool_t *pool;			/**< The pool to use for all allocations. */
-    apr_size_t nel;			/**< The expected number of elements to store. */
-    apr_size_t ffactor;			/**< The desired filling factor (density). */
-    get_key_callback_fn_t *get_key;	 /**< Function to get the key from a datum. */
+    apr_pool_t *pool;                   /**< The pool to use for all allocations. */
+    apr_size_t nel;                     /**< The expected number of elements to store. */
+    apr_size_t ffactor;                 /**< The desired filling factor (density). */
+    get_key_callback_fn_t *get_key;      /**< Function to get the key from a datum. */
     get_key_len_callback_fn_t *get_key_len; /**< Function to get the key length from a datum. */
-    key_cmp_callback_fn_t *key_cmp;	 /**< Function to compare two keys. */
-    hash_callback_fn_t *hash;		 /**< The hash function to use. */
+    key_cmp_callback_fn_t *key_cmp;      /**< Function to compare two keys. */
+    hash_callback_fn_t *hash;            /**< The hash function to use. */
 } napr_hash_create_args_t;
 
 /**
@@ -97,7 +97,7 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args);
  * @see napr_hash_make_ex
  */
 napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
-			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
+                            get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
 #if defined(__GNUC__) || defined(__clang__)
     __attribute__((deprecated("Use napr_hash_make_ex instead")))
 #endif

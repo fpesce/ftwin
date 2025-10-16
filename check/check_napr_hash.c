@@ -35,24 +35,24 @@ static void setup(void)
     apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	status = apr_initialize();
-	if (status != APR_SUCCESS) {
-	    DEBUG_ERR("Error initializing APR");
-	    exit(1);
-	}
-	(void) atexit(apr_terminate);
-	status = apr_pool_create(&main_pool, NULL);
-	if (status != APR_SUCCESS) {
-	    DEBUG_ERR("Error creating main_pool");
-	    exit(1);
-	}
+        status = apr_initialize();
+        if (status != APR_SUCCESS) {
+            DEBUG_ERR("Error initializing APR");
+            exit(1);
+        }
+        (void) atexit(apr_terminate);
+        status = apr_pool_create(&main_pool, NULL);
+        if (status != APR_SUCCESS) {
+            DEBUG_ERR("Error creating main_pool");
+            exit(1);
+        }
     }
     status = apr_pool_create(&pool, main_pool);
     if (status != APR_SUCCESS) {
-	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
-	DEBUG_ERR("Error creating pool");
-	exit(1);
+        // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+        // Safe: DEBUG_ERR macro uses fprintf with fixed format string
+        DEBUG_ERR("Error creating pool");
+        exit(1);
     }
 }
 
@@ -106,22 +106,22 @@ static void populate_hash_for_rebuild_test(napr_hash_t *hash, char **keys, int n
     apr_status_t status = APR_SUCCESS;
 
     for (int index = 0; index < num_keys; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+        keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
-	ck_assert_ptr_eq(result, NULL);
+        result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
+        ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[index], hash_value);
-	ck_assert_int_eq(status, APR_SUCCESS);
+        status = napr_hash_set(hash, keys[index], hash_value);
+        ck_assert_int_eq(status, APR_SUCCESS);
     }
 }
 
 static void verify_hash_after_rebuild(napr_hash_t *hash, char **keys, int num_keys)
 {
     for (int index = 0; index < num_keys; index++) {
-	char *result = napr_hash_search(hash, keys[index], strlen(keys[index]), NULL);
-	ck_assert_ptr_ne(result, NULL);
-	ck_assert_str_eq(result, keys[index]);
+        char *result = napr_hash_search(hash, keys[index], strlen(keys[index]), NULL);
+        ck_assert_ptr_ne(result, NULL);
+        ck_assert_str_eq(result, keys[index]);
     }
 }
 
@@ -133,7 +133,7 @@ START_TEST(test_napr_hash_rebuild)
     char **keys = NULL;
 
     /* Create hash with small initial size and low fill factor to trigger rebuild */
-    hash = napr_hash_str_make(pool, 2, 2);	/* 2 buckets, 2 items per bucket */
+    hash = napr_hash_str_make(pool, 2, 2);      /* 2 buckets, 2 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
@@ -166,7 +166,7 @@ START_TEST(test_napr_hash_remove_multiple)
 
     memset(hash_values, 0, sizeof(hash_values));
     /* Create hash with very low fill factor to force collisions */
-    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);	/* 1 bucket, 10 items capacity */
+    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);      /* 1 bucket, 10 items capacity */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
@@ -176,13 +176,13 @@ START_TEST(test_napr_hash_remove_multiple)
 
     /* Insert multiple items that will collide in the same bucket */
     for (index = 0; index < LOOP_LIMIT; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+        keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_values[index]);
-	ck_assert_ptr_eq(result, NULL);
+        result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_values[index]);
+        ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[index], hash_values[index]);
-	ck_assert_int_eq(status, APR_SUCCESS);
+        status = napr_hash_set(hash, keys[index], hash_values[index]);
+        ck_assert_int_eq(status, APR_SUCCESS);
     }
 
     /* Remove middle element (not the last one in bucket) */
@@ -227,7 +227,7 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
     const int LOOP_LIMIT = 8;
 
     /* Create hash with configuration that promotes collisions */
-    hash = napr_hash_str_make(pool, 2, ITEMS_PER_BUCKET);	/* 2 buckets, 5 items per bucket */
+    hash = napr_hash_str_make(pool, 2, ITEMS_PER_BUCKET);       /* 2 buckets, 5 items per bucket */
     ck_assert_ptr_ne(hash, NULL);
 
     /* Allocate keys array */
@@ -237,24 +237,24 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
 
     /* Insert multiple items */
     for (index = 0; index < LOOP_LIMIT; index++) {
-	keys[index] = apr_psprintf(pool, "key_%d", index);
+        keys[index] = apr_psprintf(pool, "key_%d", index);
 
-	result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
-	ck_assert_ptr_eq(result, NULL);
+        result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_value);
+        ck_assert_ptr_eq(result, NULL);
 
-	status = napr_hash_set(hash, keys[index], hash_value);
-	ck_assert_int_eq(status, APR_SUCCESS);
+        status = napr_hash_set(hash, keys[index], hash_value);
+        ck_assert_int_eq(status, APR_SUCCESS);
     }
 
     /* Iterate through all elements */
     count = 0;
     for (hash_iterator = napr_hash_first(pool, hash); hash_iterator; hash_iterator = napr_hash_next(hash_iterator)) {
-	const void *key = NULL;
-	apr_size_t klen = 0;
-	void *val = NULL;
-	napr_hash_this(hash_iterator, &key, &klen, &val);
-	ck_assert_ptr_ne(val, NULL);
-	count++;
+        const void *key = NULL;
+        apr_size_t klen = 0;
+        void *val = NULL;
+        napr_hash_this(hash_iterator, &key, &klen, &val);
+        ck_assert_ptr_ne(val, NULL);
+        count++;
     }
 
     ck_assert_int_eq(count, 8);
@@ -311,10 +311,10 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
     /* Iterate - should skip empty buckets */
     count = 0;
     for (hash_iterator = napr_hash_first(pool, hash); hash_iterator; hash_iterator = napr_hash_next(hash_iterator)) {
-	void *val = NULL;
-	napr_hash_this(hash_iterator, NULL, NULL, &val);
-	ck_assert_ptr_ne(val, NULL);
-	count++;
+        void *val = NULL;
+        napr_hash_this(hash_iterator, NULL, NULL, &val);
+        ck_assert_ptr_ne(val, NULL);
+        count++;
     }
 
     ck_assert_int_eq(count, 2);

@@ -53,8 +53,7 @@ typedef apr_status_t (threadpool_process_data_callback_fn_t) (void *ctx, void *d
  * @param[in] pool The APR pool to use for allocating the thread pool and its resources.
  * @return APR_SUCCESS on success, or an error code on failure.
  */
-apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *ctx, unsigned long nb_thread,
-				  threadpool_process_data_callback_fn_t *process_data, apr_pool_t *pool);
+apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *ctx, unsigned long nb_thread, threadpool_process_data_callback_fn_t *process_data, apr_pool_t *pool);
 
 /**
  * @brief Adds a task (a data item) to the thread pool's processing queue.

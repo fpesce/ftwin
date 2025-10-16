@@ -45,9 +45,9 @@ static const int MAX_PATH_LENGTH = 128;
 static void setup(void)
 {
     if (main_pool == NULL) {
-	(void) apr_initialize();
-	(void) atexit(apr_terminate);
-	(void) apr_pool_create(&main_pool, NULL);
+        (void) apr_initialize();
+        (void) atexit(apr_terminate);
+        (void) apr_pool_create(&main_pool, NULL);
     }
 }
 
@@ -68,29 +68,29 @@ static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
     apr_status_t status = apr_dir_open(&dir, path, pool);
 
     if (status != APR_SUCCESS) {
-	return status;
+        return status;
     }
 
     while (apr_dir_read(&finfo, APR_FINFO_DIRENT | APR_FINFO_TYPE, dir) == APR_SUCCESS) {
-	if (strcmp(finfo.name, ".") == 0 || strcmp(finfo.name, "..") == 0) {
-	    continue;
-	}
+        if (strcmp(finfo.name, ".") == 0 || strcmp(finfo.name, "..") == 0) {
+            continue;
+        }
 
-	char *new_path = apr_pstrcat(pool, path, "/", finfo.name, NULL);
-	if (finfo.filetype == APR_DIR) {
-	    status = recursive_delete(new_path, pool);
-	    if (status != APR_SUCCESS) {
-		(void) apr_dir_close(dir);
-		return status;
-	    }
-	}
-	else {
-	    status = apr_file_remove(new_path, pool);
-	    if (status != APR_SUCCESS) {
-		(void) apr_dir_close(dir);
-		return status;
-	    }
-	}
+        char *new_path = apr_pstrcat(pool, path, "/", finfo.name, NULL);
+        if (finfo.filetype == APR_DIR) {
+            status = recursive_delete(new_path, pool);
+            if (status != APR_SUCCESS) {
+                (void) apr_dir_close(dir);
+                return status;
+            }
+        }
+        else {
+            status = apr_file_remove(new_path, pool);
+            if (status != APR_SUCCESS) {
+                (void) apr_dir_close(dir);
+                return status;
+            }
+        }
     }
 
     (void) apr_dir_close(dir);
@@ -101,10 +101,10 @@ static void create_test_file(const char *path, size_t size)
 {
     FILE *file = fopen(path, "wb");
     if (file) {
-	for (size_t i = 0; i < size; i++) {
-	    (void) fputc((int) (i % CHAR_MAX_VAL), file);
-	}
-	(void) fclose(file);
+        for (size_t i = 0; i < size; i++) {
+            (void) fputc((int) (i % CHAR_MAX_VAL), file);
+        }
+        (void) fclose(file);
     }
 }
 
@@ -245,7 +245,7 @@ START_TEST(test_thread_counts)
     /* Test with various thread counts: 1, 2, 4, 8 */
     const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
     for (size_t i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
-	run_ftwin_with_thread_count(thread_counts[i]);
+        run_ftwin_with_thread_count(thread_counts[i]);
     }
 
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
@@ -326,16 +326,16 @@ START_TEST(test_many_files)
 
     /* Create 20 sets of duplicate files (3 copies each = 60 files) */
     for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {
-	char base_path[MAX_PATH_LENGTH];
-	memset(base_path, 0, sizeof(base_path));
-	(void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
-	create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
+        char base_path[MAX_PATH_LENGTH];
+        memset(base_path, 0, sizeof(base_path));
+        (void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
+        create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
 
-	for (int j = 1; j <= 2; j++) {
-	    char dup_path[MAX_PATH_LENGTH];
-	    (void) snprintf(dup_path, sizeof(dup_path), "check/tests/many_test/dup%d_%d.dat", i, j);
-	    ck_assert_int_eq(apr_file_copy(base_path, dup_path, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
-	}
+        for (int j = 1; j <= 2; j++) {
+            char dup_path[MAX_PATH_LENGTH];
+            (void) snprintf(dup_path, sizeof(dup_path), "check/tests/many_test/dup%d_%d.dat", i, j);
+            ck_assert_int_eq(apr_file_copy(base_path, dup_path, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+        }
     }
 
     pipe(stdout_pipe);
