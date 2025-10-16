@@ -172,21 +172,27 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
 
 extern void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key_len, apr_uint32_t *hash_value)
 {
-    apr_uint32_t key_hash;
-    apr_size_t i, nel, bucket;
+    apr_uint32_t key_hash = 0;
+    apr_size_t bucket_index = 0;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
 
     key_hash = hash->hash(key, key_len);
 
-    if (NULL != hash_value)
+    if (NULL != hash_value) {
 	*hash_value = key_hash;
+    }
 
     bucket = key_hash & hash->mask;
-    if (0 != (nel = hash->filling_table[bucket])) {
-	for (i = 0; i < nel; i++) {
-	    /*DEBUG_DBG( "key[%p] bucket[%"APR_SIZE_T_FMT"][%"APR_SIZE_T_FMT"]=[%p]", key, bucket, i, hash->get_key(hash->table[bucket][i])); */
-	    if (key_len == hash->get_key_len(hash->table[bucket][i]))
-		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][i]), key_len)))
-		    return hash->table[bucket][i];
+    nel = hash->filling_table[bucket];
+    if (0 != nel) {
+	for (bucket_index = 0; bucket_index < nel; bucket_index++) {
+	    /*DEBUG_DBG( "key[%p] bucket[%"APR_SIZE_T_FMT"][%"APR_SIZE_T_FMT"]=[%p]", key, bucket, bucket_index, hash->get_key(hash->table[bucket][bucket_index])); */
+	    if (key_len == hash->get_key_len(hash->table[bucket][bucket_index])) {
+		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][bucket_index]), key_len))) {
+		    return hash->table[bucket][bucket_index];
+		}
+	    }
 	}
     }
 
@@ -197,10 +203,8 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 {
     napr_hash_t *tmp = NULL;
     apr_size_t i = 0;
-    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-    apr_size_t j;
-    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-    apr_status_t status;
+    apr_size_t j = 0;
+    apr_status_t status = APR_SUCCESS;
     napr_hash_create_args_t args = {
 	.pool = hash->pool,
 	.nel = hashsize(hash->power + 1),
@@ -246,16 +250,20 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 
 extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_value)
 {
-    apr_size_t nel, bucket, i, key_len;
-    const void *key;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
+    apr_size_t i = 0;
+    apr_size_t key_len = 0;
+    const void *key = NULL;
 
     bucket = hash_value & hash->mask;
     key = hash->get_key(data);
     key_len = hash->get_key_len(data);
-    if (0 != (nel = hash->filling_table[bucket])) {
+    nel = hash->filling_table[bucket];
+    if (0 != nel) {
 	for (i = 0; i < nel; i++) {
 	    //DEBUG_DBG( "key[%.*s] bucket[%i]=[%.*s]", key_len, key, i, hash->get_key_len(hash->table[bucket][i]), hash->get_key(hash->table[bucket][i]));
-	    if (key_len == hash->get_key_len(hash->table[bucket][i]))
+	    if (key_len == hash->get_key_len(hash->table[bucket][i])) {
 		if (0 == (hash->key_cmp(key, hash->get_key(hash->table[bucket][i]), key_len))) {
 		    /* Remove it, by replacing with the last element if present */
 		    if (i != nel - 1) {
@@ -269,6 +277,7 @@ extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_va
 		    hash->nel--;
 		    break;
 		}
+	    }
 	}
     }
     else {
@@ -278,12 +287,14 @@ extern void napr_hash_remove(napr_hash_t *hash, void *data, apr_uint32_t hash_va
 
 extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t hash_value)
 {
-    apr_size_t nel, bucket;
-    apr_status_t status;
+    apr_size_t nel = 0;
+    apr_size_t bucket = 0;
+    apr_status_t status = APR_SUCCESS;
 
     bucket = hash_value & hash->mask;
 
-    if ((0 == (nel = hash->filling_table[bucket])) && (NULL == hash->table[bucket])) {
+    nel = hash->filling_table[bucket];
+    if ((0 == nel) && (NULL == hash->table[bucket])) {
 	hash->table[bucket] = (void **) apr_pcalloc(hash->own_pool, hash->ffactor * sizeof(void *));
     }
     // DEBUG_DBG( "set data %.*s in bucket %u at nel %u", hash->datum_get_key_len(data), hash->datum_get_key(data), bucket, nel);
@@ -299,7 +310,8 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 	//     DEBUG_DBG( "%.*s", hash->datum_get_key_len(hash->table[bucket][i]), hash->datum_get_key(hash->table[bucket][i]));
 	// }
 
-	if (APR_SUCCESS != (status = napr_hash_rebuild(hash))) {
+	status = napr_hash_rebuild(hash);
+	if (APR_SUCCESS != status) {
 	    char errbuf[ERROR_BUFFER_SIZE];
 	    DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	    return status;
