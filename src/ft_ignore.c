@@ -409,7 +409,7 @@ ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *
 	    }
 
 	    /* Try to match */
-	    match = pcre_exec(pattern->regex, NULL, relative_path, (int)strlen(relative_path), 0, 0, NULL, 0);
+	    match = pcre_exec(pattern->regex, NULL, relative_path, (int) strlen(relative_path), 0, 0, NULL, 0);
 
 	    if (match >= 0) {
 		/* Pattern matched */

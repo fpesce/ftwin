@@ -68,7 +68,8 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
  * @return APR_SUCCESS on success, or an error status if reporting fails.
  */
 static apr_status_t
-process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index, const reporting_colors_t *colors)
+process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index,
+				       const reporting_colors_t *colors)
 {
     unsigned char already_printed = 0;
     apr_size_t j_index = 0;
@@ -252,7 +253,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 	format_and_print_duplicate(conf, file2, colors);
 
 	fsize->chksum_array[index2].file = NULL;	/* Mark as a twin */
-	(void)fflush(stdout);
+	(void) fflush(stdout);
     }
 
     return APR_SUCCESS;

@@ -114,7 +114,8 @@ apr_status_t ft_report_json(ft_conf_t *conf)
 
 		for (index2 = index1 + 1; index2 < fsize->nb_files; index2++) {
 		    if (0 ==
-			memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value, sizeof(ft_hash_t))) {
+			memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value,
+			       sizeof(ft_hash_t))) {
 
 			// --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
 			char *fpathi = NULL;
