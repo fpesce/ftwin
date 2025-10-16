@@ -2,6 +2,7 @@
 
 #include "debug.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_process.h"
 #include "ft_system.h"
 #include "ft_types.h"

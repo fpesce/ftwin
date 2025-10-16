@@ -32,6 +32,7 @@
 #include "config.h"
 
 #include "debug.h"
+#include "ft_constants.h"
 #include "ft_file.h"
 #include "ft_system.h"
 #include "human_size.h"
@@ -64,19 +65,23 @@ const void *ft_gids_get_key(const void *opaque)
 
 int ftwin_main(int argc, const char **argv)
 {
-    char errbuf[128];
-    ft_conf_t *conf;
-    apr_pool_t *pool, *gc_pool;
-    int arg_index, first_arg_index;
-    apr_status_t status;
+    char errbuf[ERROR_BUFFER_SIZE];
+    ft_conf_t *conf = NULL;
+    apr_pool_t *pool = NULL;
+    apr_pool_t *gc_pool = NULL;
+    int arg_index = 0;
+    int first_arg_index = 0;
+    apr_status_t status = APR_SUCCESS;
 
-    if (APR_SUCCESS != (status = apr_initialize())) {
-	DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, 128));
+    status = apr_initialize();
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return -1;
     }
 
-    if (APR_SUCCESS != (status = apr_pool_create(&pool, NULL))) {
-	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&pool, NULL);
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	apr_terminate();
 	return -1;
     }
@@ -89,8 +94,9 @@ int ftwin_main(int argc, const char **argv)
     }
 
     /* Step 1 : Browse the file */
-    if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, pool))) {
-	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&gc_pool, pool);
+    if (APR_SUCCESS != status) {
+	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	apr_terminate();
 	return -1;
     }
@@ -104,14 +110,15 @@ int ftwin_main(int argc, const char **argv)
 	    status = apr_filepath_merge(&resolved_path, NULL, current_arg, APR_FILEPATH_TRUENAME, gc_pool);
 	    if (APR_SUCCESS != status) {
 		DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg,
-			  apr_strerror(status, errbuf, 128));
+			  apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		apr_terminate();
 		return -1;	// Fail if path resolution fails for JSON mode
 	    }
 	}
 
-	if (APR_SUCCESS != (status = ft_traverse_path(conf, resolved_path))) {
-	    DEBUG_ERR("error calling ft_traverse_path: %s", apr_strerror(status, errbuf, 128));
+	status = ft_traverse_path(conf, resolved_path);
+	if (APR_SUCCESS != status) {
+	    DEBUG_ERR("error calling ft_traverse_path: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	    apr_terminate();
 	    return -1;
 	}
@@ -127,32 +134,36 @@ int ftwin_main(int argc, const char **argv)
 	    }
 #endif
 	    /* Step 2: Report the image twins */
-	    if (APR_SUCCESS != (status = ft_image_twin_report(conf))) {
-		DEBUG_ERR("error calling ft_image_twin_report: %s", apr_strerror(status, errbuf, 128));
+	    status = ft_image_twin_report(conf);
+	    if (APR_SUCCESS != status) {
+		DEBUG_ERR("error calling ft_image_twin_report: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		apr_terminate();
 		return status;
 	    }
 	}
 	else {
 	    /* Step 2: Process the sizes set */
-	    if (APR_SUCCESS != (status = ft_process_files(conf))) {
-		DEBUG_ERR("error calling ft_process_files: %s", apr_strerror(status, errbuf, 128));
+	    status = ft_process_files(conf);
+	    if (APR_SUCCESS != status) {
+		DEBUG_ERR("error calling ft_process_files: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		apr_terminate();
 		return -1;
 	    }
 
 #if HAVE_JANSSON
 	    if (is_option_set(conf->mask, OPTION_JSON)) {
-		if (APR_SUCCESS != (status = ft_report_json(conf))) {
-		    DEBUG_ERR("error calling ft_report_json: %s", apr_strerror(status, errbuf, 128));
+		status = ft_report_json(conf);
+		if (APR_SUCCESS != status) {
+		    DEBUG_ERR("error calling ft_report_json: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		    apr_terminate();
 		    return status;
 		}
 	    }
 	    else {
 #endif
-		if (APR_SUCCESS != (status = ft_report_duplicates(conf))) {
-		    DEBUG_ERR("error calling ft_report_duplicates: %s", apr_strerror(status, errbuf, 128));
+		status = ft_report_duplicates(conf);
+		if (APR_SUCCESS != status) {
+		    DEBUG_ERR("error calling ft_report_duplicates: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		    apr_terminate();
 		    return status;
 		}

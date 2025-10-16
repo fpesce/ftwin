@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "ft_archive.h"
 #include "ft_config.h"
+#include "ft_constants.h"
 #include "ft_file.h"
 #include "human_size.h"
 #include "napr_hash.h"
@@ -213,7 +214,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
     char *fpathi = NULL;
     char *fpathj = NULL;
     int return_value = 0;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     ft_file_t *file1 = fsize->chksum_array[index1].file;
     ft_file_t *file2 = fsize->chksum_array[index2].file;

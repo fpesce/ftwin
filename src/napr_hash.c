@@ -20,6 +20,7 @@
  */
 
 #include "debug.h"
+#include "ft_constants.h"
 #include "napr_hash.h"
 
 #define XXH_STATIC_LINKING_ONLY
@@ -50,7 +51,7 @@ static int str_key_cmp(const void *opaque1, const void *opaque2, apr_size_t len)
 static apr_uint32_t str_hash(register const void *opaque, register apr_size_t len)
 {
     /* Use XXH32 for string hashing - faster and more consistent with file hashing */
-    return XXH32(opaque, len, 0x1337cafe);
+    return XXH32(opaque, len, XXH32_SEED);
 }
 
 struct napr_hash_index_t
@@ -92,49 +93,76 @@ struct napr_hash_t
     unsigned char power;
 };
 
-extern napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor)
+napr_hash_t *napr_hash_str_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor)
 {
-    return napr_hash_make(pool, nel, ffactor, str_get_key, str_get_key_len, str_key_cmp, str_hash);
+    napr_hash_create_args_t args = {
+        .pool = pool,
+        .nel = nel,
+        .ffactor = ffactor,
+        .get_key = str_get_key,
+        .get_key_len = str_get_key_len,
+        .key_cmp = str_key_cmp,
+        .hash = str_hash
+    };
+    return napr_hash_make_ex(&args);
 }
 
-extern napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
-				   get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp,
-				   hash_callback_fn_t hash)
+napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,
+			    get_key_len_callback_fn_t get_key_len, key_cmp_callback_fn_t key_cmp, hash_callback_fn_t hash)
 {
-    napr_hash_t *result;
-    apr_status_t status;
+    napr_hash_create_args_t args = {
+        .pool = pool,
+        .nel = nel,
+        .ffactor = ffactor,
+        .get_key = get_key,
+        .get_key_len = get_key_len,
+        .key_cmp = key_cmp,
+        .hash = hash
+    };
+    return napr_hash_make_ex(&args);
+}
 
-    if (NULL == (result = apr_pcalloc(pool, sizeof(struct napr_hash_t)))) {
+napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t *args)
+{
+    napr_hash_t *result = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    result = apr_pcalloc(args->pool, sizeof(struct napr_hash_t));
+    if (NULL == result) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
 
-    while (hashsize(result->power) < nel)
+    while (hashsize(result->power) < args->nel) {
 	result->power++;
+    }
 
     result->size = hashsize(result->power);
     result->mask = hashmask(result->power);
-    result->ffactor = ffactor;
-    result->get_key = get_key;
-    result->get_key_len = get_key_len;
-    result->key_cmp = key_cmp;
-    result->hash = hash;
-    result->pool = pool;
+    result->ffactor = args->ffactor;
+    result->get_key = args->get_key;
+    result->get_key_len = args->get_key_len;
+    result->key_cmp = args->key_cmp;
+    result->hash = args->hash;
+    result->pool = args->pool;
 
-    if (APR_SUCCESS != (status = apr_pool_create(&(result->own_pool), pool))) {
-	char errbuf[128];
-	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&(result->own_pool), args->pool);
+    if (APR_SUCCESS != status) {
+	char errbuf[ERROR_BUFFER_SIZE];
+	DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	return NULL;
     }
     /*DEBUG_DBG("readjusting size to %" APR_SIZE_T_FMT " to store %" APR_SIZE_T_FMT " elements", result->size, nel); */
     /*DEBUG_DBG("bit mask will be 0x%x", result->mask); */
 
-    if (NULL == (result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **)))) {
+    result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **));
+    if (NULL == result->table) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
 
-    if (NULL == (result->filling_table = apr_pcalloc(result->own_pool, result->size * sizeof(apr_size_t)))) {
+    result->filling_table = apr_pcalloc(result->own_pool, result->size * sizeof(apr_size_t));
+    if (NULL == result->filling_table) {
 	DEBUG_ERR("allocation error");
 	return NULL;
     }
@@ -167,14 +195,22 @@ extern void *napr_hash_search(napr_hash_t *hash, const void *key, apr_size_t key
 
 static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 {
-    napr_hash_t *tmp;
-    apr_size_t i, j;
-    apr_status_t status;
+    napr_hash_t *tmp = NULL;
+    apr_size_t i = 0;
+    apr_size_t j = 0;
+    apr_status_t status = APR_SUCCESS;
+    napr_hash_create_args_t args = {
+        .pool = hash->pool,
+        .nel = hashsize(hash->power + 1),
+        .ffactor = hash->ffactor,
+        .get_key = hash->get_key,
+        .get_key_len = hash->get_key_len,
+        .key_cmp = hash->key_cmp,
+        .hash = hash->hash
+    };
 
-    if (NULL ==
-	(tmp =
-	 napr_hash_make(hash->pool, hashsize(hash->power + 1), hash->ffactor, hash->get_key, hash->get_key_len,
-			hash->key_cmp, hash->hash))) {
+    tmp = napr_hash_make_ex(&args);
+    if (NULL == tmp) {
 	DEBUG_ERR("error calling napr_hash_init");
 	return APR_EGENERAL;
     }
@@ -189,8 +225,8 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
 		(status =
 		 napr_hash_set(tmp, hash->table[i][j],
 			       hash->hash(hash->get_key(hash->table[i][j]), hash->get_key_len(hash->table[i][j]))))) {
-		char errbuf[128];
-		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, 128));
+		char errbuf[ERROR_BUFFER_SIZE];
+		DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 		return status;
 	    }
 	}
@@ -263,8 +299,8 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 	// }
 
 	if (APR_SUCCESS != (status = napr_hash_rebuild(hash))) {
-	    char errbuf[128];
-	    DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, 128));
+	    char errbuf[ERROR_BUFFER_SIZE];
+	    DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
 	    return status;
 	}
     }
