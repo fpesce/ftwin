@@ -312,31 +312,28 @@ START_TEST(test_various_file_sizes)
 END_TEST
 /* *INDENT-ON* */
 
-/**
- * Test with many files to stress test thread pool
- */
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-START_TEST(test_many_files)
+static void create_many_files(const char *test_dir)
 {
-    int stdout_pipe[2] = { 0 };
-    int stderr_pipe[2] = { 0 };
-    const char *test_dir = "check/tests/many_test";
-
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
-    /* Create 20 sets of duplicate files (3 copies each = 60 files) */
     for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {
         char base_path[MAX_PATH_LENGTH];
         memset(base_path, 0, sizeof(base_path));
-        (void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
+        (void) snprintf(base_path, sizeof(base_path), "%s/base%d.dat", test_dir, i);
         create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
 
         for (int j = 1; j <= 2; j++) {
             char dup_path[MAX_PATH_LENGTH];
-            (void) snprintf(dup_path, sizeof(dup_path), "check/tests/many_test/dup%d_%d.dat", i, j);
+            (void) snprintf(dup_path, sizeof(dup_path), "%s/dup%d_%d.dat", test_dir, i, j);
             ck_assert_int_eq(apr_file_copy(base_path, dup_path, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
         }
     }
+}
+
+static void run_many_files_test(const char *test_dir)
+{
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
 
     pipe(stdout_pipe);
     pipe(stderr_pipe);
@@ -347,7 +344,7 @@ START_TEST(test_many_files)
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
 
-    const char *argv[] = { "ftwin", "-j", "4", "check/tests/many_test" };
+    const char *argv[] = { "ftwin", "-j", "4", test_dir };
     int return_value = ftwin_main(4, argv);
 
     close(stdout_pipe[1]);
@@ -359,12 +356,23 @@ START_TEST(test_many_files)
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
 
-    /* Verify no crashes and duplicates found */
     ck_assert_int_eq(return_value, 0);
     ck_assert_ptr_ne(strstr(output, "base0.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup0_1.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "base19.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup19_1.dat"), NULL);
+}
+
+/**
+ * Test with many files to stress test thread pool
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_many_files)
+{
+    const char *test_dir = "check/tests/many_test";
+
+    create_many_files(test_dir);
+    run_many_files_test(test_dir);
 
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
 }

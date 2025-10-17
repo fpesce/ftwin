@@ -76,138 +76,173 @@ static json_t *create_file_json_object(ft_file_t *file, ft_conf_t *conf)
     return obj;
 }
 
+static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2)
+{
+    if (is_option_set(conf->mask, OPTION_UNTAR)) {
+        if (file1->subpath) {
+            *path1 = ft_archive_untar_file(file1, conf->pool);
+            if (!*path1) {
+                return APR_EGENERAL;
+            }
+        }
+        else {
+            *path1 = file1->path;
+        }
+        if (file2->subpath) {
+            *path2 = ft_archive_untar_file(file2, conf->pool);
+            if (!*path2) {
+                if (file1->subpath) {
+                    (void) apr_file_remove(*path1, conf->pool);
+                }
+                return APR_EGENERAL;
+            }
+        }
+        else {
+            *path2 = file2->path;
+        }
+    }
+    else {
+        *path1 = file1->path;
+        *path2 = file2->path;
+    }
+    return APR_SUCCESS;
+}
+
+static void cleanup_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char *path1, char *path2)
+{
+    if (is_option_set(conf->mask, OPTION_UNTAR)) {
+        if (file1->subpath) {
+            (void) apr_file_remove(path1, conf->pool);
+        }
+        if (file2->subpath) {
+            (void) apr_file_remove(path2, conf->pool);
+        }
+    }
+}
+
+static apr_status_t perform_file_comparison(ft_conf_t *conf, ft_chksum_t *chksum1, ft_chksum_t *chksum2, apr_off_t file_size, int *result)
+{
+    char *fpath1 = NULL;
+    char *fpath2 = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    ft_file_t *file1 = chksum1->file;
+    ft_file_t *file2 = chksum2->file;
+
+    if (get_comparison_paths(conf, file1, file2, &fpath1, &fpath2) != APR_SUCCESS) {
+        DEBUG_ERR("Failed to get comparison paths for %s and %s", file1->path, file2->path);
+        return APR_EGENERAL;
+    }
+
+    status = filecmp(conf->pool, fpath1, fpath2, file_size, conf->excess_size, result);
+    cleanup_comparison_paths(conf, file1, file2, fpath1, fpath2);
+
+    if (status != APR_SUCCESS) {
+        if (is_option_set(conf->mask, OPTION_VERBO)) {
+            char errbuf[ERROR_BUFFER_SIZE];
+            (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file1->path, file2->path, apr_strerror(status, errbuf, sizeof(errbuf)));
+        }
+        *result = 1; /* Treat comparison error as "not a duplicate" */
+    }
+
+    return APR_SUCCESS;
+}
+
+static json_t *create_duplicate_set_json(ft_conf_t *conf, ft_chksum_t *chksum, apr_off_t size)
+{
+    json_t *set_obj = json_object();
+    json_t *duplicates_array = json_array();
+    char *hex_hash = ft_hash_to_hex(chksum->hash_value, conf->pool);
+
+    json_object_set_new(set_obj, "size_bytes", json_integer(size));
+    json_object_set_new(set_obj, "hash_xxh128", json_string(hex_hash));
+    json_object_set_new(set_obj, "duplicates", duplicates_array);
+    json_array_append_new(duplicates_array, create_file_json_object(chksum->file, conf));
+
+    return set_obj;
+}
+
+static apr_status_t find_and_report_duplicates(ft_conf_t *conf, ft_fsize_t *fsize, json_t *root_array)
+{
+    apr_status_t status = APR_SUCCESS;
+    int result = 0;
+
+    for (size_t i = 0; i < fsize->nb_files; i++) {
+        if (fsize->chksum_array[i].file == NULL) {
+            continue;
+        }
+
+        json_t *current_set_obj = NULL;
+        json_t *duplicates_array = NULL;
+
+        for (size_t j = i + 1; j < fsize->nb_files; j++) {
+            if (memcmp(&fsize->chksum_array[i].hash_value, &fsize->chksum_array[j].hash_value, sizeof(ft_hash_t)) == 0) {
+                status = perform_file_comparison(conf, &fsize->chksum_array[i], &fsize->chksum_array[j], fsize->val, &result);
+                if (status != APR_SUCCESS) {
+                    return status;
+                }
+
+                if (result == 0) {
+                    if (current_set_obj == NULL) {
+                        current_set_obj = create_duplicate_set_json(conf, &fsize->chksum_array[i], fsize->val);
+                        duplicates_array = json_object_get(current_set_obj, "duplicates");
+                    }
+                    json_array_append_new(duplicates_array, create_file_json_object(fsize->chksum_array[j].file, conf));
+                    fsize->chksum_array[j].file = NULL;
+                }
+            }
+            else {
+                break;
+            }
+        }
+
+        if (current_set_obj != NULL) {
+            json_array_append_new(root_array, current_set_obj);
+        }
+    }
+    return APR_SUCCESS;
+}
+
+static apr_status_t process_file_group(ft_conf_t *conf, ft_file_t *file, json_t *root_array, apr_off_t *old_size)
+{
+    if (file->size == *old_size) {
+        return APR_SUCCESS;
+    }
+    *old_size = file->size;
+
+    apr_uint32_t hash_value = 0;
+    ft_fsize_t *fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value);
+
+    if (fsize != NULL) {
+        apr_uint32_t chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
+        qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
+        return find_and_report_duplicates(conf, fsize, root_array);
+    }
+    else {
+        DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
+        return APR_EGENERAL;
+    }
+}
+
 apr_status_t ft_report_json(ft_conf_t *conf)
 {
-    // Variable declarations (mirroring ft_conf_twin_report)
-    char errbuf[ERROR_BUFFER_SIZE];
     apr_off_t old_size = -1;
     ft_file_t *file = NULL;
-    ft_fsize_t *fsize = NULL;
-    apr_uint32_t hash_value = 0;
-    apr_size_t index1 = 0;
-    apr_size_t index2 = 0;
-    int return_value = 0;
     apr_status_t status = APR_SUCCESS;
-    apr_uint32_t chksum_array_sz = 0U;
-
     json_t *root_array = json_array();
+
     if (!root_array) {
         return APR_ENOMEM;
     }
 
-    // Iterate through the heap (logic adapted from ft_conf_twin_report)
-    while (NULL != (file = napr_heap_extract(conf->heap))) {
-        if (file->size == old_size) {
-            continue;
-        }
-        old_size = file->size;
-
-        if (NULL != (fsize = napr_hash_search(conf->sizes, &file->size, sizeof(apr_off_t), &hash_value))) {
-            chksum_array_sz = FTWIN_MIN(fsize->nb_files, fsize->nb_checksumed);
-            qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
-
-            for (index1 = 0; index1 < fsize->nb_files; index1++) {
-                if (NULL == fsize->chksum_array[index1].file) {
-                    continue;
-                }
-
-                json_t *current_set_obj = NULL;
-                json_t *duplicates_array = NULL;
-
-                for (index2 = index1 + 1; index2 < fsize->nb_files; index2++) {
-                    if (0 == memcmp(&fsize->chksum_array[index1].hash_value, &fsize->chksum_array[index2].hash_value, sizeof(ft_hash_t))) {
-
-                        // --- Comparison Logic (Replicate exactly from ft_conf_twin_report) ---
-                        char *fpathi = NULL;
-                        char *fpathj = NULL;
-                        if (is_option_set(conf->mask, OPTION_UNTAR)) {
-                            if (NULL != fsize->chksum_array[index1].file->subpath) {
-                                fpathi = ft_archive_untar_file(fsize->chksum_array[index1].file, conf->pool);
-                                if (NULL == fpathi) {
-                                    DEBUG_ERR("error calling ft_archive_untar_file");
-                                    return APR_EGENERAL;
-                                }
-                            }
-                            else {
-                                fpathi = fsize->chksum_array[index1].file->path;
-                            }
-                            if (NULL != fsize->chksum_array[index2].file->subpath) {
-                                fpathj = ft_archive_untar_file(fsize->chksum_array[index2].file, conf->pool);
-                                if (NULL == fpathj) {
-                                    DEBUG_ERR("error calling ft_archive_untar_file");
-                                    return APR_EGENERAL;
-                                }
-                            }
-                            else {
-                                fpathj = fsize->chksum_array[index2].file->path;
-                            }
-                        }
-                        else {
-                            fpathi = fsize->chksum_array[index1].file->path;
-                            fpathj = fsize->chksum_array[index2].file->path;
-                        }
-                        status = filecmp(conf->pool, fpathi, fpathj, fsize->val, conf->excess_size, &return_value);
-
-                        if (is_option_set(conf->mask, OPTION_UNTAR)) {
-                            if (NULL != fsize->chksum_array[index1].file->subpath) {
-                                (void) apr_file_remove(fpathi, conf->pool);
-                            }
-                            if (NULL != fsize->chksum_array[index2].file->subpath) {
-                                (void) apr_file_remove(fpathj, conf->pool);
-                            }
-                        }
-                        if (APR_SUCCESS != status) {
-                            if (is_option_set(conf->mask, OPTION_VERBO)) {
-                                fprintf(stderr, "\nskipping %s and %s comparison because: %s\n",
-                                        fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
-                            }
-                            return_value = 1;
-                        }
-                        // -------------------------------------------------------------
-
-                        if (0 == return_value) {
-                            if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-                                fprintf(stderr, "Dry run: would perform action on %s and %s\n", fsize->chksum_array[index1].file->path, fsize->chksum_array[index2].file->path);
-                            }
-
-                            // Initialize JSON set if first match for file[index1]
-                            if (NULL == current_set_obj) {
-                                current_set_obj = json_object();
-                                duplicates_array = json_array();
-
-                                // Add metadata
-                                json_object_set_new(current_set_obj, "size_bytes", json_integer(fsize->val));
-                                char *hex_hash = ft_hash_to_hex(fsize->chksum_array[index1].hash_value, conf->pool);
-                                json_object_set_new(current_set_obj, "hash_xxh128", json_string(hex_hash));
-                                json_object_set_new(current_set_obj, "duplicates", duplicates_array);
-
-                                // Add file[index1] details
-                                json_array_append_new(duplicates_array, create_file_json_object(fsize->chksum_array[index1].file, conf));
-                            }
-
-                            // Add file[index2] details
-                            json_array_append_new(duplicates_array, create_file_json_object(fsize->chksum_array[index2].file, conf));
-
-                            fsize->chksum_array[index2].file = NULL;    // Mark as processed
-                        }
-                    }
-                    else {
-                        break;  // Hashes differ
-                    }
-                }
-                // If a set was created, append it to the root array
-                if (NULL != current_set_obj) {
-                    json_array_append_new(root_array, current_set_obj);
-                }
-            }
-        }
-        else {
-            DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
-            return APR_EGENERAL;
+    while ((file = napr_heap_extract(conf->heap)) != NULL) {
+        status = process_file_group(conf, file, root_array, &old_size);
+        if (status != APR_SUCCESS) {
+            json_decref(root_array);
+            return status;
         }
     }
 
-    // Dump the JSON output to stdout
     if (json_dumpf(root_array, stdout, JSON_INDENT(2) | JSON_ENSURE_ASCII) != 0) {
         fprintf(stderr, "Error: failed to write JSON to stdout.\n");
         status = APR_EGENERAL;
@@ -217,7 +252,6 @@ apr_status_t ft_report_json(ft_conf_t *conf)
         perror("Error flushing stdout");
         status = APR_EGENERAL;
     }
-    // Free the JSON structure
     json_decref(root_array);
 
     return status;
