@@ -10,22 +10,24 @@
 #include <string.h>
 #include <apr_strings.h>
 
+static const double BYTES_IN_KIBIBYTE = 1024.0;
+
 const char *format_human_size(apr_off_t size, apr_pool_t *pool)
 {
     const char *units[] = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
-    int i = 0;
+    int unit_index = 0;
     double readable_size = (double) size;
 
-    while (readable_size >= 1024.0 && i < (sizeof(units) / sizeof(units[0]) - 1)) {
-        readable_size /= 1024.0;
-        i++;
+    while (readable_size >= BYTES_IN_KIBIBYTE && unit_index < (sizeof(units) / sizeof(units[0]) - 1)) {
+        readable_size /= BYTES_IN_KIBIBYTE;
+        unit_index++;
     }
 
-    if (i == 0) {
-        return apr_psprintf(pool, "%d %s", (int) readable_size, units[i]);
+    if (unit_index == 0) {
+        return apr_psprintf(pool, "%d %s", (int) readable_size, units[unit_index]);
     }
     else {
-        return apr_psprintf(pool, "%.1f %s", readable_size, units[i]);
+        return apr_psprintf(pool, "%.1f %s", readable_size, units[unit_index]);
     }
 }
 

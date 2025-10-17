@@ -203,7 +203,7 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
 {
     char errbuf[128];
     apr_pool_t *local_pool;
-    unsigned long l;
+    unsigned long idx;
     apr_status_t status;
 
     apr_pool_create(&local_pool, pool);
@@ -228,8 +228,8 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
     (*threadpool)->ended &= 0x0;
     (*threadpool)->shutdown &= 0x0;
 
-    for (l = 0; l < nb_thread; l++) {
-        if (APR_SUCCESS != (status = apr_thread_create(&((*threadpool)->thread[l]), NULL, napr_threadpool_loop, (*threadpool), (*threadpool)->pool))) {
+    for (idx = 0; idx < nb_thread; idx++) {
+        if (APR_SUCCESS != (status = apr_thread_create(&((*threadpool)->thread[idx]), NULL, napr_threadpool_loop, (*threadpool), (*threadpool)->pool))) {
             DEBUG_ERR("error calling apr_thread_create: %s", apr_strerror(status, errbuf, 128));
             return status;
         }
@@ -387,7 +387,7 @@ extern apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool)
 {
     char errbuf[128];
     apr_status_t status, rv;
-    unsigned long l;
+    unsigned long idx;
 
     /* Lock mutex to set shutdown flag */
     if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
@@ -411,8 +411,8 @@ extern apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool)
     }
 
     /* Join all threads to wait for them to exit */
-    for (l = 0; l < threadpool->nb_thread; l++) {
-        if (APR_SUCCESS != (status = apr_thread_join(&rv, threadpool->thread[l]))) {
+    for (idx = 0; idx < threadpool->nb_thread; idx++) {
+        if (APR_SUCCESS != (status = apr_thread_join(&rv, threadpool->thread[idx]))) {
             DEBUG_ERR("error calling apr_thread_join: %s", apr_strerror(status, errbuf, 128));
             return status;
         }

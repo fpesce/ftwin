@@ -53,6 +53,7 @@ struct compute_vector_task_t
 };
 typedef struct compute_vector_task_t compute_vector_task_t;
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t compute_vector(void *context, void *task_data)
 {
     char errbuf[ERROR_BUFFER_SIZE];

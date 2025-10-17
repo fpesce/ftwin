@@ -99,6 +99,7 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void create_test_file(const char *path, const char *content)
 {
     FILE *file = fopen(path, "w");
