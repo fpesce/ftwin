@@ -26,7 +26,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#define INITIAL_PATTERNS_CAPACITY 16
+enum
+{
+    INITIAL_PATTERNS_CAPACITY = 16
+};
 
 /**
  * @brief The maximum length of a pattern string.

@@ -225,7 +225,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 
     if (status != APR_SUCCESS) {
         if (is_option_set(conf->mask, OPTION_VERBO)) {
-            char errbuf[ERROR_BUFFER_SIZE];
+            char errbuf[ERR_BUF_SIZE];
             (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file1->path, file2->path, apr_strerror(status, errbuf, sizeof(errbuf)));
         }
         return APR_SUCCESS;     /* Continue processing other pairs */

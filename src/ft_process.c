@@ -19,7 +19,7 @@ int ft_file_cmp(const void *param1, const void *param2);
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     hashing_context_t *h_ctx = (hashing_context_t *) hashing_ctx;
     hashing_task_t *task = (hashing_task_t *) task_data;
     ft_fsize_t *fsize = task->fsize;
@@ -31,7 +31,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
     memset(errbuf, 0, sizeof(errbuf));
     status = apr_pool_create(&subpool, h_ctx->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -70,7 +70,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
     }
     else {
         if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-            (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+            (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
         }
     }
 
@@ -97,8 +97,8 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 
     status = apr_pool_create(&gc_pool, conf->pool);
     if (APR_SUCCESS != status) {
-        char errbuf[ERROR_BUFFER_SIZE];
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        char errbuf[ERR_BUF_SIZE];
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -170,7 +170,7 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
 
 static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     ft_fsize_t *fsize = NULL;
     napr_threadpool_t *threadpool = NULL;
     hashing_context_t h_ctx;
@@ -183,13 +183,13 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
     status = apr_thread_mutex_create(&h_ctx.stats_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
     status = napr_threadpool_init(&threadpool, &h_ctx, conf->num_threads, hashing_worker_callback, gc_pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         apr_thread_mutex_destroy(h_ctx.stats_mutex);
         return status;
     }
@@ -211,7 +211,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
                     status = napr_threadpool_add(threadpool, task);
                     if (APR_SUCCESS != status) {
-                        DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+                        DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
                         napr_threadpool_wait(threadpool);
                         apr_thread_mutex_destroy(h_ctx.stats_mutex);
                         return status;
@@ -225,7 +225,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
     status = apr_thread_mutex_destroy(h_ctx.stats_mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
@@ -234,7 +234,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
     status = napr_threadpool_shutdown(threadpool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling napr_threadpool_shutdown: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling napr_threadpool_shutdown: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
 
     return APR_SUCCESS;
