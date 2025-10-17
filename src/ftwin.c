@@ -65,12 +65,12 @@ const void *ft_gids_get_key(const void *opaque)
 
 static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char **argv, int first_arg_index)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     apr_pool_t *gc_pool = NULL;
     apr_status_t status = apr_pool_create(&gc_pool, conf->pool);
 
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -81,14 +81,14 @@ static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char *
         if (is_option_set(conf->mask, OPTION_JSON)) {
             status = apr_filepath_merge(&resolved_path, NULL, current_arg, APR_FILEPATH_TRUENAME, gc_pool);
             if (APR_SUCCESS != status) {
-                DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg, apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+                DEBUG_ERR("Error resolving absolute path for argument %s: %s.", current_arg, apr_strerror(status, errbuf, ERR_BUF_SIZE));
                 return status;
             }
         }
 
         status = ft_traverse_path(conf, resolved_path);
         if (APR_SUCCESS != status) {
-            DEBUG_ERR("error calling ft_traverse_path: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+            DEBUG_ERR("error calling ft_traverse_path: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
     }
@@ -124,20 +124,20 @@ static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char *
 
 int ftwin_main(int argc, const char **argv)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     ft_conf_t *conf = NULL;
     apr_pool_t *pool = NULL;
     int first_arg_index = 0;
     apr_status_t status = apr_initialize();
 
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return -1;
     }
 
     status = apr_pool_create(&pool, NULL);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         apr_terminate();
         return -1;
     }
@@ -151,7 +151,7 @@ int ftwin_main(int argc, const char **argv)
 
     status = run_ftwin_processing(conf, argc, argv, first_arg_index);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         apr_terminate();
         return -1;
     }
