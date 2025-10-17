@@ -25,7 +25,10 @@
 #include "debug.h"
 #include "napr_heap.h"
 
-#define INITIAL_MAX 256
+enum
+{
+    INITIAL_MAX = 256
+};
 
 static inline unsigned int napr_heap_parent(unsigned int position)
 {
@@ -81,7 +84,6 @@ napr_heap_t *napr_heap_make(apr_pool_t *pool, napr_heap_cmp_callback_fn_t *cmp)
 
 int napr_heap_insert(napr_heap_t *heap, void *datum)
 {
-    void **tmp = NULL;
     unsigned int ipos = 0;
     unsigned int ppos = 0;
 
@@ -90,16 +92,17 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
          * reallocation by power of 2:
          */
         unsigned int new_max = 0;
+        void **new_tree = NULL;
 
         for (new_max = 1; new_max <= heap->max; new_max *= 2) {
             /* empty */
         }
 
-        tmp = apr_palloc(heap->pool, new_max * sizeof(void *));
-        if (NULL != tmp) {
-            memcpy(tmp, (heap->tree), (heap->count) * sizeof(void *));
-            memset((tmp + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
-            heap->tree = tmp;
+        new_tree = (void **) apr_palloc(heap->pool, new_max * sizeof(void *));
+        if (NULL != new_tree) {
+            (void) memcpy((void *) new_tree, (const void *) (heap->tree), (heap->count) * sizeof(void *));
+            (void) memset((void *) (new_tree + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
+            heap->tree = new_tree;
             heap->max = new_max;
         }
         else {
@@ -121,9 +124,9 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
         /*
          * Swap the value ...
          */
-        tmp = heap->tree[ppos];
+        void *swap_tmp = heap->tree[ppos];
         heap->tree[ppos] = heap->tree[ipos];
-        heap->tree[ipos] = tmp;
+        heap->tree[ipos] = swap_tmp;
 
         ipos = ppos;
         ppos = napr_heap_parent(ipos);
@@ -195,10 +198,10 @@ void *napr_heap_extract(napr_heap_t *heap)
 
 void *napr_heap_get_nth(const napr_heap_t *heap, unsigned int n)
 {
-    if ((n < heap->count) && (NULL != heap->tree))
+    if ((n < heap->count) && (NULL != heap->tree)) {
         return heap->tree[n];
-    else
-        return NULL;
+    }
+    return NULL;
 }
 
 unsigned int napr_heap_size(const napr_heap_t *heap)

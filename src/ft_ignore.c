@@ -26,7 +26,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#define INITIAL_PATTERNS_CAPACITY 16
+enum
+{
+    INITIAL_PATTERNS_CAPACITY = 16
+};
 
 /**
  * @brief The maximum length of a pattern string.
@@ -297,7 +300,7 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
     return result;
 }
 
-ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t * parent, const char *base_dir)
+ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t *parent, const char *base_dir)
 {
     ft_ignore_context_t *ctx = apr_pcalloc(pool, sizeof(ft_ignore_context_t));
 
@@ -310,7 +313,7 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
     return ctx;
 }
 
-apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str)
+apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t *ctx, const char *pattern_str)
 {
     const char *trimmed = NULL;
     unsigned int flags = 0;
@@ -353,7 +356,7 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
     return APR_SUCCESS;
 }
 
-apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath)
+apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath)
 {
     apr_file_t *file = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -364,7 +367,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
         return status;
     }
 
-    while (apr_file_gets(line, sizeof(line), file) == APR_SUCCESS) {
+    while (apr_file_gets(line, (int) sizeof(line), file) == APR_SUCCESS) {
         /* Remove newline */
         apr_size_t len = strlen(line);
         if (len > 0 && line[len - 1] == '\n') {
@@ -382,7 +385,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
     return APR_SUCCESS;
 }
 
-ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir)
+ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t *ctx, const char *fullpath, int is_dir)
 {
     ft_ignore_context_t *current_ctx = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;

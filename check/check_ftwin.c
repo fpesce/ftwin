@@ -48,23 +48,26 @@ enum
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 apr_pool_t *main_pool = NULL;
 
-static void copy_file(const char *src_path, const char *dest_path)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static apr_status_t open_files(apr_file_t **src_file, apr_file_t **dest_file, const char *src_path, const char *dest_path)
 {
-    apr_file_t *src_file = NULL;
-    apr_file_t *dest_file = NULL;
-    apr_status_t status_code = APR_SUCCESS;
+    apr_status_t status_code = apr_file_open(src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
+
+    ck_assert_int_eq(status_code, APR_SUCCESS);
+    status_code = apr_file_open(dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
+
+    return status_code;
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void copy_file_data(apr_file_t *src_file, apr_file_t *dest_file)
+{
     char buffer[OUTPUT_BUFFER_SIZE] = { 0 };
     apr_size_t bytes_read = 0;
     apr_size_t bytes_written = 0;
+    apr_status_t status_code = APR_SUCCESS;
 
-    /* 1. Open files */
-    status_code = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(status_code, APR_SUCCESS);
-
-    status_code = apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(status_code, APR_SUCCESS);
-
-    /* 2. Loop and copy data */
     do {
         bytes_read = sizeof(buffer);
         status_code = apr_file_read(src_file, buffer, &bytes_read);
@@ -78,10 +81,18 @@ static void copy_file(const char *src_path, const char *dest_path)
             ck_assert_int_eq(bytes_read, bytes_written);
         }
     } while (status_code == APR_SUCCESS);
+}
 
-    /* 3. Close files */
-    (void) apr_file_close(src_file);
-    (void) apr_file_close(dest_file);
+static void copy_file(const char *src_path, const char *dest_path)
+{
+    apr_file_t *src_file = NULL;
+    apr_file_t *dest_file = NULL;
+
+    if (open_files(&src_file, &dest_file, src_path, dest_path) == APR_SUCCESS) {
+        copy_file_data(src_file, dest_file);
+        (void) apr_file_close(src_file);
+        (void) apr_file_close(dest_file);
+    }
 }
 
 static char *capture_output(int file_descriptor)

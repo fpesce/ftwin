@@ -537,7 +537,7 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
 
 apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     char *regex_str = NULL;
     char *wregex_str = NULL;
     char *arregex_str = NULL;
@@ -550,7 +550,7 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     memset(errbuf, 0, sizeof(errbuf));
     status = apr_getopt_init(&opt_state, conf->pool, argc, argv);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -560,19 +560,19 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
 
     status = apr_uid_current(&(conf->userid), &(conf->groupid), conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
     status = apr_uid_name_get(&(conf->username), conf->userid, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_uid_name_get: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_uid_name_get: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
     status = fill_gids_ht(conf->username, conf->gids, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling fill_gids_ht: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling fill_gids_ht: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 

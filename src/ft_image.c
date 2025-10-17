@@ -4,7 +4,7 @@
  * @ingroup ImageComparison
  */
 /*
- * Copyright (C) 2007 Francois Pesce : francois.pesce (at) gmail (dot) com
+ * Copyright (C) 2007-2025 Francois Pesce : francois.pesce (at) gmail (dot) com
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ typedef struct compute_vector_task_t compute_vector_task_t;
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t compute_vector(void *context, void *task_data)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     compute_vector_ctx_t *cv_ctx = (compute_vector_ctx_t *) context;
     compute_vector_task_t *task = (compute_vector_task_t *) task_data;
     ft_file_t *file = task->file;
@@ -73,7 +73,7 @@ static apr_status_t compute_vector(void *context, void *task_data)
 
     status = apr_thread_mutex_lock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
     if (is_option_set(cv_ctx->conf->mask, OPTION_VERBO)) {
@@ -82,7 +82,7 @@ static apr_status_t compute_vector(void *context, void *task_data)
     cv_ctx->nb_processed += 1;
     status = apr_thread_mutex_unlock(cv_ctx->mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -129,7 +129,7 @@ static void initialize_puzzle_context(PuzzleContext * context)
 
 static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * context)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     apr_status_t status = APR_SUCCESS;
     napr_threadpool_t *threadpool = NULL;
     compute_vector_ctx_t cv_ctx;
@@ -143,13 +143,13 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
 
     status = apr_thread_mutex_create(&cv_ctx.mutex, APR_THREAD_MUTEX_DEFAULT, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
     status = napr_threadpool_init(&threadpool, &cv_ctx, NB_WORKER, compute_vector, conf->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -159,7 +159,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
         task->file = napr_heap_get_nth(conf->heap, idx);
         status = napr_threadpool_add(threadpool, task);
         if (APR_SUCCESS != status) {
-            DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+            DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
     }
@@ -167,7 +167,7 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     napr_threadpool_wait(threadpool);
     status = apr_thread_mutex_destroy(cv_ctx.mutex);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 

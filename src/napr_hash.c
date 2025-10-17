@@ -26,6 +26,11 @@
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"
 
+enum
+{
+    XXH32_SEED = 0
+};
+
 #define hashsize(n) ((apr_size_t)1<<(n))
 #define hashmask(n) (hashsize(n)-1)
 
@@ -148,14 +153,14 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
 
     status = apr_pool_create(&(result->own_pool), args->pool);
     if (APR_SUCCESS != status) {
-        char errbuf[ERROR_BUFFER_SIZE];
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+        char errbuf[ERR_BUF_SIZE];
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return NULL;
     }
     /*DEBUG_DBG("readjusting size to %" APR_SIZE_T_FMT " to store %" APR_SIZE_T_FMT " elements", result->size, nel); */
     /*DEBUG_DBG("bit mask will be 0x%x", result->mask); */
 
-    result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **));
+    result->table = (void ***) apr_pcalloc(result->own_pool, result->size * sizeof(void **));
     if (NULL == result->table) {
         DEBUG_ERR("allocation error");
         return NULL;
@@ -232,8 +237,8 @@ static inline apr_status_t napr_hash_rebuild(napr_hash_t *hash)
              */
             status = napr_hash_set(tmp, hash->table[index][sub_index], hash->hash(hash->get_key(hash->table[index][sub_index]), hash->get_key_len(hash->table[index][sub_index])));
             if (APR_SUCCESS != status) {
-                char errbuf[ERROR_BUFFER_SIZE];
-                DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+                char errbuf[ERR_BUF_SIZE];
+                DEBUG_ERR("error calling napr_hash_set: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
                 return status;
             }
         }
@@ -316,8 +321,8 @@ extern apr_status_t napr_hash_set(napr_hash_t *hash, void *data, apr_uint32_t ha
 
         status = napr_hash_rebuild(hash);
         if (APR_SUCCESS != status) {
-            char errbuf[ERROR_BUFFER_SIZE];
-            DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
+            char errbuf[ERR_BUF_SIZE];
+            DEBUG_ERR("error calling napr_hash_rebuild: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
     }
@@ -352,16 +357,14 @@ napr_hash_index_t *napr_hash_next(napr_hash_index_t *index)
         index->element++;
         return index;
     }
-    else {
-        index->element = 0;
-        for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
-            if (0 != index->hash->filling_table[index->bucket]) {
-                break;
-            }
+    index->element = 0;
+    for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
+        if (0 != index->hash->filling_table[index->bucket]) {
+            break;
         }
-        if (index->bucket < index->hash->size) {
-            return index;
-        }
+    }
+    if (index->bucket < index->hash->size) {
+        return index;
     }
 
     return NULL;

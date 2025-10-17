@@ -152,43 +152,26 @@ START_TEST(test_napr_hash_rebuild)
 END_TEST
 /* *INDENT-ON* */
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-START_TEST(test_napr_hash_remove_multiple)
+static void populate_hash_for_removal_test(napr_hash_t *hash, char **keys, apr_uint32_t *hash_values, int num_keys)
 {
-    const int HASH_VALUES_COUNT = 10;
-    const int LOOP_LIMIT = 5;
-    napr_hash_t *hash = NULL;
-    apr_uint32_t hash_values[HASH_VALUES_COUNT];
-    char **keys = NULL;
     void *result = NULL;
     apr_status_t status = APR_SUCCESS;
-    int index = 0;
 
-    memset(hash_values, 0, sizeof(hash_values));
-    /* Create hash with very low fill factor to force collisions */
-    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);      /* 1 bucket, 10 items capacity */
-    ck_assert_ptr_ne(hash, NULL);
-
-    /* Allocate keys array */
-    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-    // Safe: apr_pcalloc is APR library macro with proper size calculation
-    keys = (char **) apr_pcalloc(pool, HASH_VALUES_COUNT * sizeof(char *));
-
-    /* Insert multiple items that will collide in the same bucket */
-    for (index = 0; index < LOOP_LIMIT; index++) {
+    for (int index = 0; index < num_keys; index++) {
         keys[index] = apr_psprintf(pool, "key_%d", index);
-
         result = napr_hash_search(hash, keys[index], strlen(keys[index]), &hash_values[index]);
         ck_assert_ptr_eq(result, NULL);
-
         status = napr_hash_set(hash, keys[index], hash_values[index]);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
+}
 
-    /* Remove middle element (not the last one in bucket) */
+static void verify_removal(napr_hash_t *hash, char **keys, const apr_uint32_t *hash_values)
+{
+    void *result = NULL;
+
+    /* Remove middle element */
     napr_hash_remove(hash, keys[1], hash_values[1]);
-
-    /* Verify the removed item is gone */
     result = napr_hash_search(hash, keys[1], strlen(keys[1]), NULL);
     ck_assert_ptr_eq(result, NULL);
 
@@ -204,6 +187,24 @@ START_TEST(test_napr_hash_remove_multiple)
     napr_hash_remove(hash, keys[4], hash_values[4]);
     result = napr_hash_search(hash, keys[4], strlen(keys[4]), NULL);
     ck_assert_ptr_eq(result, NULL);
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_napr_hash_remove_multiple)
+{
+    const int HASH_VALUES_COUNT = 10;
+    const int LOOP_LIMIT = 5;
+    napr_hash_t *hash = NULL;
+    apr_uint32_t hash_values[HASH_VALUES_COUNT];
+    char **keys = NULL;
+
+    memset(hash_values, 0, sizeof(hash_values));
+    hash = napr_hash_str_make(pool, 1, HASH_VALUES_COUNT);
+    ck_assert_ptr_ne(hash, NULL);
+
+    keys = (char **) apr_pcalloc(pool, HASH_VALUES_COUNT * sizeof(char *));
+    populate_hash_for_removal_test(hash, keys, hash_values, LOOP_LIMIT);
+    verify_removal(hash, keys, hash_values);
 }
 
 /* *INDENT-OFF* */
