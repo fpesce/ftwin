@@ -160,7 +160,7 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args)
     /*DEBUG_DBG("readjusting size to %" APR_SIZE_T_FMT " to store %" APR_SIZE_T_FMT " elements", result->size, nel); */
     /*DEBUG_DBG("bit mask will be 0x%x", result->mask); */
 
-    result->table = apr_pcalloc(result->own_pool, result->size * sizeof(void **));
+    result->table = (void ***) apr_pcalloc(result->own_pool, result->size * sizeof(void **));
     if (NULL == result->table) {
         DEBUG_ERR("allocation error");
         return NULL;
@@ -357,16 +357,14 @@ napr_hash_index_t *napr_hash_next(napr_hash_index_t *index)
         index->element++;
         return index;
     }
-    else {
-        index->element = 0;
-        for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
-            if (0 != index->hash->filling_table[index->bucket]) {
-                break;
-            }
+    index->element = 0;
+    for (index->bucket += 1; index->bucket < index->hash->size; index->bucket++) {
+        if (0 != index->hash->filling_table[index->bucket]) {
+            break;
         }
-        if (index->bucket < index->hash->size) {
-            return index;
-        }
+    }
+    if (index->bucket < index->hash->size) {
+        return index;
     }
 
     return NULL;

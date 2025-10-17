@@ -238,7 +238,7 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
 
 extern apr_status_t napr_threadpool_add(napr_threadpool_t *threadpool, void *data)
 {
-    char errbuf[128] = { 0 };
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     apr_status_t status = APR_SUCCESS;
 
     status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
@@ -264,7 +264,7 @@ extern apr_status_t napr_threadpool_add(napr_threadpool_t *threadpool, void *dat
 
 extern apr_status_t napr_threadpool_wait(napr_threadpool_t *threadpool)
 {
-    char errbuf[128] = { 0 };
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     apr_status_t status = APR_SUCCESS;
     int list_size = 0;
 
@@ -274,7 +274,7 @@ extern apr_status_t napr_threadpool_wait(napr_threadpool_t *threadpool)
         DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
-    list_size = napr_list_size(threadpool->list);
+    list_size = (int) napr_list_size(threadpool->list);
     if ((0 != list_size) || (threadpool->nb_waiting != threadpool->nb_thread)) {
         /* DEBUG_DBG("After lock before wait"); */
         /*
@@ -322,7 +322,7 @@ static apr_status_t process_task(napr_threadpool_t *threadpool)
     napr_list_cdr(threadpool->list);
 
     if (data) {
-        char errbuf[128] = { 0 };
+        char errbuf[ERR_BUF_SIZE] = { 0 };
 
         status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
         if (APR_SUCCESS != status) {
@@ -342,7 +342,7 @@ static apr_status_t process_task(napr_threadpool_t *threadpool)
 
 static apr_status_t wait_for_task(napr_threadpool_t *threadpool)
 {
-    char errbuf[128] = { 0 };
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     apr_status_t status = APR_SUCCESS;
 
     threadpool->nb_waiting++;
@@ -368,7 +368,7 @@ static apr_status_t wait_for_task(napr_threadpool_t *threadpool)
 
 static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 {
-    char errbuf[128] = { 0 };
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     napr_threadpool_t *threadpool = rec;
     apr_status_t status = APR_SUCCESS;
 
@@ -401,7 +401,7 @@ static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 
 extern apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool)
 {
-    char errbuf[128] = { 0 };
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     apr_status_t status = APR_SUCCESS;
     apr_status_t return_value = APR_SUCCESS;
     unsigned long idx = 0;

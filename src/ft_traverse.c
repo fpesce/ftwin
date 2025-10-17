@@ -27,7 +27,7 @@ static apr_status_t get_file_info(const char *filename, apr_finfo_t *finfo, ft_c
         char errbuf[ERR_BUF_SIZE];
         if (is_option_set(conf->mask, OPTION_FSYML) && (finfo->filetype & APR_LNK)) {
             if (is_option_set(conf->mask, OPTION_VERBO)) {
-                fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
+                (void) fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
             }
             return APR_SUCCESS;
         }
@@ -45,12 +45,14 @@ static apr_status_t check_permissions(const apr_finfo_t *finfo, ft_conf_t *conf)
 
     if (conf->userid != 0) {
         if (finfo->user == conf->userid) {
-            if (!(read_perm & finfo->protection))
+            if (!(read_perm & finfo->protection)) {
                 return APR_EACCES;
+            }
         }
         else if (napr_hash_search(conf->gids, &finfo->group, sizeof(gid_t), &hash_value) != NULL) {
-            if (!(group_read_perm & finfo->protection))
+            if (!(group_read_perm & finfo->protection)) {
                 return APR_EACCES;
+            }
         }
         else if (!(world_read_perm & finfo->protection)) {
             return APR_EACCES;

@@ -67,5 +67,5 @@ apr_off_t parse_human_size(const char *size_str)
         }
     }
 
-    return (apr_off_t) (size * multiplier);
+    return (apr_off_t) (size * (double) multiplier);
 }

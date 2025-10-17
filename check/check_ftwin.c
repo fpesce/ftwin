@@ -60,6 +60,7 @@ static apr_status_t open_files(apr_file_t **src_file, apr_file_t **dest_file, co
     return status_code;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void copy_file_data(apr_file_t *src_file, apr_file_t *dest_file)
 {
     char buffer[OUTPUT_BUFFER_SIZE] = { 0 };

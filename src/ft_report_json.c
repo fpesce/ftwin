@@ -244,7 +244,7 @@ apr_status_t ft_report_json(ft_conf_t *conf)
     }
 
     if (json_dumpf(root_array, stdout, JSON_INDENT(2) | JSON_ENSURE_ASCII) != 0) {
-        fprintf(stderr, "Error: failed to write JSON to stdout.\n");
+        (void) fprintf(stderr, "Error: failed to write JSON to stdout.\n");
         status = APR_EGENERAL;
     }
     printf("\n");

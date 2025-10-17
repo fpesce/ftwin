@@ -98,10 +98,10 @@ int napr_heap_insert(napr_heap_t *heap, void *datum)
             /* empty */
         }
 
-        new_tree = apr_palloc(heap->pool, new_max * sizeof(void *));
+        new_tree = (void **) apr_palloc(heap->pool, new_max * sizeof(void *));
         if (NULL != new_tree) {
-            (void) memcpy(new_tree, (heap->tree), (heap->count) * sizeof(void *));
-            (void) memset((new_tree + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
+            (void) memcpy((void *) new_tree, (const void *) (heap->tree), (heap->count) * sizeof(void *));
+            (void) memset((void *) (new_tree + (heap->count)), 0, (new_max - (heap->count + 1)) * sizeof(void *));
             heap->tree = new_tree;
             heap->max = new_max;
         }
@@ -198,10 +198,10 @@ void *napr_heap_extract(napr_heap_t *heap)
 
 void *napr_heap_get_nth(const napr_heap_t *heap, unsigned int n)
 {
-    if ((n < heap->count) && (NULL != heap->tree))
+    if ((n < heap->count) && (NULL != heap->tree)) {
         return heap->tree[n];
-    else
-        return NULL;
+    }
+    return NULL;
 }
 
 unsigned int napr_heap_size(const napr_heap_t *heap)
