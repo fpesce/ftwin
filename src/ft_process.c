@@ -16,6 +16,7 @@ int ft_file_cmp(const void *param1, const void *param2);
 #include <archive.h>
 #include "ft_archive.h"
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
     char errbuf[ERROR_BUFFER_SIZE];
