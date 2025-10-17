@@ -141,8 +141,9 @@ static apr_status_t process_directory(const char *filename, ft_conf_t *conf, apr
 
         char *fullname = apr_pstrcat(gc_pool, filename, (filename[strlen(filename) - 1] == '/') ? "" : "/", finfo.name, NULL);
         status = process_directory_entry(fullname, &finfo, conf, gc_pool, stats, current_ctx);
-        if (status != APR_SUCCESS)
+        if (status != APR_SUCCESS) {
             break;
+        }
     }
 
     apr_dir_close(dir);
@@ -167,7 +168,7 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
     if (finfo.filetype == APR_DIR) {
         return process_directory(filename, conf, gc_pool, stats, parent_ctx);
     }
-    else if (finfo.filetype == APR_REG || (finfo.filetype == APR_LNK && is_option_set(conf->mask, OPTION_FSYML))) {
+    if (finfo.filetype == APR_REG || (finfo.filetype == APR_LNK && is_option_set(conf->mask, OPTION_FSYML))) {
         return process_file(filename, &finfo, conf);
     }
 

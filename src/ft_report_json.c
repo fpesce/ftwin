@@ -218,10 +218,8 @@ static apr_status_t process_file_group(ft_conf_t *conf, ft_file_t *file, json_t 
         qsort(fsize->chksum_array, chksum_array_sz, sizeof(ft_chksum_t), ft_chksum_cmp);
         return find_and_report_duplicates(conf, fsize, root_array);
     }
-    else {
-        DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
-        return APR_EGENERAL;
-    }
+    DEBUG_ERR("inconsistency error found, no size[%" APR_OFF_T_FMT "] in hash for file %s", file->size, file->path);
+    return APR_EGENERAL;
 }
 
 apr_status_t ft_report_json(ft_conf_t *conf)
