@@ -33,15 +33,15 @@ static void setup(void)
     apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	(void) apr_initialize();
-	(void) atexit(apr_terminate);
-	(void) apr_pool_create(&main_pool, NULL);
+        (void) apr_initialize();
+        (void) atexit(apr_terminate);
+        (void) apr_pool_create(&main_pool, NULL);
     }
 
     status = apr_pool_create(&pool, main_pool);
     if (status != APR_SUCCESS) {
-	DEBUG_ERR("Error creating pool");
-	exit(1);
+        DEBUG_ERR("Error creating pool");
+        exit(1);
     }
 }
 
@@ -62,10 +62,10 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
     const check_heap_numbers_t *number2 = param2;
 
     if (number1->size < number2->size) {
-	return -1;
+        return -1;
     }
     if (number2->size < number1->size) {
-	return 1;
+        return 1;
     }
 
     return 0;
@@ -84,10 +84,10 @@ static int check_heap_numbers_cmp(const void *param1, const void *param2)
 static void populate_heap(napr_heap_t *heap, const apr_off_t values[], int num_values)
 {
     for (int i = 0; i < num_values; i++) {
-	check_heap_numbers_t *number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
+        check_heap_numbers_t *number = apr_palloc(pool, sizeof(struct check_heap_numbers_t));
 
-	number->size = values[i];
-	napr_heap_insert_r(heap, number);
+        number->size = values[i];
+        napr_heap_insert_r(heap, number);
     }
 }
 
@@ -105,10 +105,10 @@ static void populate_heap(napr_heap_t *heap, const apr_off_t values[], int num_v
 static void validate_heap_extraction(napr_heap_t *heap, const apr_off_t expected_values[], int num_values)
 {
     for (int i = 0; i < num_values; i++) {
-	check_heap_numbers_t *number = napr_heap_extract(heap);
+        check_heap_numbers_t *number = napr_heap_extract(heap);
 
-	ck_assert_msg(number != NULL, "Heap unexpectedly empty at index %d", i);
-	ck_assert_int_eq(number->size, expected_values[i]);
+        ck_assert_msg(number != NULL, "Heap unexpectedly empty at index %d", i);
+        ck_assert_int_eq(number->size, expected_values[i]);
     }
     ck_assert_ptr_eq(napr_heap_extract(heap), NULL);
 }

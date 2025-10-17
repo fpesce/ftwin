@@ -40,10 +40,10 @@ int ft_file_cmp(const void *param1, const void *param2)
     const ft_file_t *file2 = (const ft_file_t *) param2;
 
     if (file1->size < file2->size) {
-	return -1;
+        return -1;
     }
     if (file2->size < file1->size) {
-	return 1;
+        return 1;
     }
 
     return 0;
@@ -77,15 +77,15 @@ static pcre *ft_pcre_compile(const char *regex, int caseless, apr_pool_t *pool)
     pcre *result = NULL;
 
     if (caseless) {
-	options |= PCRE_CASELESS;
+        options |= PCRE_CASELESS;
     }
 
     result = pcre_compile(regex, options, &errptr, &erroffset, NULL);
     if (NULL == result) {
-	DEBUG_ERR("can't parse %s at [%.*s] for -e / --regex-ignore-file: %s", regex, erroffset, regex, errptr);
+        DEBUG_ERR("can't parse %s at [%.*s] for -e / --regex-ignore-file: %s", regex, erroffset, regex, errptr);
     }
     else {
-	apr_pool_cleanup_register(pool, result, ft_pcre_free_cleanup, apr_pool_cleanup_null);
+        apr_pool_cleanup_register(pool, result, ft_pcre_free_cleanup, apr_pool_cleanup_null);
     }
 
 
@@ -103,8 +103,8 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
     memset(list, 0, sizeof(list));
     nb_gid = getgroups((int) (sizeof(list) / sizeof(gid_t)), list);
     if (nb_gid < 0) {
-	DEBUG_ERR("error calling getgroups()");
-	return APR_EGENERAL;
+        DEBUG_ERR("error calling getgroups()");
+        return APR_EGENERAL;
     }
     /*
      * According to getgroups manpage:
@@ -113,17 +113,17 @@ static apr_status_t fill_gids_ht(const char *username, napr_hash_t *gids, apr_po
      * call getegid(2) and add or remove the resulting value.)
      */
     if (nb_gid < (sizeof(list) / sizeof(gid_t))) {
-	list[nb_gid] = getegid();
-	nb_gid++;
+        list[nb_gid] = getegid();
+        nb_gid++;
     }
 
     for (int idx = 0; idx < nb_gid; idx++) {
-	ft_gid_t *gid = napr_hash_search(gids, &(list[idx]), sizeof(gid_t), &hash_value);
-	if (NULL == gid) {
-	    gid = apr_palloc(pool, sizeof(struct ft_gid_t));
-	    gid->val = list[idx];
-	    napr_hash_set(gids, gid, hash_value);
-	}
+        ft_gid_t *gid = napr_hash_search(gids, &(list[idx]), sizeof(gid_t), &hash_value);
+        if (NULL == gid) {
+            gid = apr_palloc(pool, sizeof(struct ft_gid_t));
+            gid->val = list[idx];
+            napr_hash_set(gids, gid, hash_value);
+        }
     }
 
     return APR_SUCCESS;
@@ -140,26 +140,26 @@ static void ft_hash_add_ignore_list(napr_hash_t *hash, const char *file_list)
     pool = napr_hash_pool_get(hash);
     filename = file_list;
     do {
-	end = strchr(filename, ',');
-	if (NULL != end) {
-	    tmp = apr_pstrndup(pool, filename, end - filename);
-	}
-	else {
-	    tmp = apr_pstrdup(pool, filename);
-	}
-	napr_hash_search(hash, tmp, strlen(tmp), &hash_value);
-	napr_hash_set(hash, tmp, hash_value);
+        end = strchr(filename, ',');
+        if (NULL != end) {
+            tmp = apr_pstrndup(pool, filename, end - filename);
+        }
+        else {
+            tmp = apr_pstrdup(pool, filename);
+        }
+        napr_hash_search(hash, tmp, strlen(tmp), &hash_value);
+        napr_hash_set(hash, tmp, hash_value);
 
-	if (NULL != end) {
-	    filename = end + 1;
-	}
+        if (NULL != end) {
+            filename = end + 1;
+        }
     } while ((NULL != end) && ('\0' != *filename));
 }
 
 static void ft_load_defaults(ft_conf_t *conf)
 {
     for (int idx = 0; default_ignores[idx] != NULL; idx++) {
-	ft_ignore_add_pattern_str(conf->global_ignores, default_ignores[idx]);
+        ft_ignore_add_pattern_str(conf->global_ignores, default_ignores[idx]);
     }
 }
 
@@ -191,15 +191,14 @@ static void usage(const char *name, const apr_getopt_option_t *opt_option)
     (void) fprintf(stdout, "\n");
 
     for (int idx = 0; NULL != opt_option[idx].name; idx++) {
-	(void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[idx].optch, opt_option[idx].name, opt_option[idx].description);
+        (void) fprintf(stdout, "-%c,\t--%s\t%s\n", opt_option[idx].optch, opt_option[idx].name, opt_option[idx].description);
     }
 }
 
-static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg,
-				 const char *arg)
+static void print_usage_and_exit(const char *name, const apr_getopt_option_t *opt_option, const char *error_msg, const char *arg)
 {
     if (error_msg) {
-	(void) fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
+        (void) fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
     }
     usage(name, opt_option);
     exit(EXIT_FAILURE);
@@ -221,13 +220,13 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     conf->ig_files = napr_hash_str_make(pool, HASH_STR_BUCKET_SIZE, HASH_STR_MAX_ENTRIES);
 
     napr_hash_create_args_t hash_args = {
-	.pool = pool,
-	.nel = HASH_SIZE_BUCKET_SIZE,
-	.ffactor = HASH_SIZE_MAX_ENTRIES,
-	.get_key = ft_fsize_get_key,
-	.get_key_len = ft_fsize_get_key_len,
-	.key_cmp = apr_off_t_key_cmp,
-	.hash = apr_off_t_key_hash
+        .pool = pool,
+        .nel = HASH_SIZE_BUCKET_SIZE,
+        .ffactor = HASH_SIZE_MAX_ENTRIES,
+        .get_key = ft_fsize_get_key,
+        .get_key_len = ft_fsize_get_key_len,
+        .key_cmp = apr_off_t_key_cmp,
+        .hash = apr_off_t_key_hash
     };
     conf->sizes = napr_hash_make_ex(&hash_args);
 
@@ -252,10 +251,10 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     conf->maxsize = 0;
     conf->sep = '\n';
     conf->excess_size = (apr_off_t) EXCESS_SIZE_DEFAULT;
-    conf->num_threads = ft_get_cpu_cores();	/* Default to number of CPU cores */
-    conf->respect_gitignore = 1;	/* Respect .gitignore by default */
-    conf->global_ignores = ft_ignore_context_create(pool, NULL, "/");	/* Initialize global ignores */
-    ft_load_defaults(conf);	/* Load default ignore patterns */
+    conf->num_threads = ft_get_cpu_cores();     /* Default to number of CPU cores */
+    conf->respect_gitignore = 1;        /* Respect .gitignore by default */
+    conf->global_ignores = ft_ignore_context_create(pool, NULL, "/");   /* Initialize global ignores */
+    ft_load_defaults(conf);     /* Load default ignore patterns */
     conf->mask = OPTION_RECSD;
     conf->threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
 
@@ -292,7 +291,7 @@ static const apr_getopt_option_t opt_option[] = {
     {"version", 'V', FALSE, "\tdisplay version."},
     {"whitelist-regex-file", 'w', TRUE, "filenames that doesn't match this are ignored."},
     {"excessive-size", 'x', TRUE, "excessive size of file that switch off mmap use."},
-    {NULL, 0, 0, NULL},		/* end (a.k.a. sentinel) */
+    {NULL, 0, 0, NULL},         /* end (a.k.a. sentinel) */
 };
 
 /**
@@ -315,22 +314,20 @@ struct regex_options
  */
 typedef struct
 {
-    int option_char;	/**< The single-character option, e.g., 'a'. */
-    int option_flag;	/**< The flag to set, e.g., OPTION_SHOW_HIDDEN. */
-    int value;		/**< The value to set (1 for on, 0 for off). */
+    int option_char;    /**< The single-character option, e.g., 'a'. */
+    int option_flag;    /**< The flag to set, e.g., OPTION_SHOW_HIDDEN. */
+    int value;          /**< The value to set (1 for on, 0 for off). */
 } flag_option_mapping_t;
 
 static void handle_flag_option(int option, ft_conf_t *conf);
 static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts);
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
-				  const apr_getopt_option_t *opt_option);
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
-				  const char *name, const apr_getopt_option_t *opt_option);
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option);
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option);
 
 static void process_options(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name)
 {
     switch (option) {
-	/* Simple Flags */
+        /* Simple Flags */
     case 'a':
     case 'c':
     case 'd':
@@ -340,39 +337,39 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, str
     case 'r':
     case 'R':
     case 'v':
-	handle_flag_option(option, conf);
-	break;
+        handle_flag_option(option, conf);
+        break;
 
-	/* String Arguments */
+        /* String Arguments */
     case 'e':
     case 'i':
     case 'p':
     case 's':
     case 'w':
-	handle_string_option(option, optarg, conf, opts);
-	break;
+        handle_string_option(option, optarg, conf, opts);
+        break;
 
-	/* Numeric Arguments */
+        /* Numeric Arguments */
     case 'j':
     case 'm':
     case 'M':
     case 'x':
-	handle_numeric_option(option, optarg, conf, name, opt_option);
-	break;
+        handle_numeric_option(option, optarg, conf, name, opt_option);
+        break;
 
-	/* Special/Complex Cases */
+        /* Special/Complex Cases */
     case 'h':
     case 'V':
     case 'I':
     case 'T':
     case 'J':
     case 't':
-	handle_special_option(option, optarg, conf, opts, name, opt_option);
-	break;
+        handle_special_option(option, optarg, conf, opts, name, opt_option);
+        break;
 
     default:
-	/* Should not happen. */
-	break;
+        /* Should not happen. */
+        break;
     }
 }
 
@@ -390,17 +387,17 @@ static const flag_option_mapping_t flag_mappings[] = {
 static void handle_flag_option(int option, ft_conf_t *conf)
 {
     for (size_t idx = 0; idx < sizeof(flag_mappings) / sizeof(flag_mappings[0]); ++idx) {
-	if (flag_mappings[idx].option_char == option) {
-	    set_option(&conf->mask, flag_mappings[idx].option_flag, flag_mappings[idx].value);
-	    return;
-	}
+        if (flag_mappings[idx].option_char == option) {
+            set_option(&conf->mask, flag_mappings[idx].option_flag, flag_mappings[idx].value);
+            return;
+        }
     }
 
     if (option == 'v') {
-	/* The verbose flag is a special case: it should only be set if JSON output is not enabled. */
-	if (!is_option_set(conf->mask, OPTION_JSON)) {
-	    set_option(&conf->mask, OPTION_VERBO, 1);
-	}
+        /* The verbose flag is a special case: it should only be set if JSON output is not enabled. */
+        if (!is_option_set(conf->mask, OPTION_JSON)) {
+            set_option(&conf->mask, OPTION_VERBO, 1);
+        }
     }
 }
 
@@ -408,61 +405,60 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
 {
     switch (option) {
     case 'e':
-	*(opts->ignore_regex) = apr_pstrdup(conf->pool, optarg);
-	break;
+        *(opts->ignore_regex) = apr_pstrdup(conf->pool, optarg);
+        break;
     case 'i':
-	ft_hash_add_ignore_list(conf->ig_files, optarg);
-	break;
+        ft_hash_add_ignore_list(conf->ig_files, optarg);
+        break;
     case 'p':
-	conf->p_path = apr_pstrdup(conf->pool, optarg);
-	conf->p_path_len = strlen(conf->p_path);
-	break;
+        conf->p_path = apr_pstrdup(conf->pool, optarg);
+        conf->p_path_len = strlen(conf->p_path);
+        break;
     case 's':
-	conf->sep = *optarg;
-	break;
+        conf->sep = *optarg;
+        break;
     case 'w':
-	*(opts->whitelist_regex) = apr_pstrdup(conf->pool, optarg);
-	break;
+        *(opts->whitelist_regex) = apr_pstrdup(conf->pool, optarg);
+        break;
     default:
-	/* Should not happen. */
-	break;
+        /* Should not happen. */
+        break;
     }
 }
 
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
-				  const apr_getopt_option_t *opt_option)
+static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'j':{
-	    char *endptr = NULL;
-	    long threads = strtol(optarg, &endptr, BASE_TEN);
-	    if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
-		print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
-	    }
-	    conf->num_threads = (unsigned int) threads;
-	    break;
-	}
+            char *endptr = NULL;
+            long threads = strtol(optarg, &endptr, BASE_TEN);
+            if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
+                print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
+            }
+            conf->num_threads = (unsigned int) threads;
+            break;
+        }
     case 'm':
-	conf->minsize = parse_human_size(optarg);
-	if (conf->minsize < 0) {
-	    print_usage_and_exit(name, opt_option, "Invalid size for --minimal-length:", optarg);
-	}
-	break;
+        conf->minsize = parse_human_size(optarg);
+        if (conf->minsize < 0) {
+            print_usage_and_exit(name, opt_option, "Invalid size for --minimal-length:", optarg);
+        }
+        break;
     case 'M':
-	conf->maxsize = parse_human_size(optarg);
-	if (conf->maxsize < 0) {
-	    print_usage_and_exit(name, opt_option, "Invalid size for --max-size:", optarg);
-	}
-	break;
+        conf->maxsize = parse_human_size(optarg);
+        if (conf->maxsize < 0) {
+            print_usage_and_exit(name, opt_option, "Invalid size for --max-size:", optarg);
+        }
+        break;
     case 'x':
-	conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
-	if (ULONG_MAX == conf->minsize) {
-	    print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
-	}
-	break;
+        conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
+        if (ULONG_MAX == conf->minsize) {
+            print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
+        }
+        break;
     default:
-	/* Should not happen. */
-	break;
+        /* Should not happen. */
+        break;
     }
 }
 
@@ -472,78 +468,76 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
  * This function centralizes the logic for image comparison options,
  * reducing the complexity of the main option handling switch.
  */
-static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name,
-				 const apr_getopt_option_t *opt_option)
+static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'I':
-	set_option(&conf->mask, OPTION_ICASE, 1);
-	set_option(&conf->mask, OPTION_PUZZL, 1);
-	*wregex = apr_pstrdup(conf->pool, ".*\\.(gif|png|jpe?g)$");
-	break;
+        set_option(&conf->mask, OPTION_ICASE, 1);
+        set_option(&conf->mask, OPTION_PUZZL, 1);
+        *wregex = apr_pstrdup(conf->pool, ".*\\.(gif|png|jpe?g)$");
+        break;
     case 'T':
-	switch (*optarg) {
-	case '1':
-	    conf->threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
-	    break;
-	case '2':
-	    conf->threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
-	    break;
-	case '3':
-	    conf->threshold = DEFAULT_THRESHOLD;
-	    break;
-	case '4':
-	    conf->threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
-	    break;
-	case '5':
-	    conf->threshold = PUZZLE_CVEC_SIMILARITY_HIGH_THRESHOLD;
-	    break;
-	default:
-	    print_usage_and_exit(name, opt_option, "invalid threshold:", optarg);
-	}
-	break;
+        switch (*optarg) {
+        case '1':
+            conf->threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
+            break;
+        case '2':
+            conf->threshold = PUZZLE_CVEC_SIMILARITY_LOW_THRESHOLD;
+            break;
+        case '3':
+            conf->threshold = DEFAULT_THRESHOLD;
+            break;
+        case '4':
+            conf->threshold = PUZZLE_CVEC_SIMILARITY_THRESHOLD;
+            break;
+        case '5':
+            conf->threshold = PUZZLE_CVEC_SIMILARITY_HIGH_THRESHOLD;
+            break;
+        default:
+            print_usage_and_exit(name, opt_option, "invalid threshold:", optarg);
+        }
+        break;
     default:
-	/* Should not be reached */
-	break;
+        /* Should not be reached */
+        break;
     }
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts,
-				  const char *name, const apr_getopt_option_t *opt_option)
+static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'h':
-	usage(name, opt_option);
-	exit(0);
+        usage(name, opt_option);
+        exit(0);
     case 'V':
-	version();
-	exit(0);
+        version();
+        exit(0);
     case 'I':
     case 'T':
-	handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
-	break;
+        handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
+        break;
 #if HAVE_JANSSON
     case 'J':
-	set_option(&conf->mask, OPTION_JSON, 1);
-	if (is_option_set(conf->mask, OPTION_VERBO)) {
-	    (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
-	    set_option(&conf->mask, OPTION_VERBO, 0);
-	}
-	break;
+        set_option(&conf->mask, OPTION_JSON, 1);
+        if (is_option_set(conf->mask, OPTION_VERBO)) {
+            (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
+            set_option(&conf->mask, OPTION_VERBO, 0);
+        }
+        break;
 #endif
     case 't':
-	set_option(&conf->mask, OPTION_UNTAR, 1);
-	*(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
-	break;
+        set_option(&conf->mask, OPTION_UNTAR, 1);
+        *(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
+        break;
     default:
-	/* Should not happen. */
-	break;
+        /* Should not happen. */
+        break;
     }
 }
 
 apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index)
 {
-    char errbuf[ERROR_BUFFER_SIZE];
+    char errbuf[ERR_BUF_SIZE];
     char *regex_str = NULL;
     char *wregex_str = NULL;
     char *arregex_str = NULL;
@@ -556,56 +550,56 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     memset(errbuf, 0, sizeof(errbuf));
     status = apr_getopt_init(&opt_state, conf->pool, argc, argv);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
-	return status;
+        DEBUG_ERR("error calling apr_getopt_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     while (APR_SUCCESS == (status = apr_getopt_long(opt_state, opt_option, &option, &optarg))) {
-	process_options(option, optarg, conf, &opts, argv[0]);
+        process_options(option, optarg, conf, &opts, argv[0]);
     }
 
     status = apr_uid_current(&(conf->userid), &(conf->groupid), conf->pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
-	return status;
+        DEBUG_ERR("error calling apr_uid_current: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     status = apr_uid_name_get(&(conf->username), conf->userid, conf->pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling apr_uid_name_get: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
-	return status;
+        DEBUG_ERR("error calling apr_uid_name_get: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     status = fill_gids_ht(conf->username, conf->gids, conf->pool);
     if (APR_SUCCESS != status) {
-	DEBUG_ERR("error calling fill_gids_ht: %s", apr_strerror(status, errbuf, ERROR_BUFFER_SIZE));
-	return status;
+        DEBUG_ERR("error calling fill_gids_ht: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     if (NULL != regex_str) {
-	conf->ig_regex = ft_pcre_compile(regex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
-	if (NULL == conf->ig_regex) {
-	    return APR_EGENERAL;
-	}
+        conf->ig_regex = ft_pcre_compile(regex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+        if (NULL == conf->ig_regex) {
+            return APR_EGENERAL;
+        }
     }
 
     if (NULL != wregex_str) {
-	conf->wl_regex = ft_pcre_compile(wregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
-	if (NULL == conf->wl_regex) {
-	    return APR_EGENERAL;
-	}
+        conf->wl_regex = ft_pcre_compile(wregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+        if (NULL == conf->wl_regex) {
+            return APR_EGENERAL;
+        }
     }
 
     if (NULL != arregex_str) {
-	conf->ar_regex = ft_pcre_compile(arregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
-	if (NULL == conf->ar_regex) {
-	    return APR_EGENERAL;
-	}
+        conf->ar_regex = ft_pcre_compile(arregex_str, is_option_set(conf->mask, OPTION_ICASE), conf->pool);
+        if (NULL == conf->ar_regex) {
+            return APR_EGENERAL;
+        }
     }
 
     /* Return the index of the first non-option argument */
     if (first_arg_index != NULL) {
-	*first_arg_index = opt_state->ind;
+        *first_arg_index = opt_state->ind;
     }
 
     return APR_SUCCESS;

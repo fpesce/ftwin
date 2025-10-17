@@ -1,4 +1,4 @@
--l 125 -i4 -npsl -di0 -br -nce -d0 -cli0 -npcs -nfc1
+-l 200 -i4 -npsl -di0 -br -nce -d0 -cli0 -npcs -nfc1 -nut
 -T apr_dir_t
 -T apr_file_t
 -T apr_finfo_t
@@ -15,6 +15,7 @@
 -T apr_thread_mutex_t
 -T apr_thread_t
 -T apr_uint32_t
+-T bench_file_params_t
 -T check_heap_numbers_t
 -T filling_t
 -T ft_chksum_t
@@ -22,6 +23,7 @@
 -T ft_file_t
 -T ft_fsize_t
 -T ft_hash_t
+-T ft_ignore_context_t
 -T function_callback_fn_t
 -T get_key_callback_fn_t
 -T get_key_len_callback_fn_t

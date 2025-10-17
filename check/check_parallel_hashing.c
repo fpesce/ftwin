@@ -45,9 +45,9 @@ static const int MAX_PATH_LENGTH = 128;
 static void setup(void)
 {
     if (main_pool == NULL) {
-	(void) apr_initialize();
-	(void) atexit(apr_terminate);
-	(void) apr_pool_create(&main_pool, NULL);
+        (void) apr_initialize();
+        (void) atexit(apr_terminate);
+        (void) apr_pool_create(&main_pool, NULL);
     }
 }
 
@@ -68,29 +68,29 @@ static apr_status_t recursive_delete(const char *path, apr_pool_t *pool)
     apr_status_t status = apr_dir_open(&dir, path, pool);
 
     if (status != APR_SUCCESS) {
-	return status;
+        return status;
     }
 
     while (apr_dir_read(&finfo, APR_FINFO_DIRENT | APR_FINFO_TYPE, dir) == APR_SUCCESS) {
-	if (strcmp(finfo.name, ".") == 0 || strcmp(finfo.name, "..") == 0) {
-	    continue;
-	}
+        if (strcmp(finfo.name, ".") == 0 || strcmp(finfo.name, "..") == 0) {
+            continue;
+        }
 
-	char *new_path = apr_pstrcat(pool, path, "/", finfo.name, NULL);
-	if (finfo.filetype == APR_DIR) {
-	    status = recursive_delete(new_path, pool);
-	    if (status != APR_SUCCESS) {
-		(void) apr_dir_close(dir);
-		return status;
-	    }
-	}
-	else {
-	    status = apr_file_remove(new_path, pool);
-	    if (status != APR_SUCCESS) {
-		(void) apr_dir_close(dir);
-		return status;
-	    }
-	}
+        char *new_path = apr_pstrcat(pool, path, "/", finfo.name, NULL);
+        if (finfo.filetype == APR_DIR) {
+            status = recursive_delete(new_path, pool);
+            if (status != APR_SUCCESS) {
+                (void) apr_dir_close(dir);
+                return status;
+            }
+        }
+        else {
+            status = apr_file_remove(new_path, pool);
+            if (status != APR_SUCCESS) {
+                (void) apr_dir_close(dir);
+                return status;
+            }
+        }
     }
 
     (void) apr_dir_close(dir);
@@ -101,10 +101,10 @@ static void create_test_file(const char *path, size_t size)
 {
     FILE *file = fopen(path, "wb");
     if (file) {
-	for (size_t i = 0; i < size; i++) {
-	    (void) fputc((int) (i % CHAR_MAX_VAL), file);
-	}
-	(void) fclose(file);
+        for (size_t i = 0; i < size; i++) {
+            (void) fputc((int) (i % CHAR_MAX_VAL), file);
+        }
+        (void) fclose(file);
     }
 }
 
@@ -123,16 +123,10 @@ START_TEST(test_parallel_correctness)
     /* Create test files with duplicates */
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/parallel_test/file1.dat", TEST_FILE_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file2.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file3.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file1.dat", "check/tests/parallel_test/file3.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/parallel_test/file4.dat", TEST_FILE_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/parallel_test/file4.dat", "check/tests/parallel_test/file5.dat", APR_OS_DEFAULT,
-		      main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/parallel_test/file4.dat", "check/tests/parallel_test/file5.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     /* Test with single thread */
     pipe(stdout_pipe1);
@@ -199,12 +193,8 @@ static void create_thread_test_files(const char *test_dir)
 {
     ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
     create_test_file("check/tests/thread_test/a.dat", TEST_FILE_SIZE_SMALL);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/thread_test/a.dat", "check/tests/thread_test/b.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/thread_test/a.dat", "check/tests/thread_test/c.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/thread_test/a.dat", "check/tests/thread_test/b.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/thread_test/a.dat", "check/tests/thread_test/c.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 }
 
 /**
@@ -255,7 +245,7 @@ START_TEST(test_thread_counts)
     /* Test with various thread counts: 1, 2, 4, 8 */
     const char *thread_counts[] = { "1", "2", "4", "8", "12", "16", "24" };
     for (size_t i = 0; i < (sizeof(thread_counts) / sizeof(const char *)); i++) {
-	run_ftwin_with_thread_count(thread_counts[i]);
+        run_ftwin_with_thread_count(thread_counts[i]);
     }
 
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
@@ -278,19 +268,13 @@ START_TEST(test_various_file_sizes)
 
     /* Create files of different sizes with duplicates */
     create_test_file("check/tests/size_test/tiny1.dat", TEST_CHUNK_SIZE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/tiny1.dat", "check/tests/size_test/tiny2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/tiny1.dat", "check/tests/size_test/tiny2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     create_test_file("check/tests/size_test/small1.dat", KIBIBYTE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/small1.dat", "check/tests/size_test/small2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/small1.dat", "check/tests/size_test/small2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     create_test_file("check/tests/size_test/medium1.dat", TEST_FILE_SIZE_LARGE);
-    ck_assert_int_eq(apr_file_copy
-		     ("check/tests/size_test/medium1.dat", "check/tests/size_test/medium2.dat", APR_OS_DEFAULT, main_pool),
-		     APR_SUCCESS);
+    ck_assert_int_eq(apr_file_copy("check/tests/size_test/medium1.dat", "check/tests/size_test/medium2.dat", APR_OS_DEFAULT, main_pool), APR_SUCCESS);
 
     pipe(stdout_pipe);
     pipe(stderr_pipe);
@@ -328,31 +312,28 @@ START_TEST(test_various_file_sizes)
 END_TEST
 /* *INDENT-ON* */
 
-/**
- * Test with many files to stress test thread pool
- */
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-START_TEST(test_many_files)
+static void create_many_files(const char *test_dir)
+{
+    ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+
+    for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {
+        char base_path[MAX_PATH_LENGTH];
+        memset(base_path, 0, sizeof(base_path));
+        (void) snprintf(base_path, sizeof(base_path), "%s/base%d.dat", test_dir, i);
+        create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
+
+        for (int j = 1; j <= 2; j++) {
+            char dup_path[MAX_PATH_LENGTH];
+            (void) snprintf(dup_path, sizeof(dup_path), "%s/dup%d_%d.dat", test_dir, i, j);
+            ck_assert_int_eq(apr_file_copy(base_path, dup_path, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
+        }
+    }
+}
+
+static void run_many_files_test(const char *test_dir)
 {
     int stdout_pipe[2] = { 0 };
     int stderr_pipe[2] = { 0 };
-    const char *test_dir = "check/tests/many_test";
-
-    ck_assert_int_eq(apr_dir_make(test_dir, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
-
-    /* Create 20 sets of duplicate files (3 copies each = 60 files) */
-    for (int i = 0; i < BENCHMARK_ITERATIONS; i++) {
-	char base_path[MAX_PATH_LENGTH];
-	memset(base_path, 0, sizeof(base_path));
-	(void) snprintf(base_path, sizeof(base_path), "check/tests/many_test/base%d.dat", i);
-	create_test_file(base_path, (size_t) KIBIBYTE + (size_t) i * STRESS_TEST_ITERATIONS);
-
-	for (int j = 1; j <= 2; j++) {
-	    char dup_path[MAX_PATH_LENGTH];
-	    (void) snprintf(dup_path, sizeof(dup_path), "check/tests/many_test/dup%d_%d.dat", i, j);
-	    ck_assert_int_eq(apr_file_copy(base_path, dup_path, APR_OS_DEFAULT, main_pool), APR_SUCCESS);
-	}
-    }
 
     pipe(stdout_pipe);
     pipe(stderr_pipe);
@@ -363,7 +344,7 @@ START_TEST(test_many_files)
     dup2(stdout_pipe[1], STDOUT_FILENO);
     dup2(stderr_pipe[1], STDERR_FILENO);
 
-    const char *argv[] = { "ftwin", "-j", "4", "check/tests/many_test" };
+    const char *argv[] = { "ftwin", "-j", "4", test_dir };
     int return_value = ftwin_main(4, argv);
 
     close(stdout_pipe[1]);
@@ -375,12 +356,23 @@ START_TEST(test_many_files)
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
 
-    /* Verify no crashes and duplicates found */
     ck_assert_int_eq(return_value, 0);
     ck_assert_ptr_ne(strstr(output, "base0.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup0_1.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "base19.dat"), NULL);
     ck_assert_ptr_ne(strstr(output, "dup19_1.dat"), NULL);
+}
+
+/**
+ * Test with many files to stress test thread pool
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_many_files)
+{
+    const char *test_dir = "check/tests/many_test";
+
+    create_many_files(test_dir);
+    run_many_files_test(test_dir);
 
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
 }

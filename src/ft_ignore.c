@@ -26,7 +26,10 @@
 #include <string.h>
 #include <ctype.h>
 
-#define INITIAL_PATTERNS_CAPACITY 16
+enum
+{
+    INITIAL_PATTERNS_CAPACITY = 16
+};
 
 /**
  * @brief The maximum length of a pattern string.
@@ -67,26 +70,26 @@ static const char *handle_negation_and_slashes(const char *pattern, unsigned int
 
     /* Handle negation: Skip '!' and any leading whitespace */
     if (*pattern_cursor == '!') {
-	*flags |= FT_IGNORE_NEGATE;
-	pattern_cursor++;
-	while (isspace((unsigned char) *pattern_cursor)) {
-	    pattern_cursor++;
-	}
+        *flags |= FT_IGNORE_NEGATE;
+        pattern_cursor++;
+        while (isspace((unsigned char) *pattern_cursor)) {
+            pattern_cursor++;
+        }
     }
 
     /* Handle root anchor: Check for a leading '/' */
     if (*pattern_cursor == '/') {
-	*starts_with_slash = 1;
-	pattern_cursor++;
+        *starts_with_slash = 1;
+        pattern_cursor++;
     }
 
     /* Handle directory-only: Check for a trailing '/' */
     const char *end = pattern_cursor + strlen(pattern_cursor) - 1;
     while (end > pattern_cursor && isspace((unsigned char) *end)) {
-	end--;
+        end--;
     }
     if (*end == '/') {
-	*flags |= FT_IGNORE_DIR_ONLY;
+        *flags |= FT_IGNORE_DIR_ONLY;
     }
 
     return pattern_cursor;
@@ -119,16 +122,25 @@ static void append_pcre_sequence(char **cursor, const char *sequence)
  * @param starts_with_slash Indicates if the pattern began with '/'.
  * @param flags Flags that may include FT_IGNORE_DIR_ONLY.
  */
-static void set_pcre_anchors(char **result_cursor, int starts_with_slash, unsigned int flags)
+/**
+ * @brief Parameters for setting PCRE anchors.
+ */
+struct pcre_anchor_params_t
+{
+    int starts_with_slash;
+    unsigned int flags;
+};
+
+static void set_pcre_anchors(char **result_cursor, const struct pcre_anchor_params_t *params)
 {
     char *cursor = *result_cursor;
 
-    if (starts_with_slash) {
-	append_pcre_sequence(&cursor, "^");
+    if (params->starts_with_slash) {
+        append_pcre_sequence(&cursor, "^");
     }
     else {
-	/* Pattern can match at any level unless it contains a slash */
-	append_pcre_sequence(&cursor, "(^|/)");
+        /* Pattern can match at any level unless it contains a slash */
+        append_pcre_sequence(&cursor, "(^|/)");
     }
 
     *result_cursor = cursor;
@@ -144,22 +156,22 @@ static void set_pcre_anchors(char **result_cursor, int starts_with_slash, unsign
 static void handle_star(const char **pattern_cursor, char **result_cursor)
 {
     if (*(*pattern_cursor + 1) == '*') {
-	/* Double star: ** */
-	if (*(*pattern_cursor + 2) == '/') {
-	    /* * *//* pattern: matches zero or more directory levels */
-	    append_pcre_sequence(result_cursor, "(.*/)?");
-	    *pattern_cursor += 3;
-	}
-	else {
-	    /* ** at the end: matches everything */
-	    append_pcre_sequence(result_cursor, ".*");
-	    *pattern_cursor += 2;
-	}
+        /* Double star: ** */
+        if (*(*pattern_cursor + 2) == '/') {
+            /* * *//* pattern: matches zero or more directory levels */
+            append_pcre_sequence(result_cursor, "(.*/)?");
+            *pattern_cursor += 3;
+        }
+        else {
+            /* ** at the end: matches everything */
+            append_pcre_sequence(result_cursor, ".*");
+            *pattern_cursor += 2;
+        }
     }
     else {
-	/* Single star *: matches anything except a slash */
-	append_pcre_sequence(result_cursor, "[^/]*");
-	*pattern_cursor += 1;
+        /* Single star *: matches anything except a slash */
+        append_pcre_sequence(result_cursor, "[^/]*");
+        *pattern_cursor += 1;
     }
 }
 
@@ -185,24 +197,24 @@ static void handle_char_class(const char **pattern_cursor, char **result_cursor)
 {
     char *cursor = *result_cursor;
     *cursor++ = '[';
-    (*pattern_cursor)++;	// Move past opening `[`
+    (*pattern_cursor)++;        // Move past opening `[`
 
     if (**pattern_cursor == '!' || **pattern_cursor == '^') {
-	*cursor++ = '^';
-	(*pattern_cursor)++;
+        *cursor++ = '^';
+        (*pattern_cursor)++;
     }
 
     while (**pattern_cursor && **pattern_cursor != ']') {
-	if (**pattern_cursor == '\\' && *(*pattern_cursor + 1)) {
-	    *cursor++ = '\\';
-	    (*pattern_cursor)++;
-	}
-	*cursor++ = *(*pattern_cursor)++;
+        if (**pattern_cursor == '\\' && *(*pattern_cursor + 1)) {
+            *cursor++ = '\\';
+            (*pattern_cursor)++;
+        }
+        *cursor++ = *(*pattern_cursor)++;
     }
 
     if (**pattern_cursor == ']') {
-	*cursor++ = ']';
-	(*pattern_cursor)++;
+        *cursor++ = ']';
+        (*pattern_cursor)++;
     }
 
     *result_cursor = cursor;
@@ -222,40 +234,40 @@ static void handle_char_class(const char **pattern_cursor, char **result_cursor)
 static void convert_glob_body_to_pcre(const char **pattern_cursor, char **result_cursor, unsigned int flags)
 {
     while (**pattern_cursor) {
-	/* Stop if we hit a trailing slash for a directory-only pattern */
-	if (**pattern_cursor == '/' && (flags & FT_IGNORE_DIR_ONLY) && *(*pattern_cursor + 1) == '\0') {
-	    break;
-	}
+        /* Stop if we hit a trailing slash for a directory-only pattern */
+        if (**pattern_cursor == '/' && (flags & FT_IGNORE_DIR_ONLY) && *(*pattern_cursor + 1) == '\0') {
+            break;
+        }
 
-	if (**pattern_cursor == '\\' && *(*pattern_cursor + 1)) {
-	    /* Handle escaped characters */
-	    char *cursor = *result_cursor;
-	    *cursor++ = '\\';
-	    *cursor++ = *(*pattern_cursor + 1);
-	    *result_cursor = cursor;
-	    *pattern_cursor += 2;
-	}
-	else if (**pattern_cursor == '*') {
-	    handle_star(pattern_cursor, result_cursor);
-	}
-	else if (**pattern_cursor == '?') {
-	    handle_question_mark(pattern_cursor, result_cursor);
-	}
-	else if (**pattern_cursor == '[') {
-	    handle_char_class(pattern_cursor, result_cursor);
-	}
-	else if (strchr(".^$+{}()|", **pattern_cursor)) {
-	    /* Escape PCRE metacharacters */
-	    char *cursor = *result_cursor;
-	    *cursor++ = '\\';
-	    *cursor++ = **pattern_cursor;
-	    *result_cursor = cursor;
-	    (*pattern_cursor)++;
-	}
-	else {
-	    /* Copy literal characters */
-	    *(*result_cursor)++ = *(*pattern_cursor)++;
-	}
+        if (**pattern_cursor == '\\' && *(*pattern_cursor + 1)) {
+            /* Handle escaped characters */
+            char *cursor = *result_cursor;
+            *cursor++ = '\\';
+            *cursor++ = *(*pattern_cursor + 1);
+            *result_cursor = cursor;
+            *pattern_cursor += 2;
+        }
+        else if (**pattern_cursor == '*') {
+            handle_star(pattern_cursor, result_cursor);
+        }
+        else if (**pattern_cursor == '?') {
+            handle_question_mark(pattern_cursor, result_cursor);
+        }
+        else if (**pattern_cursor == '[') {
+            handle_char_class(pattern_cursor, result_cursor);
+        }
+        else if (strchr(".^$+{}()|", **pattern_cursor)) {
+            /* Escape PCRE metacharacters */
+            char *cursor = *result_cursor;
+            *cursor++ = '\\';
+            *cursor++ = **pattern_cursor;
+            *result_cursor = cursor;
+            (*pattern_cursor)++;
+        }
+        else {
+            /* Copy literal characters */
+            *(*result_cursor)++ = *(*pattern_cursor)++;
+        }
     }
 }
 
@@ -263,30 +275,32 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
 {
     char *result = apr_pcalloc(pool, MAX_PATTERN_LEN);
     char *result_cursor = result;
-    int starts_with_slash = 0;
-    const char *pattern_cursor = handle_negation_and_slashes(pattern, flags, &starts_with_slash);
+    struct pcre_anchor_params_t anchor_params = { 0 };
+    const char *pattern_cursor = handle_negation_and_slashes(pattern, flags, &anchor_params.starts_with_slash);
+
+    anchor_params.flags = *flags;
 
     /* Set start anchor based on whether the pattern had a leading slash */
-    set_pcre_anchors(&result_cursor, starts_with_slash, *flags);
+    set_pcre_anchors(&result_cursor, &anchor_params);
 
     /* Convert the main body of the glob pattern */
     convert_glob_body_to_pcre(&pattern_cursor, &result_cursor, *flags);
 
     /* Set end anchor */
     if (*flags & FT_IGNORE_DIR_ONLY) {
-	/* Match a directory with an optional trailing slash */
-	append_pcre_sequence(&result_cursor, "(/|$)");
+        /* Match a directory with an optional trailing slash */
+        append_pcre_sequence(&result_cursor, "(/|$)");
     }
     else {
-	/* Match the end of the string */
-	append_pcre_sequence(&result_cursor, "$");
+        /* Match the end of the string */
+        append_pcre_sequence(&result_cursor, "$");
     }
 
     *result_cursor = '\0';
     return result;
 }
 
-ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t * parent, const char *base_dir)
+ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t *parent, const char *base_dir)
 {
     ft_ignore_context_t *ctx = apr_pcalloc(pool, sizeof(ft_ignore_context_t));
 
@@ -299,7 +313,7 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
     return ctx;
 }
 
-apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str)
+apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t *ctx, const char *pattern_str)
 {
     const char *trimmed = NULL;
     unsigned int flags = 0;
@@ -312,12 +326,12 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
     /* Trim whitespace */
     trimmed = pattern_str;
     while (isspace(*trimmed)) {
-	trimmed++;
+        trimmed++;
     }
 
     /* Skip empty lines and comments */
     if (*trimmed == '\0' || *trimmed == '#') {
-	return APR_SUCCESS;
+        return APR_SUCCESS;
     }
 
     /* Convert glob to regex */
@@ -326,8 +340,8 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
     /* Compile regex */
     regex = pcre_compile(regex_str, 0, &error, &erroffset, NULL);
     if (!regex) {
-	DEBUG_ERR("Failed to compile pattern '%s': %s", trimmed, error);
-	return APR_EGENERAL;
+        DEBUG_ERR("Failed to compile pattern '%s': %s", trimmed, error);
+        return APR_EGENERAL;
     }
 
     /* Create pattern struct */
@@ -342,7 +356,7 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
     return APR_SUCCESS;
 }
 
-apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath)
+apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath)
 {
     apr_file_t *file = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -350,78 +364,78 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
 
     status = apr_file_open(&file, filepath, APR_READ, APR_OS_DEFAULT, ctx->pool);
     if (status != APR_SUCCESS) {
-	return status;
+        return status;
     }
 
-    while (apr_file_gets(line, sizeof(line), file) == APR_SUCCESS) {
-	/* Remove newline */
-	apr_size_t len = strlen(line);
-	if (len > 0 && line[len - 1] == '\n') {
-	    line[len - 1] = '\0';
-	    len--;
-	}
-	if (len > 0 && line[len - 1] == '\r') {
-	    line[len - 1] = '\0';
-	}
+    while (apr_file_gets(line, (int) sizeof(line), file) == APR_SUCCESS) {
+        /* Remove newline */
+        apr_size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+            len--;
+        }
+        if (len > 0 && line[len - 1] == '\r') {
+            line[len - 1] = '\0';
+        }
 
-	ft_ignore_add_pattern_str(ctx, line);
+        ft_ignore_add_pattern_str(ctx, line);
     }
 
     (void) apr_file_close(file);
     return APR_SUCCESS;
 }
 
-ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir)
+ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t *ctx, const char *fullpath, int is_dir)
 {
     ft_ignore_context_t *current_ctx = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
     const char *relative_path = NULL;
 
     if (!ctx || !fullpath) {
-	return FT_IGNORE_MATCH_NONE;
+        return FT_IGNORE_MATCH_NONE;
     }
 
     /* Walk up the context hierarchy */
     for (current_ctx = ctx; current_ctx != NULL; current_ctx = current_ctx->parent) {
-	int index = 0;
+        int index = 0;
 
-	/* Calculate relative path from this context's base_dir */
-	if (strncmp(fullpath, current_ctx->base_dir, current_ctx->base_dir_len) == 0) {
-	    relative_path = fullpath + current_ctx->base_dir_len;
-	    /* Skip leading slash */
-	    while (*relative_path == '/') {
-		relative_path++;
-	    }
-	}
-	else {
-	    /* Path not under this context's base, try parent */
-	    continue;
-	}
+        /* Calculate relative path from this context's base_dir */
+        if (strncmp(fullpath, current_ctx->base_dir, current_ctx->base_dir_len) == 0) {
+            relative_path = fullpath + current_ctx->base_dir_len;
+            /* Skip leading slash */
+            while (*relative_path == '/') {
+                relative_path++;
+            }
+        }
+        else {
+            /* Path not under this context's base, try parent */
+            continue;
+        }
 
-	/* Check patterns in order (last match wins) */
-	for (index = 0; index < current_ctx->patterns->nelts; index++) {
-	    ft_ignore_pattern_t *pattern = APR_ARRAY_IDX(current_ctx->patterns, index, ft_ignore_pattern_t *);
-	    int match = 0;
+        /* Check patterns in order (last match wins) */
+        for (index = 0; index < current_ctx->patterns->nelts; index++) {
+            ft_ignore_pattern_t *pattern = APR_ARRAY_IDX(current_ctx->patterns, index, ft_ignore_pattern_t *);
+            int match = 0;
 
-	    /* Skip directory-only patterns if this is not a directory */
-	    if ((pattern->flags & FT_IGNORE_DIR_ONLY) && !is_dir) {
-		continue;
-	    }
+            /* Skip directory-only patterns if this is not a directory */
+            if ((pattern->flags & FT_IGNORE_DIR_ONLY) && !is_dir) {
+                continue;
+            }
 
-	    /* Try to match */
-	    match = pcre_exec(pattern->regex, NULL, relative_path, (int) strlen(relative_path), 0, 0, NULL, 0);
+            /* Try to match */
+            match = pcre_exec(pattern->regex, NULL, relative_path, (int) strlen(relative_path), 0, 0, NULL, 0);
 
-	    if (match >= 0) {
-		/* Pattern matched */
-		if (pattern->flags & FT_IGNORE_NEGATE) {
-		    result = FT_IGNORE_MATCH_WHITELISTED;
-		}
-		else {
-		    result = FT_IGNORE_MATCH_IGNORED;
-		}
-		/* Don't break - continue checking for later patterns */
-	    }
-	}
+            if (match >= 0) {
+                /* Pattern matched */
+                if (pattern->flags & FT_IGNORE_NEGATE) {
+                    result = FT_IGNORE_MATCH_WHITELISTED;
+                }
+                else {
+                    result = FT_IGNORE_MATCH_IGNORED;
+                }
+                /* Don't break - continue checking for later patterns */
+            }
+        }
     }
 
     return result;

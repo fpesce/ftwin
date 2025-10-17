@@ -65,8 +65,8 @@ static void add_file_to_archive(struct archive *archive, const char *filename)
 
     length = fread(buffer, 1, sizeof(buffer), file);
     while (length > 0) {
-	archive_write_data(archive, buffer, length);
-	length = fread(buffer, 1, sizeof(buffer), file);
+        archive_write_data(archive, buffer, length);
+        length = fread(buffer, 1, sizeof(buffer), file);
     }
 
     ck_assert_int_eq(fclose(file), 0);
@@ -82,7 +82,7 @@ static void create_test_archive(const char *archive_name, const char **filenames
     archive_write_open_filename(archive, archive_name);
 
     for (int i = 0; i < num_files; ++i) {
-	add_file_to_archive(archive, filenames[i]);
+        add_file_to_archive(archive, filenames[i]);
     }
 
     archive_write_close(archive);
@@ -99,11 +99,12 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
-static void create_test_file(const char *file_path, const char *file_content)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void create_test_file(const char *path, const char *content)
 {
-    FILE *file = fopen(file_path, "w");
+    FILE *file = fopen(path, "w");
     ck_assert_ptr_ne(file, NULL);
-    ck_assert_int_ge(fputs(file_content, file), 0);
+    ck_assert_int_ge(fputs(content, file), 0);
     ck_assert_int_eq(fclose(file), 0);
 }
 
@@ -123,7 +124,8 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
-    create_test_file("d.txt", "identical content");	// Standalone duplicate
+    create_test_file("d.txt", "identical content");
+
 
     create_test_archive("test_archive.tar", files_to_archive, 3);
 
