@@ -21,12 +21,10 @@ int apr_off_t_key_cmp(const void *key1, const void *key2, apr_size_t len)
 {
     apr_off_t key1_value = *(const apr_off_t *) key1;
     apr_off_t key2_value = *(const apr_off_t *) key2;
-    if (key1_value == key2_value)
-    {
+    if (key1_value == key2_value) {
         return 0;
     }
-    if (key1_value < key2_value)
-    {
+    if (key1_value < key2_value) {
         return -1;
     }
     return 1;
@@ -49,12 +47,10 @@ int gid_t_key_cmp(const void *key1, const void *key2, apr_size_t len)
 {
     gid_t key1_value = *(const gid_t *) key1;
     gid_t key2_value = *(const gid_t *) key2;
-    if (key1_value == key2_value)
-    {
+    if (key1_value == key2_value) {
         return 0;
     }
-    if (key1_value < key2_value)
-    {
+    if (key1_value < key2_value) {
         return -1;
     }
     return 1;

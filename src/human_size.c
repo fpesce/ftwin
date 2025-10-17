@@ -27,8 +27,7 @@ const char *format_human_size(apr_off_t size, apr_pool_t *pool)
         unit_index++;
     }
 
-    if (unit_index == 0)
-    {
+    if (unit_index == 0) {
         return apr_psprintf(pool, "%d %s", (int) readable_size, units[unit_index]);
     }
 
@@ -50,22 +49,21 @@ apr_off_t parse_human_size(const char *size_str)
     }
 
     if (*endptr) {
-        switch (toupper((unsigned char) *endptr))
-        {
-            case 'T':
-                multiplier = TEBIBYTE;
-                break;
-            case 'G':
-                multiplier = GIBIBYTE;
-                break;
-            case 'M':
-                multiplier = MEBIBYTE;
-                break;
-            case 'K':
-                multiplier = KIBIBYTE;
-                break;
-            default:
-                return -1;          // Invalid suffix
+        switch (toupper((unsigned char) *endptr)) {
+        case 'T':
+            multiplier = TEBIBYTE;
+            break;
+        case 'G':
+            multiplier = GIBIBYTE;
+            break;
+        case 'M':
+            multiplier = MEBIBYTE;
+            break;
+        case 'K':
+            multiplier = KIBIBYTE;
+            break;
+        default:
+            return -1;          // Invalid suffix
         }
     }
 
