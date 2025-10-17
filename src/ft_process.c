@@ -62,7 +62,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 
             if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
                 (void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-                               h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0f));
+                               h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
             }
 
             apr_thread_mutex_unlock(h_ctx->stats_mutex);
@@ -92,7 +92,7 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     apr_size_t total_hash_tasks = 0;
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-        (void) fprintf(stderr, "Referencing files and sizes:\n");
+        fprintf(stderr, "Referencing files and sizes:\n");
     }
 
     status = apr_pool_create(&gc_pool, conf->pool);
@@ -229,7 +229,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-        (void) fprintf(stderr, "\n");
+        fprintf(stderr, "\n");
     }
 
     status = napr_threadpool_shutdown(threadpool);

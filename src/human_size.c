@@ -11,6 +11,10 @@
 #include <apr_strings.h>
 
 static const double BYTES_IN_KIBIBYTE = 1024.0;
+static const apr_off_t KIBIBYTE = 1024LL;
+static const apr_off_t MEBIBYTE = 1024LL * 1024LL;
+static const apr_off_t GIBIBYTE = 1024LL * 1024LL * 1024LL;
+static const apr_off_t TEBIBYTE = 1024LL * 1024LL * 1024LL * 1024LL;
 
 const char *format_human_size(apr_off_t size, apr_pool_t *pool)
 {
@@ -26,14 +30,13 @@ const char *format_human_size(apr_off_t size, apr_pool_t *pool)
     if (unit_index == 0) {
         return apr_psprintf(pool, "%d %s", (int) readable_size, units[unit_index]);
     }
-    else {
-        return apr_psprintf(pool, "%.1f %s", readable_size, units[unit_index]);
-    }
+
+    return apr_psprintf(pool, "%.1f %s", readable_size, units[unit_index]);
 }
 
 apr_off_t parse_human_size(const char *size_str)
 {
-    char *endptr;
+    char *endptr = NULL;
     double size = strtod(size_str, &endptr);
     apr_off_t multiplier = 1;
 
@@ -48,16 +51,16 @@ apr_off_t parse_human_size(const char *size_str)
     if (*endptr) {
         switch (toupper((unsigned char) *endptr)) {
         case 'T':
-            multiplier = 1024LL * 1024LL * 1024LL * 1024LL;
+            multiplier = TEBIBYTE;
             break;
         case 'G':
-            multiplier = 1024LL * 1024LL * 1024LL;
+            multiplier = GIBIBYTE;
             break;
         case 'M':
-            multiplier = 1024LL * 1024LL;
+            multiplier = MEBIBYTE;
             break;
         case 'K':
-            multiplier = 1024LL;
+            multiplier = KIBIBYTE;
             break;
         default:
             return -1;          // Invalid suffix
