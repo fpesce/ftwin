@@ -367,7 +367,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath)
         return status;
     }
 
-    while (apr_file_gets(line, sizeof(line), file) == APR_SUCCESS) {
+    while (apr_file_gets(line, (int) sizeof(line), file) == APR_SUCCESS) {
         /* Remove newline */
         apr_size_t len = strlen(line);
         if (len > 0 && line[len - 1] == '\n') {

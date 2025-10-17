@@ -233,7 +233,7 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
 
     if (return_value == 0) {
         if (is_option_set(conf->mask, OPTION_DRY_RUN)) {
-            fprintf(stderr, "Dry run: would report %s and %s as duplicates.\n", file1->path, file2->path);
+            (void) fprintf(stderr, "Dry run: would report %s and %s as duplicates.\n", file1->path, file2->path);
         }
 
         if (!*already_printed) {

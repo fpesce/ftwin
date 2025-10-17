@@ -48,6 +48,7 @@ enum
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 apr_pool_t *main_pool = NULL;
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t open_files(apr_file_t **src_file, apr_file_t **dest_file, const char *src_path, const char *dest_path)
 {
     apr_status_t status_code = apr_file_open(src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
@@ -59,6 +60,7 @@ static apr_status_t open_files(apr_file_t **src_file, apr_file_t **dest_file, co
     return status_code;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void copy_file_data(apr_file_t *src_file, apr_file_t *dest_file)
 {
     char buffer[OUTPUT_BUFFER_SIZE] = { 0 };

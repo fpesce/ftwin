@@ -27,7 +27,7 @@ static apr_status_t get_file_info(const char *filename, apr_finfo_t *finfo, ft_c
         char errbuf[ERR_BUF_SIZE];
         if (is_option_set(conf->mask, OPTION_FSYML) && (finfo->filetype & APR_LNK)) {
             if (is_option_set(conf->mask, OPTION_VERBO)) {
-                fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
+                (void) fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
             }
             return APR_SUCCESS;
         }
@@ -45,12 +45,14 @@ static apr_status_t check_permissions(const apr_finfo_t *finfo, ft_conf_t *conf)
 
     if (conf->userid != 0) {
         if (finfo->user == conf->userid) {
-            if (!(read_perm & finfo->protection))
+            if (!(read_perm & finfo->protection)) {
                 return APR_EACCES;
+            }
         }
         else if (napr_hash_search(conf->gids, &finfo->group, sizeof(gid_t), &hash_value) != NULL) {
-            if (!(group_read_perm & finfo->protection))
+            if (!(group_read_perm & finfo->protection)) {
                 return APR_EACCES;
+            }
         }
         else if (!(world_read_perm & finfo->protection)) {
             return APR_EACCES;
@@ -177,9 +179,10 @@ apr_status_t ft_traverse_path(ft_conf_t *conf, const char *path)
     apr_pool_t *gc_pool = NULL;
     apr_status_t status = APR_SUCCESS;
 
-    if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
-        char errbuf[128];
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&gc_pool, conf->pool);
+    if (APR_SUCCESS != status) {
+        char errbuf[ERR_BUF_SIZE] = { 0 };
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 

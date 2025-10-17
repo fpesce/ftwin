@@ -114,7 +114,7 @@ static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char *
         }
     }
     else {
-        fprintf(stderr, "Please submit at least two files...\n");
+        (void) fprintf(stderr, "Please submit at least two files...\n");
         return APR_EINVAL;
     }
 
