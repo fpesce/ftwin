@@ -74,7 +74,7 @@ typedef enum
  * @param[in] base_dir The absolute path to the directory this context represents.
  * @return A pointer to the newly created context.
  */
-ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t * parent, const char *base_dir);
+ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t *parent, const char *base_dir);
 
 /**
  * @brief Loads and parses an ignore file (like .gitignore) into a context.
@@ -83,7 +83,7 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
  * @param[in] filepath The path to the ignore file.
  * @return APR_SUCCESS on success, or an error code on failure.
  */
-apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath);
+apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath);
 
 /**
  * @brief Adds a single pattern string to a context.
@@ -94,7 +94,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
  * @param[in] pattern_str The raw pattern string to add.
  * @return APR_SUCCESS on success, or an error code on failure.
  */
-apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str);
+apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t *ctx, const char *pattern_str);
 
 /**
  * @brief Checks if a given path should be ignored based on the hierarchical context.
@@ -107,6 +107,6 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
  * @param[in] is_dir A flag indicating if the path is a directory.
  * @return The match result (ignored, whitelisted, or no match).
  */
-ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir);
+ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t *ctx, const char *fullpath, int is_dir);
 
 #endif /* FT_IGNORE_H */

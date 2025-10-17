@@ -142,7 +142,7 @@ static apr_status_t perform_file_comparison(ft_conf_t *conf, ft_chksum_t *chksum
             char errbuf[ERROR_BUFFER_SIZE];
             (void) fprintf(stderr, "\nskipping %s and %s comparison because: %s\n", file1->path, file2->path, apr_strerror(status, errbuf, sizeof(errbuf)));
         }
-        *result = 1; /* Treat comparison error as "not a duplicate" */
+        *result = 1;            /* Treat comparison error as "not a duplicate" */
     }
 
     return APR_SUCCESS;

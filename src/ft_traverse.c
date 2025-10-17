@@ -9,11 +9,10 @@
 
 #define MATCH_VECTOR_SIZE 210
 
-static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats, ft_ignore_context_t * parent_ctx);
+static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats, ft_ignore_context_t *parent_ctx);
 
 static apr_status_t get_file_info(const char *filename, apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *pool)
 {
-    char errbuf[128];
     apr_int32_t statmask = APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
     if (!is_option_set(conf->mask, OPTION_FSYML)) {
         statmask |= APR_FINFO_LINK;
@@ -21,6 +20,7 @@ static apr_status_t get_file_info(const char *filename, apr_finfo_t *finfo, ft_c
 
     apr_status_t status = apr_stat(finfo, filename, statmask, pool);
     if (status != APR_SUCCESS) {
+        char errbuf[128];
         if (is_option_set(conf->mask, OPTION_FSYML) && (finfo->filetype & APR_LNK)) {
             if (is_option_set(conf->mask, OPTION_VERBO)) {
                 fprintf(stderr, "Skipping : [%s] (broken link)\n", filename);
@@ -85,7 +85,6 @@ static apr_status_t process_file(const char *filename, const apr_finfo_t *finfo,
 
 static apr_status_t process_directory_entry(const char *fullname, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool, const struct stats *stats, ft_ignore_context_t *current_ctx)
 {
-    char errbuf[128];
     int ovector[MATCH_VECTOR_SIZE];
     if ((conf->ig_regex && pcre_exec(conf->ig_regex, NULL, fullname, strlen(fullname), 0, 0, ovector, MATCH_VECTOR_SIZE) >= 0) ||
         (conf->wl_regex && pcre_exec(conf->wl_regex, NULL, fullname, strlen(fullname), 0, 0, ovector, MATCH_VECTOR_SIZE) < 0)) {
@@ -98,6 +97,7 @@ static apr_status_t process_directory_entry(const char *fullname, const apr_finf
 
     apr_status_t status = traverse_recursive(conf, fullname, gc_pool, &child, current_ctx);
     if (status != APR_SUCCESS) {
+        char errbuf[128];
         DEBUG_ERR("error recursively calling traverse_recursive: %s", apr_strerror(status, errbuf, 128));
     }
     return status;
@@ -105,11 +105,11 @@ static apr_status_t process_directory_entry(const char *fullname, const apr_finf
 
 static apr_status_t process_directory(const char *filename, ft_conf_t *conf, apr_pool_t *gc_pool, const struct stats *stats, ft_ignore_context_t *parent_ctx)
 {
-    char errbuf[128];
     apr_dir_t *dir = NULL;
     apr_finfo_t finfo;
     apr_status_t status = apr_dir_open(&dir, filename, gc_pool);
     if (status != APR_SUCCESS) {
+        char errbuf[128];
         DEBUG_ERR("error calling apr_dir_open(%s): %s", filename, apr_strerror(status, errbuf, 128));
         return status;
     }
@@ -143,7 +143,7 @@ static apr_status_t process_directory(const char *filename, ft_conf_t *conf, apr
     return status;
 }
 
-static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats, ft_ignore_context_t * parent_ctx)
+static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, apr_pool_t *gc_pool, struct stats const *stats, ft_ignore_context_t *parent_ctx)
 {
     apr_finfo_t finfo;
     apr_status_t status = get_file_info(filename, &finfo, conf, gc_pool);

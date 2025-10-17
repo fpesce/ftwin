@@ -297,7 +297,7 @@ static char *ft_glob_to_pcre(const char *pattern, apr_pool_t *pool, unsigned int
     return result;
 }
 
-ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t * parent, const char *base_dir)
+ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t *parent, const char *base_dir)
 {
     ft_ignore_context_t *ctx = apr_pcalloc(pool, sizeof(ft_ignore_context_t));
 
@@ -310,7 +310,7 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
     return ctx;
 }
 
-apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str)
+apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t *ctx, const char *pattern_str)
 {
     const char *trimmed = NULL;
     unsigned int flags = 0;
@@ -353,7 +353,7 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
     return APR_SUCCESS;
 }
 
-apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath)
+apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath)
 {
     apr_file_t *file = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -382,7 +382,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
     return APR_SUCCESS;
 }
 
-ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir)
+ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t *ctx, const char *fullpath, int is_dir)
 {
     ft_ignore_context_t *current_ctx = NULL;
     ft_ignore_match_result_t result = FT_IGNORE_MATCH_NONE;
