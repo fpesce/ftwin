@@ -92,7 +92,7 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     apr_size_t total_hash_tasks = 0;
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-        fprintf(stderr, "Referencing files and sizes:\n");
+        (void) fprintf(stderr, "Referencing files and sizes:\n");
     }
 
     status = apr_pool_create(&gc_pool, conf->pool);
@@ -229,7 +229,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
     }
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
-        fprintf(stderr, "\n");
+        (void) fprintf(stderr, "\n");
     }
 
     status = napr_threadpool_shutdown(threadpool);
