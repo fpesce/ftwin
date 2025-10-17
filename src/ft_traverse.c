@@ -177,9 +177,11 @@ apr_status_t ft_traverse_path(ft_conf_t *conf, const char *path)
     apr_pool_t *gc_pool = NULL;
     apr_status_t status = APR_SUCCESS;
 
-    if (APR_SUCCESS != (status = apr_pool_create(&gc_pool, conf->pool))) {
-        char errbuf[128];
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, 128));
+    status = apr_pool_create(&gc_pool, conf->pool);
+    if (APR_SUCCESS != status)
+    {
+        char errbuf[ERR_BUF_SIZE] = { 0 };
+        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
