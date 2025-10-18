@@ -165,6 +165,13 @@ static apr_status_t compute_image_vectors(ft_conf_t *conf, PuzzleContext * conte
     }
 
     napr_threadpool_wait(threadpool);
+
+    status = napr_threadpool_shutdown(threadpool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling napr_threadpool_shutdown: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
+    }
+
     status = apr_thread_mutex_destroy(cv_ctx.mutex);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
@@ -226,4 +233,7 @@ static void compare_image_vectors(ft_conf_t *conf, PuzzleContext * context)
         (void) fprintf(stderr, "\rCompare progress [%10lu/%10lu] %02.2f%% ", cnt_cmp, nb_cmp, 100.0);
         (void) fprintf(stderr, "\n");
     }
+
+    /* Ensure all output is flushed before returning */
+    (void) fflush(stdout);
 }

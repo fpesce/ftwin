@@ -391,6 +391,7 @@ Suite *make_ft_system_suite(void);
 Suite *make_parallel_hashing_suite(void);
 Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
+Suite *make_ft_image_suite(void);
 
 enum test_suite
 {
@@ -403,7 +404,8 @@ enum test_suite
     FT_SYSTEM_SUITE,
     PARALLEL_HASHING_SUITE,
     FT_IGNORE_SUITE,
-    FT_ARCHIVE_SUITE
+    FT_ARCHIVE_SUITE,
+    FT_IMAGE_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -417,6 +419,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_parallel_hashing_suite());
     srunner_add_suite(suite_runner, make_ft_ignore_suite());
     srunner_add_suite(suite_runner, make_ft_archive_suite());
+    srunner_add_suite(suite_runner, make_ft_image_suite());
 }
 
 int main(int argc, char **argv)
@@ -490,6 +493,9 @@ int main(int argc, char **argv)
             break;
         case FT_ARCHIVE_SUITE:
             srunner_add_suite(suite_runner, make_ft_archive_suite());
+            break;
+        case FT_IMAGE_SUITE:
+            srunner_add_suite(suite_runner, make_ft_image_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */
