@@ -62,4 +62,21 @@ apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t exces
  */
 apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size, int *result_out);
 
+/**
+ * @brief Helper function to create a ft_file_t structure.
+ *
+ * This function allocates and initializes an ft_file_t structure from the given pool.
+ * It's primarily used in tests to create file structures for archive extraction and
+ * image comparison testing.
+ *
+ * @param[in] pool The APR pool to allocate from.
+ * @param[in] path The file path (or archive path if subpath is different).
+ * @param[in] subpath The subpath within an archive, or NULL for regular files.
+ *                    If subpath equals path, it will be set to NULL.
+ * @return A pointer to the newly created ft_file_t structure.
+ */
+struct ft_file_t;
+typedef struct ft_file_t ft_file_t;
+ft_file_t *ft_file_make(apr_pool_t *pool, const char *path, const char *subpath);
+
 #endif /* FT_FILE_H */

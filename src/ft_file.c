@@ -22,11 +22,14 @@
 
 #include <apr_file_io.h>
 #include <apr_mmap.h>
+#include <apr_strings.h>
+#include <string.h>
 
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
 #include "ft_config.h"
+#include "ft_types.h"
 
 static apr_status_t checksum_big_file(const char *filename, apr_off_t size, ft_hash_t *hash_out, apr_pool_t *gc_pool);
 static apr_status_t big_filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, int *result_out);
@@ -286,4 +289,52 @@ extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fn
     }
 
     return big_filecmp(pool, fname1, fname2, size, result_out);
+}
+
+/**
+ * @brief Helper function to create a ft_file_t structure.
+ *
+ * This function allocates and initializes an ft_file_t structure from the given pool.
+ * It's primarily used in tests to create file structures for archive extraction and
+ * image comparison testing.
+ *
+ * @param[in] pool The APR pool to allocate from.
+ * @param[in] path The file path (or archive path if subpath is different).
+ * @param[in] subpath The subpath within an archive, or NULL for regular files.
+ *                    If subpath equals path, it will be set to NULL.
+ * @return A pointer to the newly created ft_file_t structure.
+ */
+extern ft_file_t *ft_file_make(apr_pool_t *pool, const char *path, const char *subpath)
+{
+    apr_finfo_t finfo;
+    apr_status_t status;
+    ft_file_t *file = apr_pcalloc(pool, sizeof(ft_file_t));
+
+    file->path = apr_pstrdup(pool, path);
+
+    /* If subpath is different from path, set it; otherwise it's a regular file */
+    if (subpath && strcmp(path, subpath) != 0) {
+        file->subpath = apr_pstrdup(pool, subpath);
+    }
+    else {
+        file->subpath = NULL;
+    }
+
+    /* Get file information - use the actual file path (subpath for archives, path otherwise) */
+    status = apr_stat(&finfo, file->subpath ? file->subpath : path, APR_FINFO_SIZE | APR_FINFO_MTIME, pool);
+    if (APR_SUCCESS == status) {
+        file->size = finfo.size;
+        file->mtime = finfo.mtime;
+    }
+    else {
+        /* If stat fails, set defaults */
+        file->size = 0;
+        file->mtime = 0;
+    }
+
+    /* Initialize other fields to default values */
+    file->cvec_ok = 0;
+    file->prioritized = 0;
+
+    return file;
 }

@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 #include "ftwin.h"
+#include "ft_file.h"
+#include "ft_archive.h"
 #include <unistd.h>
 #include <archive.h>
 #include <archive_entry.h>

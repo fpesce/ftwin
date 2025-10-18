@@ -25,6 +25,9 @@
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 extern apr_pool_t *main_pool;
 
+/* Forward declaration - defined in ft_config.c */
+extern int ft_file_cmp(const void *param1, const void *param2);
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_image_comparison)
 {
@@ -34,10 +37,11 @@ START_TEST(test_image_comparison)
     ft_file_t *file2 = NULL;
     ft_file_t *file3 = NULL;
 
-    status = ft_config_create(&conf, main_pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    conf = ft_config_create(main_pool);
+    ck_assert_ptr_ne(conf, NULL);
 
-    conf->heap = napr_heap_make(main_pool, 10);
+    /* Override default heap with our custom one for testing */
+    conf->heap = napr_heap_make(main_pool, ft_file_cmp);
     conf->threshold = 0.1;
     conf->sep = ',';
 
@@ -63,7 +67,7 @@ START_TEST(test_image_comparison)
 
     char buf[1024];
     memset(buf, 0, sizeof(buf));
-    (void) read(stdout_pipe[0], buf, sizeof(buf) -1);
+    (void) read(stdout_pipe[0], buf, sizeof(buf) - 1);
 
     ck_assert_ptr_ne(strstr(buf, "red.png"), NULL);
     ck_assert_ptr_ne(strstr(buf, "red_duplicate.png"), NULL);
