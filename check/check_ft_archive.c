@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 #include "ftwin.h"
+#include "ft_file.h"
+#include "ft_archive.h"
 #include <unistd.h>
 #include <archive.h>
 #include <archive_entry.h>
@@ -37,7 +39,8 @@ enum
 {
     CAPTURE_BUFFER_SIZE = 4096,
     DEFAULT_FILE_MODE = 0644,
-    ARCHIVE_BUFFER_SIZE = 8192
+    ARCHIVE_BUFFER_SIZE = 8192,
+    BUFFER_SIZE = 100
 };
 
 static void add_file_to_archive(struct archive *archive, const char *filename)
@@ -65,8 +68,8 @@ static void add_file_to_archive(struct archive *archive, const char *filename)
 
     length = fread(buffer, 1, sizeof(buffer), file);
     while (length > 0) {
-	archive_write_data(archive, buffer, length);
-	length = fread(buffer, 1, sizeof(buffer), file);
+        archive_write_data(archive, buffer, length);
+        length = fread(buffer, 1, sizeof(buffer), file);
     }
 
     ck_assert_int_eq(fclose(file), 0);
@@ -82,7 +85,7 @@ static void create_test_archive(const char *archive_name, const char **filenames
     archive_write_open_filename(archive, archive_name);
 
     for (int i = 0; i < num_files; ++i) {
-	add_file_to_archive(archive, filenames[i]);
+        add_file_to_archive(archive, filenames[i]);
     }
 
     archive_write_close(archive);
@@ -99,11 +102,12 @@ static char *capture_output(int file_descriptor)
     return buffer;
 }
 
-static void create_test_file(const char *file_path, const char *file_content)
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void create_test_file(const char *path, const char *content)
 {
-    FILE *file = fopen(file_path, "w");
+    FILE *file = fopen(path, "w");
     ck_assert_ptr_ne(file, NULL);
-    ck_assert_int_ge(fputs(file_content, file), 0);
+    ck_assert_int_ge(fputs(content, file), 0);
     ck_assert_int_eq(fclose(file), 0);
 }
 
@@ -123,7 +127,8 @@ START_TEST(test_ftwin_archive_duplicates)
     create_test_file("a.txt", "identical content");
     create_test_file("b.txt", "identical content");
     create_test_file("c.txt", "unique content");
-    create_test_file("d.txt", "identical content");	// Standalone duplicate
+    create_test_file("d.txt", "identical content");
+
 
     create_test_archive("test_archive.tar", files_to_archive, 3);
 
@@ -172,12 +177,49 @@ START_TEST(test_ftwin_archive_duplicates)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+extern apr_pool_t *main_pool;
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_ft_archive_untar_file)
+{
+    const char *archive_name = "test_unit.tar";
+    const char *filenames[] = { "file1.txt", "file2.txt" };
+    const char *content1 = "This is file1.";
+    const char *content2 = "This is file2.";
+    create_test_file(filenames[0], content1);
+    create_test_file(filenames[1], content2);
+    create_test_archive(archive_name, filenames, 2);
+
+    ft_file_t *file_to_extract = ft_file_make(main_pool, archive_name, "file2.txt");
+    char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
+    ck_assert_ptr_ne(extracted_path, NULL);
+
+    FILE *file = fopen(extracted_path, "r");
+    ck_assert_ptr_ne(file, NULL);
+    char buf[BUFFER_SIZE];
+    memset(buf, 0, sizeof(buf));
+    (void) fread(buf, 1, sizeof(buf) - 1, file);
+    ck_assert_str_eq(buf, content2);
+    (void) fclose(file);
+
+    (void) remove(extracted_path);
+    (void) remove(archive_name);
+    (void) remove(filenames[0]);
+    (void) remove(filenames[1]);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+
 Suite *make_ft_archive_suite(void)
 {
     Suite *suite = suite_create("Archive");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_ftwin_archive_duplicates);
+    tcase_add_test(tc_core, test_ft_archive_untar_file);
 
     suite_add_tcase(suite, tc_core);
 

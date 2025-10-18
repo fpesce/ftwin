@@ -27,17 +27,17 @@
 #include <pcre.h>
 
 /* Flags for ignore patterns */
-#define FT_IGNORE_NEGATE    0x01	/* Starts with '!' */
-#define FT_IGNORE_DIR_ONLY  0x02	/* Ends with '/' */
+#define FT_IGNORE_NEGATE    0x01        /* Starts with '!' */
+#define FT_IGNORE_DIR_ONLY  0x02        /* Ends with '/' */
 
 /**
  * @brief Represents a single compiled ignore pattern.
  */
 typedef struct
 {
-    pcre *regex;		/**< The compiled PCRE pattern. */
-    const char *pattern_str;	/**< The original, uncompiled pattern string for debugging. */
-    unsigned int flags;		/**< Flags for the pattern (e.g., FT_IGNORE_NEGATE). */
+    pcre *regex;                /**< The compiled PCRE pattern. */
+    const char *pattern_str;    /**< The original, uncompiled pattern string for debugging. */
+    unsigned int flags;         /**< Flags for the pattern (e.g., FT_IGNORE_NEGATE). */
 } ft_ignore_pattern_t;
 
 /**
@@ -49,11 +49,11 @@ typedef struct
  */
 typedef struct ft_ignore_context_t
 {
-    struct ft_ignore_context_t *parent;	/**< Pointer to the parent directory's context, or NULL if root. */
-    apr_array_header_t *patterns;	/**< Array of ft_ignore_pattern_t pointers defined at this level. */
-    const char *base_dir;		/**< The absolute path to the directory this context is anchored to. */
-    apr_size_t base_dir_len;		/**< The length of the base directory path. */
-    apr_pool_t *pool;			/**< The memory pool used for allocations within this context. */
+    struct ft_ignore_context_t *parent; /**< Pointer to the parent directory's context, or NULL if root. */
+    apr_array_header_t *patterns;       /**< Array of ft_ignore_pattern_t pointers defined at this level. */
+    const char *base_dir;               /**< The absolute path to the directory this context is anchored to. */
+    apr_size_t base_dir_len;            /**< The length of the base directory path. */
+    apr_pool_t *pool;                   /**< The memory pool used for allocations within this context. */
 } ft_ignore_context_t;
 
 /**
@@ -61,9 +61,9 @@ typedef struct ft_ignore_context_t
  */
 typedef enum
 {
-    FT_IGNORE_MATCH_NONE,	/**< The path is not matched by any pattern. */
-    FT_IGNORE_MATCH_IGNORED,	/**< The path is matched by an ignore pattern. */
-    FT_IGNORE_MATCH_WHITELISTED	/**< The path is matched by a negation (whitelist) pattern. */
+    FT_IGNORE_MATCH_NONE,       /**< The path is not matched by any pattern. */
+    FT_IGNORE_MATCH_IGNORED,    /**< The path is matched by an ignore pattern. */
+    FT_IGNORE_MATCH_WHITELISTED /**< The path is matched by a negation (whitelist) pattern. */
 } ft_ignore_match_result_t;
 
 /**
@@ -74,7 +74,7 @@ typedef enum
  * @param[in] base_dir The absolute path to the directory this context represents.
  * @return A pointer to the newly created context.
  */
-ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t * parent, const char *base_dir);
+ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_context_t *parent, const char *base_dir);
 
 /**
  * @brief Loads and parses an ignore file (like .gitignore) into a context.
@@ -83,7 +83,7 @@ ft_ignore_context_t *ft_ignore_context_create(apr_pool_t *pool, ft_ignore_contex
  * @param[in] filepath The path to the ignore file.
  * @return APR_SUCCESS on success, or an error code on failure.
  */
-apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath);
+apr_status_t ft_ignore_load_file(ft_ignore_context_t *ctx, const char *filepath);
 
 /**
  * @brief Adds a single pattern string to a context.
@@ -94,7 +94,7 @@ apr_status_t ft_ignore_load_file(ft_ignore_context_t * ctx, const char *filepath
  * @param[in] pattern_str The raw pattern string to add.
  * @return APR_SUCCESS on success, or an error code on failure.
  */
-apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pattern_str);
+apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t *ctx, const char *pattern_str);
 
 /**
  * @brief Checks if a given path should be ignored based on the hierarchical context.
@@ -107,6 +107,6 @@ apr_status_t ft_ignore_add_pattern_str(ft_ignore_context_t * ctx, const char *pa
  * @param[in] is_dir A flag indicating if the path is a directory.
  * @return The match result (ignored, whitelisted, or no match).
  */
-ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t * ctx, const char *fullpath, int is_dir);
+ft_ignore_match_result_t ft_ignore_match(ft_ignore_context_t *ctx, const char *fullpath, int is_dir);
 
 #endif /* FT_IGNORE_H */

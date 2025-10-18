@@ -36,7 +36,7 @@ unsigned int ft_get_cpu_cores(void)
     /* POSIX systems (Linux, macOS, BSD) */
     long nprocs = sysconf(_SC_NPROCESSORS_ONLN);
     if (nprocs > 0) {
-	return (unsigned int) nprocs;
+        return (unsigned int) nprocs;
     }
     /* Fall through to default if sysconf fails */
 #elif defined(_WIN32)
@@ -44,7 +44,7 @@ unsigned int ft_get_cpu_cores(void)
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
     if (sysinfo.dwNumberOfProcessors > 0) {
-	return (unsigned int) sysinfo.dwNumberOfProcessors;
+        return (unsigned int) sysinfo.dwNumberOfProcessors;
     }
     /* Fall through to default if GetSystemInfo fails */
 #endif

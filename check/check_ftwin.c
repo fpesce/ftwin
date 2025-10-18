@@ -48,41 +48,51 @@ enum
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 apr_pool_t *main_pool = NULL;
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static apr_status_t open_files(apr_file_t **src_file, apr_file_t **dest_file, const char *src_path, const char *dest_path)
+{
+    apr_status_t status_code = apr_file_open(src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
+
+    ck_assert_int_eq(status_code, APR_SUCCESS);
+    status_code = apr_file_open(dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
+    ck_assert_int_eq(status_code, APR_SUCCESS);
+
+    return status_code;
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void copy_file_data(apr_file_t *src_file, apr_file_t *dest_file)
+{
+    char buffer[OUTPUT_BUFFER_SIZE] = { 0 };
+    apr_size_t bytes_read = 0;
+    apr_size_t bytes_written = 0;
+    apr_status_t status_code = APR_SUCCESS;
+
+    do {
+        bytes_read = sizeof(buffer);
+        status_code = apr_file_read(src_file, buffer, &bytes_read);
+        if (status_code != APR_SUCCESS && status_code != APR_EOF) {
+            ck_abort_msg("Failed to read from source file");
+        }
+        if (bytes_read > 0) {
+            bytes_written = bytes_read;
+            status_code = apr_file_write(dest_file, buffer, &bytes_written);
+            ck_assert_int_eq(status_code, APR_SUCCESS);
+            ck_assert_int_eq(bytes_read, bytes_written);
+        }
+    } while (status_code == APR_SUCCESS);
+}
+
 static void copy_file(const char *src_path, const char *dest_path)
 {
     apr_file_t *src_file = NULL;
     apr_file_t *dest_file = NULL;
-    apr_status_t status_code = APR_SUCCESS;
-    char buffer[OUTPUT_BUFFER_SIZE] = { 0 };
-    apr_size_t bytes_read = 0;
-    apr_size_t bytes_written = 0;
 
-    /* 1. Open files */
-    status_code = apr_file_open(&src_file, src_path, APR_READ | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(status_code, APR_SUCCESS);
-
-    status_code =
-	apr_file_open(&dest_file, dest_path, APR_WRITE | APR_CREATE | APR_TRUNCATE | APR_BINARY, APR_OS_DEFAULT, main_pool);
-    ck_assert_int_eq(status_code, APR_SUCCESS);
-
-    /* 2. Loop and copy data */
-    do {
-	bytes_read = sizeof(buffer);
-	status_code = apr_file_read(src_file, buffer, &bytes_read);
-	if (status_code != APR_SUCCESS && status_code != APR_EOF) {
-	    ck_abort_msg("Failed to read from source file");
-	}
-	if (bytes_read > 0) {
-	    bytes_written = bytes_read;
-	    status_code = apr_file_write(dest_file, buffer, &bytes_written);
-	    ck_assert_int_eq(status_code, APR_SUCCESS);
-	    ck_assert_int_eq(bytes_read, bytes_written);
-	}
-    } while (status_code == APR_SUCCESS);
-
-    /* 3. Close files */
-    (void) apr_file_close(src_file);
-    (void) apr_file_close(dest_file);
+    if (open_files(&src_file, &dest_file, src_path, dest_path) == APR_SUCCESS) {
+        copy_file_data(src_file, dest_file);
+        (void) apr_file_close(src_file);
+        (void) apr_file_close(dest_file);
+    }
 }
 
 static char *capture_output(int file_descriptor)
@@ -103,7 +113,7 @@ START_TEST(test_ftwin_size_options)
     int original_stdout = 0;
     int original_stderr = 0;
     const char *argv[] = { "ftwin", "-m", "2K", "-M", "8K", "check/tests/1K_file", "check/tests/5K_file",
-	"check/tests/10K_file", "check/tests/5K_file_copy"
+        "check/tests/10K_file", "check/tests/5K_file_copy"
     };
     int argc = sizeof(argv) / sizeof(argv[0]);
     char *output = NULL;
@@ -257,7 +267,7 @@ static void validate_json_structure(json_t *root, const char *output)
 {
     ck_assert_msg(root != NULL, "JSON parsing failed. Output:\n%s", output);
     ck_assert(json_is_array(root));
-    ck_assert_int_eq(json_array_size(root), 1);	// Expect 1 set (the 5K files)
+    ck_assert_int_eq(json_array_size(root), 1); // Expect 1 set (the 5K files)
 }
 
 static void validate_duplicate_set(json_t *set)
@@ -272,7 +282,7 @@ static void validate_duplicate_set(json_t *set)
     ck_assert_int_eq(strlen(hash), XXH128_HEX_LENGTH);
 
     for (size_t i = 0; i < XXH128_HEX_LENGTH; i++) {
-	ck_assert_msg(isxdigit(hash[i]), "Hash contains invalid character '%c'", hash[i]);
+        ck_assert_msg(isxdigit(hash[i]), "Hash contains invalid character '%c'", hash[i]);
     }
 }
 
@@ -381,6 +391,7 @@ Suite *make_ft_system_suite(void);
 Suite *make_parallel_hashing_suite(void);
 Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
+Suite *make_ft_image_suite(void);
 
 enum test_suite
 {
@@ -393,7 +404,8 @@ enum test_suite
     FT_SYSTEM_SUITE,
     PARALLEL_HASHING_SUITE,
     FT_IGNORE_SUITE,
-    FT_ARCHIVE_SUITE
+    FT_ARCHIVE_SUITE,
+    FT_IMAGE_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -407,6 +419,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_parallel_hashing_suite());
     srunner_add_suite(suite_runner, make_ft_ignore_suite());
     srunner_add_suite(suite_runner, make_ft_archive_suite());
+    srunner_add_suite(suite_runner, make_ft_image_suite());
 }
 
 int main(int argc, char **argv)
@@ -420,72 +433,75 @@ int main(int argc, char **argv)
     long value = 0;
 
     if (argc > 1) {
-	char *end_ptr = NULL;
-	value = strtol(argv[1], &end_ptr, DECIMAL_BASE);
+        char *end_ptr = NULL;
+        value = strtol(argv[1], &end_ptr, DECIMAL_BASE);
 
-	if ((value == LONG_MAX || value == LONG_MIN) || (value == 0 && argv[1] == end_ptr) || *end_ptr != '\0') {
-	    suite_num = ALL_TESTS;
-	}
-	else {
-	    suite_num = (enum test_suite) value;
-	}
+        if ((value == LONG_MAX || value == LONG_MIN) || (value == 0 && argv[1] == end_ptr) || *end_ptr != '\0') {
+            suite_num = ALL_TESTS;
+        }
+        else {
+            suite_num = (enum test_suite) value;
+        }
     }
 
     status = apr_initialize();
     if (APR_SUCCESS != status) {
-	(void) apr_strerror(status, error_buffer, sizeof(error_buffer));
-	(void) fprintf(stderr, "APR Initialization error: %s\n", error_buffer);
-	return EXIT_FAILURE;
+        (void) apr_strerror(status, error_buffer, sizeof(error_buffer));
+        (void) fprintf(stderr, "APR Initialization error: %s\n", error_buffer);
+        return EXIT_FAILURE;
     }
 
     (void) atexit(apr_terminate);
 
     status = apr_pool_create(&main_pool, NULL);
     if (status != APR_SUCCESS) {
-	(void) apr_strerror(status, error_buffer, sizeof(error_buffer));
-	(void) fprintf(stderr, "APR Pool Creation error: %s\n", error_buffer);
-	return EXIT_FAILURE;
+        (void) apr_strerror(status, error_buffer, sizeof(error_buffer));
+        (void) fprintf(stderr, "APR Pool Creation error: %s\n", error_buffer);
+        return EXIT_FAILURE;
 
     }
 
     suite_runner = srunner_create(NULL);
     if (suite_num == ALL_TESTS) {
-	add_all_suites(suite_runner);
+        add_all_suites(suite_runner);
     }
     else {
-	switch (suite_num) {
-	case NAPR_HEAP_SUITE:
-	    srunner_add_suite(suite_runner, make_napr_heap_suite());
-	    break;
-	case NAPR_HASH_SUITE:
-	    srunner_add_suite(suite_runner, make_napr_hash_suite());
-	    break;
-	case FT_FILE_SUITE:
-	    srunner_add_suite(suite_runner, make_ft_file_suite());
-	    break;
-	case HUMAN_SIZE_SUITE:
-	    srunner_add_suite(suite_runner, make_human_size_suite());
-	    break;
-	case FTWIN_SUITE:
-	    srunner_add_suite(suite_runner, make_ftwin_suite());
-	    break;
-	case FT_SYSTEM_SUITE:
-	    srunner_add_suite(suite_runner, make_ft_system_suite());
-	    break;
-	case PARALLEL_HASHING_SUITE:
-	    srunner_add_suite(suite_runner, make_parallel_hashing_suite());
-	    break;
-	case FT_IGNORE_SUITE:
-	    srunner_add_suite(suite_runner, make_ft_ignore_suite());
-	    break;
-	case FT_ARCHIVE_SUITE:
-	    srunner_add_suite(suite_runner, make_ft_archive_suite());
-	    break;
-	default:
-	    /* Run all tests if the number is unrecognized */
-	    add_all_suites(suite_runner);
-	    break;
-	}
+        switch (suite_num) {
+        case NAPR_HEAP_SUITE:
+            srunner_add_suite(suite_runner, make_napr_heap_suite());
+            break;
+        case NAPR_HASH_SUITE:
+            srunner_add_suite(suite_runner, make_napr_hash_suite());
+            break;
+        case FT_FILE_SUITE:
+            srunner_add_suite(suite_runner, make_ft_file_suite());
+            break;
+        case HUMAN_SIZE_SUITE:
+            srunner_add_suite(suite_runner, make_human_size_suite());
+            break;
+        case FTWIN_SUITE:
+            srunner_add_suite(suite_runner, make_ftwin_suite());
+            break;
+        case FT_SYSTEM_SUITE:
+            srunner_add_suite(suite_runner, make_ft_system_suite());
+            break;
+        case PARALLEL_HASHING_SUITE:
+            srunner_add_suite(suite_runner, make_parallel_hashing_suite());
+            break;
+        case FT_IGNORE_SUITE:
+            srunner_add_suite(suite_runner, make_ft_ignore_suite());
+            break;
+        case FT_ARCHIVE_SUITE:
+            srunner_add_suite(suite_runner, make_ft_archive_suite());
+            break;
+        case FT_IMAGE_SUITE:
+            srunner_add_suite(suite_runner, make_ft_image_suite());
+            break;
+        default:
+            /* Run all tests if the number is unrecognized */
+            add_all_suites(suite_runner);
+            break;
+        }
     }
 
     srunner_set_fork_status(suite_runner, CK_NOFORK);

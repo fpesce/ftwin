@@ -38,22 +38,22 @@ static void setup(void)
     apr_status_t status = APR_SUCCESS;
 
     if (main_pool == NULL) {
-	(void) apr_initialize();
-	(void) atexit(apr_terminate);
-	status = apr_pool_create(&main_pool, NULL);
-	if (status != APR_SUCCESS) {
-	    // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-	    // Safe: DEBUG_ERR macro uses fprintf with fixed format string
-	    DEBUG_ERR("Error creating main_pool");
-	    exit(1);
-	}
+        (void) apr_initialize();
+        (void) atexit(apr_terminate);
+        status = apr_pool_create(&main_pool, NULL);
+        if (status != APR_SUCCESS) {
+            // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+            // Safe: DEBUG_ERR macro uses fprintf with fixed format string
+            DEBUG_ERR("Error creating main_pool");
+            exit(1);
+        }
     }
     status = apr_pool_create(&pool, main_pool);
     if (status != APR_SUCCESS) {
-	// NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
-	// Safe: DEBUG_ERR macro uses fprintf with fixed format string
-	DEBUG_ERR("Error creating pool");
-	exit(1);
+        // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling)
+        // Safe: DEBUG_ERR macro uses fprintf with fixed format string
+        DEBUG_ERR("Error creating pool");
+        exit(1);
     }
 }
 

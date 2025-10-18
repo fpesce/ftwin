@@ -6,7 +6,7 @@ unusedFunction:src/napr_list.c:125
 unusedFunction:src/napr_list.c:172
 unusedFunction:src/napr_list.c:177
 unusedFunction:src/napr_list.c:183
-unusedFunction:src/napr_hash.c:110
+unusedFunction:src/napr_hash.c:115
 
 # Suppress variable scope warnings - these are style preferences
 variableScope:src/napr_heap.c

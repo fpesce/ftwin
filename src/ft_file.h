@@ -43,8 +43,7 @@
  * @param[in] gc_pool An APR pool for temporary allocations during the operation.
  * @return APR_SUCCESS on success, or an APR error code on failure.
  */
-apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out,
-			   apr_pool_t *gc_pool);
+apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t excess_size, ft_hash_t *hash_out, apr_pool_t *gc_pool);
 
 /**
  * @brief Compares two files byte-by-byte to determine if they are identical.
@@ -61,7 +60,23 @@ apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t exces
  *               or a non-zero value otherwise.
  * @return APR_SUCCESS on successful comparison, or an APR error code if a file cannot be read.
  */
-apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size,
-		     int *result_out);
+apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size, int *result_out);
+
+/**
+ * @brief Helper function to create a ft_file_t structure.
+ *
+ * This function allocates and initializes an ft_file_t structure from the given pool.
+ * It's primarily used in tests to create file structures for archive extraction and
+ * image comparison testing.
+ *
+ * @param[in] pool The APR pool to allocate from.
+ * @param[in] path The file path (or archive path if subpath is different).
+ * @param[in] subpath The subpath within an archive, or NULL for regular files.
+ *                    If subpath equals path, it will be set to NULL.
+ * @return A pointer to the newly created ft_file_t structure.
+ */
+struct ft_file_t;
+typedef struct ft_file_t ft_file_t;
+ft_file_t *ft_file_make(apr_pool_t *pool, const char *path, const char *subpath);
 
 #endif /* FT_FILE_H */

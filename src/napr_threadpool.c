@@ -26,6 +26,7 @@
 #include <apr_thread_mutex.h>
 #include <apr_thread_cond.h>
 
+#include "ft_constants.h"
 #include "napr_threadpool.h"
 #include "debug.h"
 
@@ -57,10 +58,10 @@ static inline napr_list_t *napr_list_make(apr_pool_t *pool)
     napr_list = apr_palloc(local_pool, sizeof(struct napr_list_t));
 
     if (napr_list != NULL) {
-	napr_list->p = local_pool;
-	napr_list->head = NULL;
-	napr_list->tail = NULL;
-	napr_list->nb_cells = 0UL;
+        napr_list->p = local_pool;
+        napr_list->head = NULL;
+        napr_list->tail = NULL;
+        napr_list->nb_cells = 0UL;
     }
 
     return napr_list;
@@ -73,16 +74,16 @@ static int napr_list_cons(napr_list_t *napr_list, void *element)
 
     cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t));
     if (NULL != cell) {
-	cell->data = element;
-	cell->next = napr_list->head;
-	napr_list->head = cell;
-	napr_list->nb_cells += 1;
+        cell->data = element;
+        cell->next = napr_list->head;
+        napr_list->head = cell;
+        napr_list->nb_cells += 1;
 
-	if (napr_list->nb_cells == 1) {
-	    napr_list->tail = napr_list->head;
-	}
+        if (napr_list->nb_cells == 1) {
+            napr_list->tail = napr_list->head;
+        }
 
-	return_code = 0;
+        return_code = 0;
     }
 
     return return_code;
@@ -100,7 +101,7 @@ static inline void napr_list_cdr(napr_list_t *napr_list)
 static inline void napr_list_delete(napr_list_t *napr_list)
 {
     while (napr_list->head != NULL) {
-	napr_list_cdr(napr_list);
+        napr_list_cdr(napr_list);
     }
 
     apr_pool_destroy(napr_list->p);
@@ -112,20 +113,20 @@ static inline int napr_list_enqueue(napr_list_t *napr_list, void *element)
     int return_code = 0;
 
     if (0 != napr_list->nb_cells) {
-	cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t));
-	if (NULL != cell) {
-	    napr_list->nb_cells += 1UL;
-	    cell->data = element;
-	    cell->next = NULL;
-	    napr_list->tail->next = cell;
-	    napr_list->tail = cell;
-	}
-	else {
-	    return_code = -1;
-	}
+        cell = (napr_cell_t *) apr_palloc(napr_list->p, sizeof(struct napr_cell_t));
+        if (NULL != cell) {
+            napr_list->nb_cells += 1UL;
+            cell->data = element;
+            cell->next = NULL;
+            napr_list->tail->next = cell;
+            napr_list->tail = cell;
+        }
+        else {
+            return_code = -1;
+        }
     }
     else {
-	return_code = napr_list_cons(napr_list, element);
+        return_code = napr_list_cons(napr_list, element);
     }
 
     return return_code;
@@ -141,12 +142,6 @@ static inline unsigned long napr_list_size(napr_list_t *napr_list)
     return napr_list->nb_cells;
 }
 
-#if 0
-static inline napr_cell_t *napr_list_next(napr_cell_t *cell)
-{
-    return cell->next;
-}
-#endif
 
 static inline void *napr_list_get(napr_cell_t *cell)
 {
@@ -199,29 +194,28 @@ struct napr_threadpool_t
 
 static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec);
 
-extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *ctx, unsigned long nb_thread,
-					 threadpool_process_data_callback_fn_t *process_data, apr_pool_t *pool)
+extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *ctx, unsigned long nb_thread, threadpool_process_data_callback_fn_t *process_data, apr_pool_t *pool)
 {
-    char errbuf[128];
-    apr_pool_t *local_pool;
-    unsigned long l;
-    apr_status_t status;
+    char errbuf[ERR_BUF_SIZE] = { 0 };
+    apr_pool_t *local_pool = NULL;
+    unsigned long idx = 0;
+    apr_status_t status = APR_SUCCESS;
 
     apr_pool_create(&local_pool, pool);
     (*threadpool) = apr_palloc(local_pool, sizeof(struct napr_threadpool_t));
     (*threadpool)->pool = local_pool;
 
-    if (APR_SUCCESS !=
-	(status =
-	 apr_thread_mutex_create(&((*threadpool)->threadpool_mutex), APR_THREAD_MUTEX_DEFAULT, (*threadpool)->pool))) {
-	DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_create(&((*threadpool)->threadpool_mutex), APR_THREAD_MUTEX_DEFAULT, (*threadpool)->pool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
-    if (APR_SUCCESS != (status = apr_thread_cond_create(&((*threadpool)->threadpool_update), (*threadpool)->pool))) {
-	DEBUG_ERR("error calling apr_thread_cond_create: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_cond_create(&((*threadpool)->threadpool_update), (*threadpool)->pool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_cond_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
-    (*threadpool)->thread = apr_palloc((*threadpool)->pool, nb_thread * sizeof(apr_thread_mutex_t *));
+    (*threadpool)->thread = (apr_thread_t **) apr_palloc((*threadpool)->pool, nb_thread * sizeof(apr_thread_t *));
     (*threadpool)->ctx = ctx;
     (*threadpool)->nb_thread = nb_thread;
     (*threadpool)->nb_waiting = 0UL;
@@ -231,14 +225,12 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
     (*threadpool)->ended &= 0x0;
     (*threadpool)->shutdown &= 0x0;
 
-    for (l = 0; l < nb_thread; l++) {
-	if (APR_SUCCESS !=
-	    (status =
-	     apr_thread_create(&((*threadpool)->thread[l]), NULL, napr_threadpool_loop, (*threadpool),
-			       (*threadpool)->pool))) {
-	    DEBUG_ERR("error calling apr_thread_create: %s", apr_strerror(status, errbuf, 128));
-	    return status;
-	}
+    for (idx = 0; idx < nb_thread; idx++) {
+        status = apr_thread_create(&((*threadpool)->thread[idx]), NULL, napr_threadpool_loop, (*threadpool), (*threadpool)->pool);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
     }
 
     return APR_SUCCESS;
@@ -246,22 +238,25 @@ extern apr_status_t napr_threadpool_init(napr_threadpool_t **threadpool, void *c
 
 extern apr_status_t napr_threadpool_add(napr_threadpool_t *threadpool, void *data)
 {
-    char errbuf[128];
-    apr_status_t status;
+    char errbuf[ERR_BUF_SIZE] = { 0 };
+    apr_status_t status = APR_SUCCESS;
 
-    if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
     threadpool->ended &= 0x0;
     napr_list_enqueue(threadpool->list, data);
-    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
-    if (APR_SUCCESS != (status = apr_thread_cond_signal(threadpool->threadpool_update))) {
-	DEBUG_ERR("error calling apr_thread_cond_signal: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_cond_signal(threadpool->threadpool_update);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_cond_signal: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     return APR_SUCCESS;
@@ -269,32 +264,34 @@ extern apr_status_t napr_threadpool_add(napr_threadpool_t *threadpool, void *dat
 
 extern apr_status_t napr_threadpool_wait(napr_threadpool_t *threadpool)
 {
-    char errbuf[128];
-    apr_status_t status;
+    char errbuf[ERR_BUF_SIZE] = { 0 };
+    apr_status_t status = APR_SUCCESS;
     int list_size = 0;
 
     /* DEBUG_DBG("Called"); */
-    if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
-    list_size = napr_list_size(threadpool->list);
+    list_size = (int) napr_list_size(threadpool->list);
     if ((0 != list_size) || (threadpool->nb_waiting != threadpool->nb_thread)) {
-	/* DEBUG_DBG("After lock before wait"); */
-	/*
-	 * Because the caller of this function has added all data we are now
-	 * running, the line after, (cond_wait), make us wait to the end of
-	 * processing.
-	 */
-	threadpool->run |= 0x1;
+        /* DEBUG_DBG("After lock before wait"); */
+        /*
+         * Because the caller of this function has added all data we are now
+         * running, the line after, (cond_wait), make us wait to the end of
+         * processing.
+         */
+        threadpool->run |= 0x1;
 
-	if (APR_SUCCESS != (status = apr_thread_cond_wait(threadpool->threadpool_update, threadpool->threadpool_mutex))) {
-	    DEBUG_ERR("error calling apr_thread_cond_wait: %s", apr_strerror(status, errbuf, 128));
-	    return status;
-	}
-	/* DEBUG_DBG("Awake"); */
-	/* Because all data have been processed, we are no more running  */
-	threadpool->run &= 0x0;
+        status = apr_thread_cond_wait(threadpool->threadpool_update, threadpool->threadpool_mutex);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_cond_wait: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
+        /* DEBUG_DBG("Awake"); */
+        /* Because all data have been processed, we are no more running  */
+        threadpool->run &= 0x0;
     }
     /*
      * garbage collecting under lock protection to avoid list manipulation
@@ -305,85 +302,98 @@ extern apr_status_t napr_threadpool_wait(napr_threadpool_t *threadpool)
      */
     napr_list_delete(threadpool->list);
     threadpool->list = napr_list_make(threadpool->pool);
-    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     return APR_SUCCESS;
 }
 
+static apr_status_t process_task(napr_threadpool_t *threadpool)
+{
+    napr_cell_t *cell = NULL;
+    void *data = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    cell = napr_list_first(threadpool->list);
+    data = napr_list_get(cell);
+    napr_list_cdr(threadpool->list);
+
+    if (data) {
+        char errbuf[ERR_BUF_SIZE] = { 0 };
+
+        status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
+
+        threadpool->process_data(threadpool->ctx, data);
+
+        status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        }
+    }
+    return status;
+}
+
+static apr_status_t wait_for_task(napr_threadpool_t *threadpool)
+{
+    char errbuf[ERR_BUF_SIZE] = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    threadpool->nb_waiting++;
+
+    if (!(threadpool->ended & 0x1) && (threadpool->run & 0x1) && (threadpool->nb_waiting == threadpool->nb_thread)) {
+        threadpool->ended |= 0x1;
+        status = apr_thread_cond_broadcast(threadpool->threadpool_update);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_cond_broadcast: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
+    }
+
+    status = apr_thread_cond_wait(threadpool->threadpool_update, threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_cond_wait: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
+    }
+
+    threadpool->nb_waiting--;
+    return status;
+}
+
 static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 {
-    char errbuf[128];
+    char errbuf[ERR_BUF_SIZE] = { 0 };
     napr_threadpool_t *threadpool = rec;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
-    /* lock the mutex, to access the list exclusively. */
-    if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-	return NULL;
+    status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return NULL;
     }
 
-    /* do forever.... (unless shutdown is requested) */
     while (!(threadpool->shutdown & 0x1)) {
-	/* DEBUG_DBG("list_size: %lu", napr_list_size(threadpool->list)); */
-	if ((0 < napr_list_size(threadpool->list)) && !(threadpool->ended & 0x1)) {
-	    napr_cell_t *cell;
-	    void *data;
+        if ((0 < napr_list_size(threadpool->list)) && !(threadpool->ended & 0x1)) {
+            status = process_task(threadpool);
+        }
+        else {
+            status = wait_for_task(threadpool);
+        }
 
-	    cell = napr_list_first(threadpool->list);
-	    data = napr_list_get(cell);
-	    napr_list_cdr(threadpool->list);
-	    if (data) {
-		/*
-		 * unlock mutex - because other threads would be able to handle
-		 * other data waiting in the queue paralelly.
-		 */
-		if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
-		    DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
-		    return NULL;
-		}
-		threadpool->process_data(threadpool->ctx, data);
-		if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
-		    DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-		    return NULL;
-		}
-	    }
-	}
-	else {			/* The waiting else */
-	    threadpool->nb_waiting += 1UL;
-
-	    /* DEBUG_DBG("run: %i waiting: %lu / thread: %lu", (threadpool->run & 0x1) ? 1 : 0, threadpool->nb_waiting, threadpool->nb_thread); */
-	    /* Should not broadcast if it's already ended, because it may lead to an infinite loop */
-	    if (!(threadpool->ended & 0x1) && (threadpool->run & 0x1) && (threadpool->nb_waiting == threadpool->nb_thread)) {
-		threadpool->ended |= 0x1;
-		if (APR_SUCCESS != (status = apr_thread_cond_broadcast(threadpool->threadpool_update))) {
-		    DEBUG_ERR("error calling apr_thread_cond_signal: %s", apr_strerror(status, errbuf, 128));
-		    return NULL;
-		}
-	    }
-
-	    /*
-	     * wait for a new data. note the mutex will be unlocked in
-	     * apr_thread_cond_wait(), thus allowing other threads access to data
-	     * list.
-	     */
-	    if (APR_SUCCESS != (status = apr_thread_cond_wait(threadpool->threadpool_update, threadpool->threadpool_mutex))) {
-		DEBUG_ERR("error calling apr_thread_cond_wait: %s", apr_strerror(status, errbuf, 128));
-		return NULL;
-	    }
-	    /*
-	     * after we return from apr_thread_cond_wait, the mutex is locked
-	     * again, so we don't need to lock it ourselves
-	     */
-	    threadpool->nb_waiting -= 1UL;
-	}
+        if (APR_SUCCESS != status) {
+            break;
+        }
     }
 
-    /* Unlock mutex before exiting thread */
-    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
+    status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
 
     return NULL;
@@ -391,37 +401,42 @@ static void *APR_THREAD_FUNC napr_threadpool_loop(apr_thread_t *thd, void *rec)
 
 extern apr_status_t napr_threadpool_shutdown(napr_threadpool_t *threadpool)
 {
-    char errbuf[128];
-    apr_status_t status, rv;
-    unsigned long l;
+    char errbuf[ERR_BUF_SIZE] = { 0 };
+    apr_status_t status = APR_SUCCESS;
+    apr_status_t return_value = APR_SUCCESS;
+    unsigned long idx = 0;
 
     /* Lock mutex to set shutdown flag */
-    if (APR_SUCCESS != (status = apr_thread_mutex_lock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_lock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_lock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     /* Signal all threads to shutdown */
     threadpool->shutdown |= 0x1;
 
     /* Broadcast to wake up all waiting threads */
-    if (APR_SUCCESS != (status = apr_thread_cond_broadcast(threadpool->threadpool_update))) {
-	DEBUG_ERR("error calling apr_thread_cond_broadcast: %s", apr_strerror(status, errbuf, 128));
-	apr_thread_mutex_unlock(threadpool->threadpool_mutex);
-	return status;
+    status = apr_thread_cond_broadcast(threadpool->threadpool_update);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_cond_broadcast: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+        return status;
     }
 
-    if (APR_SUCCESS != (status = apr_thread_mutex_unlock(threadpool->threadpool_mutex))) {
-	DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, 128));
-	return status;
+    status = apr_thread_mutex_unlock(threadpool->threadpool_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_unlock: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
     /* Join all threads to wait for them to exit */
-    for (l = 0; l < threadpool->nb_thread; l++) {
-	if (APR_SUCCESS != (status = apr_thread_join(&rv, threadpool->thread[l]))) {
-	    DEBUG_ERR("error calling apr_thread_join: %s", apr_strerror(status, errbuf, 128));
-	    return status;
-	}
+    for (idx = 0; idx < threadpool->nb_thread; idx++) {
+        status = apr_thread_join(&return_value, threadpool->thread[idx]);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_join: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
     }
 
     return APR_SUCCESS;
