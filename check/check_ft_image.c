@@ -22,6 +22,13 @@
 #include "napr_heap.h"
 #include "ft_file.h"
 
+enum
+{
+    OUTPUT_BUFFER_SIZE = 1024
+};
+
+static const double DEFAULT_THRESHOLD = 0.1;
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 extern apr_pool_t *main_pool;
 
@@ -42,7 +49,7 @@ START_TEST(test_image_comparison)
 
     /* Override default heap with our custom one for testing */
     conf->heap = napr_heap_make(main_pool, ft_file_cmp);
-    conf->threshold = 0.1;
+    conf->threshold = DEFAULT_THRESHOLD;
     conf->sep = ',';
 
     file1 = ft_file_make(main_pool, "check/tests/images/red.png", "check/tests/images/red.png");
@@ -65,7 +72,7 @@ START_TEST(test_image_comparison)
     (void) close(stdout_pipe[1]);
     (void) dup2(original_stdout, STDOUT_FILENO);
 
-    char buf[1024];
+    char buf[OUTPUT_BUFFER_SIZE];
     memset(buf, 0, sizeof(buf));
     (void) read(stdout_pipe[0], buf, sizeof(buf) - 1);
 
@@ -79,11 +86,11 @@ END_TEST
 
 Suite *make_ft_image_suite(void)
 {
-    Suite *s = suite_create("Image");
+    Suite *suite = suite_create("Image");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_image_comparison);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }

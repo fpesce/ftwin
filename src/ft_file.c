@@ -307,7 +307,7 @@ extern apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fn
 extern ft_file_t *ft_file_make(apr_pool_t *pool, const char *path, const char *subpath)
 {
     apr_finfo_t finfo;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     ft_file_t *file = apr_pcalloc(pool, sizeof(ft_file_t));
 
     file->path = apr_pstrdup(pool, path);

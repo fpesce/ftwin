@@ -39,7 +39,8 @@ enum
 {
     CAPTURE_BUFFER_SIZE = 4096,
     DEFAULT_FILE_MODE = 0644,
-    ARCHIVE_BUFFER_SIZE = 8192
+    ARCHIVE_BUFFER_SIZE = 8192,
+    BUFFER_SIZE = 100
 };
 
 static void add_file_to_archive(struct archive *archive, const char *filename)
@@ -194,13 +195,13 @@ START_TEST(test_ft_archive_untar_file)
     char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
     ck_assert_ptr_ne(extracted_path, NULL);
 
-    FILE *f = fopen(extracted_path, "r");
-    ck_assert_ptr_ne(f, NULL);
-    char buf[100];
+    FILE *file = fopen(extracted_path, "r");
+    ck_assert_ptr_ne(file, NULL);
+    char buf[BUFFER_SIZE];
     memset(buf, 0, sizeof(buf));
-    (void) fread(buf, 1, sizeof(buf) - 1, f);
+    (void) fread(buf, 1, sizeof(buf) - 1, file);
     ck_assert_str_eq(buf, content2);
-    (void) fclose(f);
+    (void) fclose(file);
 
     (void) remove(extracted_path);
     (void) remove(archive_name);
