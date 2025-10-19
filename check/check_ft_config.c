@@ -29,7 +29,7 @@ static char *capture_output(int fd, int *pipe_fds)
     static char buffer[CAPTURE_BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
 
-    close(pipe_fds[1]); // Close the write end
+    close(pipe_fds[1]);         // Close the write end
     read(fd, buffer, sizeof(buffer) - 1);
     return buffer;
 }
@@ -51,124 +51,145 @@ static void restore_output(int *original_fds)
     close(original_fds[1]);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_invalid_numeric_arg)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "-j", "foo", "dummy_path"};
+    const char *argv[] = { "ftwin", "-j", "foo", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_str_str(output, "Invalid number of threads");
+    ck_assert_ptr_nonnull(strstr(output, "Invalid number of threads"));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_zero_threads)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "--threads", "0", "dummy_path"};
+    const char *argv[] = { "ftwin", "--threads", "0", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_str_str(output, "Invalid number of threads");
+    ck_assert_ptr_nonnull(strstr(output, "Invalid number of threads"));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_invalid_size_format)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "-m", "1Z", "dummy_path"};
+    const char *argv[] = { "ftwin", "-m", "1Z", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_str_str(output, "Invalid size format for minimal-length");
+    ck_assert_ptr_nonnull(strstr(output, "Invalid size format for minimal-length"));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_invalid_image_threshold)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "-T", "99", "dummy_path"};
+    const char *argv[] = { "ftwin", "-T", "99", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_str_str(output, "Invalid image threshold level");
+    ck_assert_ptr_nonnull(strstr(output, "Invalid image threshold level"));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_help_flag)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "--help"};
+    const char *argv[] = { "ftwin", "--help" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(2, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_eq(exit_code, 0);
-    ck_assert_str_str(output, "Usage: ftwin [OPTION]...");
+    ck_assert_ptr_nonnull(strstr(output, "Usage: ftwin [OPTION]..."));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_version_flag)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin", "--version"};
+    const char *argv[] = { "ftwin", "--version" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(2, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_eq(exit_code, 0);
-    ck_assert_str_str(output, "ftwin");
+    ck_assert_ptr_nonnull(strstr(output, "ftwin"));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_no_input_files)
 {
     int original_fds[2];
     int pipe_fds[2];
     char *output;
 
-    const char *argv[] = {"ftwin"};
+    const char *argv[] = { "ftwin" };
     setup_output_capture(original_fds, pipe_fds);
     int exit_code = ftwin_main(1, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_str_str(output, "Please submit at least two files or one directory to process.");
+    ck_assert_ptr_nonnull(strstr(output, "Please submit at least two files or one directory to process."));
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 Suite *make_ft_config_suite(void)
 {

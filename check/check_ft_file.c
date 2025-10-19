@@ -101,7 +101,6 @@ START_TEST(test_checksum_empty_file)
     /* Clean up */
     (void) apr_file_remove(empty_fname, pool);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -144,7 +143,6 @@ START_TEST(test_checksum_small_files)
     return_value = memcmp(&hash_1k_small, &hash_5k_small, sizeof(ft_hash_t));
     ck_assert_int_ne(return_value, 0);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -181,7 +179,6 @@ START_TEST(test_checksum_file)
     return_value = memcmp(&hash1, &hash2, sizeof(ft_hash_t));
     ck_assert_int_ne(return_value, 0);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -203,7 +200,6 @@ START_TEST(test_filecmp)
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_int_ne(return_value, 0);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -241,7 +237,6 @@ START_TEST(test_filecmp_empty)
     (void) apr_file_remove(empty_fname1, pool);
     (void) apr_file_remove(empty_fname2, pool);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -299,7 +294,63 @@ START_TEST(test_filecmp_small_files)
     (void) apr_file_remove(small_fname2, pool);
     (void) apr_file_remove(small_fname3, pool);
 }
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_checksum_permission_denied)
+{
+    apr_status_t status;
+    ft_hash_t hash;
+    const char *fname = "unreadable_file";
+    apr_file_t *file;
+
+    // Create a file and then make it unreadable
+    status = apr_file_open(&file, fname, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void) apr_file_close(file);
+    status = apr_file_perms_set(fname, APR_FPROT_UWRITE);       // Write-only for user
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = checksum_file(fname, 1, 1024, &hash, pool);
+    ck_assert_int_ne(status, APR_SUCCESS);
+
+    // Cleanup
+    (void) apr_file_remove(fname, pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_filecmp_permission_denied)
+{
+    apr_status_t status;
+    int result;
+    const char *fname1 = "unreadable_file1";
+    const char *fname2 = "readable_file2";
+    apr_file_t *file;
+
+    // Create an unreadable file
+    status = apr_file_open(&file, fname1, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void) apr_file_close(file);
+    status = apr_file_perms_set(fname1, APR_FPROT_UWRITE);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    // Create a readable file
+    status = apr_file_open(&file, fname2, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void) apr_file_close(file);
+
+    status = filecmp(pool, fname1, fname2, 1, 1024, &result);
+    ck_assert_int_ne(status, APR_SUCCESS);
+
+    // Cleanup
+    (void) apr_file_remove(fname1, pool);
+    (void) apr_file_remove(fname2, pool);
+}
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -324,54 +375,3 @@ Suite *make_ft_file_suite(void)
 
     return suite;
 }
-
-START_TEST(test_checksum_permission_denied)
-{
-    apr_status_t status;
-    ft_hash_t hash;
-    const char *fname = "unreadable_file";
-    apr_file_t *file;
-
-    // Create a file and then make it unreadable
-    status = apr_file_open(&file, fname, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(file);
-    status = apr_file_perms_set(fname, APR_FPROT_WUSR); // Write-only for user
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = checksum_file(fname, 1, 1024, &hash, pool);
-    ck_assert_int_ne(status, APR_SUCCESS);
-
-    // Cleanup
-    (void)apr_file_remove(fname, pool);
-}
-END_TEST
-
-START_TEST(test_filecmp_permission_denied)
-{
-    apr_status_t status;
-    int result;
-    const char *fname1 = "unreadable_file1";
-    const char *fname2 = "readable_file2";
-    apr_file_t *file;
-
-    // Create an unreadable file
-    status = apr_file_open(&file, fname1, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(file);
-    status = apr_file_perms_set(fname1, APR_FPROT_WUSR);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    // Create a readable file
-    status = apr_file_open(&file, fname2, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
-    (void)apr_file_close(file);
-
-    status = filecmp(pool, fname1, fname2, 1, 1024, &result);
-    ck_assert_int_ne(status, APR_SUCCESS);
-
-    // Cleanup
-    (void)apr_file_remove(fname1, pool);
-    (void)apr_file_remove(fname2, pool);
-}
-END_TEST

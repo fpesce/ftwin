@@ -212,6 +212,7 @@ START_TEST(test_ft_archive_untar_file)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ft_archive_untar_file_not_found)
 {
     const char *archive_name = "test_unit.tar";
@@ -226,8 +227,11 @@ START_TEST(test_ft_archive_untar_file_not_found)
     (void) remove(archive_name);
     (void) remove(filenames[0]);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ft_archive_untar_invalid_archive)
 {
     const char *archive_name = "invalid_archive.txt";
@@ -239,16 +243,20 @@ START_TEST(test_ft_archive_untar_invalid_archive)
 
     (void) remove(archive_name);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_ft_archive_untar_non_existent_archive)
 {
     ft_file_t *file_to_extract = ft_file_make(main_pool, "non_existent_archive.tar", "any_file.txt");
     char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
     ck_assert_ptr_eq(extracted_path, NULL);
 }
+/* *INDENT-OFF* */
 END_TEST
-
+/* *INDENT-ON* */
 
 Suite *make_ft_archive_suite(void)
 {
