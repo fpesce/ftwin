@@ -45,6 +45,8 @@ static void setup_output_capture(int *original_fds, int *pipe_fds)
 
 static void restore_output(int *original_fds)
 {
+    fflush(stdout);
+    fflush(stderr);
     dup2(original_fds[1], STDOUT_FILENO);
     dup2(original_fds[0], STDERR_FILENO);
     close(original_fds[0]);
@@ -61,9 +63,10 @@ START_TEST(test_config_invalid_numeric_arg)
     const char *argv[] = { "ftwin", "-j", "foo", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "Invalid number of threads"));
@@ -82,9 +85,10 @@ START_TEST(test_config_zero_threads)
     const char *argv[] = { "ftwin", "--threads", "0", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "Invalid number of threads"));
@@ -103,12 +107,13 @@ START_TEST(test_config_invalid_size_format)
     const char *argv[] = { "ftwin", "-m", "1Z", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_ptr_nonnull(strstr(output, "Invalid size format for minimal-length"));
+    ck_assert_ptr_nonnull(strstr(output, "Invalid size for --minimal-length:"));
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -124,12 +129,13 @@ START_TEST(test_config_invalid_image_threshold)
     const char *argv[] = { "ftwin", "-T", "99", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_ptr_nonnull(strstr(output, "Invalid image threshold level"));
+    ck_assert_ptr_nonnull(strstr(output, "invalid threshold:"));
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -145,9 +151,10 @@ START_TEST(test_config_help_flag)
     const char *argv[] = { "ftwin", "--help" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(2, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "Usage: ftwin [OPTION]..."));
@@ -166,9 +173,10 @@ START_TEST(test_config_version_flag)
     const char *argv[] = { "ftwin", "--version" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(2, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "ftwin"));
@@ -187,9 +195,10 @@ START_TEST(test_config_no_input_files)
     const char *argv[] = { "ftwin" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(1, argv);
-    output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
+    output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "Please submit at least two files or one directory to process."));
@@ -198,10 +207,20 @@ START_TEST(test_config_no_input_files)
 END_TEST
 /* *INDENT-ON* */
 
+static void teardown_config_test(void)
+{
+    /* Reset flags after each test */
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
+}
+
 Suite *make_ft_config_suite(void)
 {
     Suite *s = suite_create("Config");
     TCase *tc_core = tcase_create("Core");
+
+    /* Add teardown to reset flag after each test */
+    tcase_add_checked_fixture(tc_core, NULL, teardown_config_test);
 
     tcase_add_test(tc_core, test_config_invalid_numeric_arg);
     tcase_add_test(tc_core, test_config_zero_threads);
