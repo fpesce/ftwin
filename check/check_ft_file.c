@@ -318,7 +318,60 @@ Suite *make_ft_file_suite(void)
     tcase_add_test(tc_core, test_filecmp_empty);
     tcase_add_test(tc_core, test_filecmp_small_files);
     tcase_add_test(tc_core, test_filecmp);
+    tcase_add_test(tc_core, test_checksum_permission_denied);
+    tcase_add_test(tc_core, test_filecmp_permission_denied);
     suite_add_tcase(suite, tc_core);
 
     return suite;
 }
+
+START_TEST(test_checksum_permission_denied)
+{
+    apr_status_t status;
+    ft_hash_t hash;
+    const char *fname = "unreadable_file";
+    apr_file_t *file;
+
+    // Create a file and then make it unreadable
+    status = apr_file_open(&file, fname, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void)apr_file_close(file);
+    status = apr_file_perms_set(fname, APR_FPROT_WUSR); // Write-only for user
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = checksum_file(fname, 1, 1024, &hash, pool);
+    ck_assert_int_ne(status, APR_SUCCESS);
+
+    // Cleanup
+    (void)apr_file_remove(fname, pool);
+}
+END_TEST
+
+START_TEST(test_filecmp_permission_denied)
+{
+    apr_status_t status;
+    int result;
+    const char *fname1 = "unreadable_file1";
+    const char *fname2 = "readable_file2";
+    apr_file_t *file;
+
+    // Create an unreadable file
+    status = apr_file_open(&file, fname1, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void)apr_file_close(file);
+    status = apr_file_perms_set(fname1, APR_FPROT_WUSR);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    // Create a readable file
+    status = apr_file_open(&file, fname2, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    (void)apr_file_close(file);
+
+    status = filecmp(pool, fname1, fname2, 1, 1024, &result);
+    ck_assert_int_ne(status, APR_SUCCESS);
+
+    // Cleanup
+    (void)apr_file_remove(fname1, pool);
+    (void)apr_file_remove(fname2, pool);
+}
+END_TEST

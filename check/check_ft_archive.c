@@ -212,6 +212,43 @@ START_TEST(test_ft_archive_untar_file)
 END_TEST
 /* *INDENT-ON* */
 
+START_TEST(test_ft_archive_untar_file_not_found)
+{
+    const char *archive_name = "test_unit.tar";
+    const char *filenames[] = { "file1.txt" };
+    create_test_file(filenames[0], "content");
+    create_test_archive(archive_name, filenames, 1);
+
+    ft_file_t *file_to_extract = ft_file_make(main_pool, archive_name, "non_existent_file.txt");
+    char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
+    ck_assert_ptr_eq(extracted_path, NULL);
+
+    (void) remove(archive_name);
+    (void) remove(filenames[0]);
+}
+END_TEST
+
+START_TEST(test_ft_archive_untar_invalid_archive)
+{
+    const char *archive_name = "invalid_archive.txt";
+    create_test_file(archive_name, "this is not a tar file");
+
+    ft_file_t *file_to_extract = ft_file_make(main_pool, archive_name, "any_file.txt");
+    char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
+    ck_assert_ptr_eq(extracted_path, NULL);
+
+    (void) remove(archive_name);
+}
+END_TEST
+
+START_TEST(test_ft_archive_untar_non_existent_archive)
+{
+    ft_file_t *file_to_extract = ft_file_make(main_pool, "non_existent_archive.tar", "any_file.txt");
+    char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
+    ck_assert_ptr_eq(extracted_path, NULL);
+}
+END_TEST
+
 
 Suite *make_ft_archive_suite(void)
 {
@@ -220,6 +257,9 @@ Suite *make_ft_archive_suite(void)
 
     tcase_add_test(tc_core, test_ftwin_archive_duplicates);
     tcase_add_test(tc_core, test_ft_archive_untar_file);
+    tcase_add_test(tc_core, test_ft_archive_untar_file_not_found);
+    tcase_add_test(tc_core, test_ft_archive_untar_invalid_archive);
+    tcase_add_test(tc_core, test_ft_archive_untar_non_existent_archive);
 
     suite_add_tcase(suite, tc_core);
 

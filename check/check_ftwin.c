@@ -377,11 +377,79 @@ Suite *make_ftwin_suite(void)
 #if HAVE_JANSSON
     tcase_add_test(tc_core, test_ftwin_json_output_validation);
 #endif
+    tcase_add_test(tc_core, test_ftwin_non_existent_path);
+    tcase_add_test(tc_core, test_ftwin_no_duplicates);
 
     suite_add_tcase(suite, tc_core);
 
     return suite;
 }
+
+START_TEST(test_ftwin_non_existent_path)
+{
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    int original_stdout = 0;
+    int original_stderr = 0;
+    const char *argv[] = { "ftwin", "./non-existent-directory" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    char *output = NULL;
+
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
+
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
+
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
+
+    (void) ftwin_main(argc, argv);
+
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
+
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
+
+    output = capture_output(stderr_pipe[0]);
+
+    ck_assert_ptr_ne(strstr(output, "No such file or directory"), NULL);
+}
+END_TEST
+
+START_TEST(test_ftwin_no_duplicates)
+{
+    int stdout_pipe[2] = { 0 };
+    int stderr_pipe[2] = { 0 };
+    int original_stdout = 0;
+    int original_stderr = 0;
+    const char *argv[] = { "ftwin", "check/tests/1K_file", "check/tests/5K_file" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    char *output = NULL;
+
+    ck_assert_int_eq(pipe(stdout_pipe), 0);
+    ck_assert_int_eq(pipe(stderr_pipe), 0);
+
+    original_stdout = dup(STDOUT_FILENO);
+    original_stderr = dup(STDERR_FILENO);
+
+    (void) dup2(stdout_pipe[1], STDOUT_FILENO);
+    (void) dup2(stderr_pipe[1], STDERR_FILENO);
+
+    (void) ftwin_main(argc, argv);
+
+    (void) close(stdout_pipe[1]);
+    (void) close(stderr_pipe[1]);
+
+    (void) dup2(original_stdout, STDOUT_FILENO);
+    (void) dup2(original_stderr, STDERR_FILENO);
+
+    output = capture_output(stdout_pipe[0]);
+
+    ck_assert_str_eq(output, "");
+}
+END_TEST
 
 Suite *make_napr_heap_suite(void);
 Suite *make_napr_hash_suite(void);
@@ -392,6 +460,7 @@ Suite *make_parallel_hashing_suite(void);
 Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
 Suite *make_ft_image_suite(void);
+Suite *make_ft_config_suite(void);
 
 enum test_suite
 {
@@ -405,7 +474,8 @@ enum test_suite
     PARALLEL_HASHING_SUITE,
     FT_IGNORE_SUITE,
     FT_ARCHIVE_SUITE,
-    FT_IMAGE_SUITE
+    FT_IMAGE_SUITE,
+    FT_CONFIG_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -420,6 +490,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_ignore_suite());
     srunner_add_suite(suite_runner, make_ft_archive_suite());
     srunner_add_suite(suite_runner, make_ft_image_suite());
+    srunner_add_suite(suite_runner, make_ft_config_suite());
 }
 
 int main(int argc, char **argv)
@@ -496,6 +567,9 @@ int main(int argc, char **argv)
             break;
         case FT_IMAGE_SUITE:
             srunner_add_suite(suite_runner, make_ft_image_suite());
+            break;
+        case FT_CONFIG_SUITE:
+            srunner_add_suite(suite_runner, make_ft_config_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */
