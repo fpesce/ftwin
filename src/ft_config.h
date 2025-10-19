@@ -124,6 +124,16 @@ typedef struct ft_conf_t
 ft_conf_t *ft_config_create(apr_pool_t *pool);
 
 /**
+ * @brief Sets a flag to control whether the application exits on a fatal configuration error.
+ *
+ * This is primarily used during testing to prevent the test suite from terminating
+ * when testing invalid command-line arguments.
+ *
+ * @param should_exit A non-zero value to enable exiting on error (default), or 0 to disable.
+ */
+void ft_config_set_should_exit_on_error(int should_exit);
+
+/**
  * @brief Parses command-line arguments and populates the configuration structure.
  * @param conf The configuration structure to populate.
  * @param argc The number of command-line arguments.

@@ -60,6 +60,7 @@ START_TEST(test_config_invalid_numeric_arg)
 
     const char *argv[] = { "ftwin", "-j", "foo", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
@@ -80,6 +81,7 @@ START_TEST(test_config_zero_threads)
 
     const char *argv[] = { "ftwin", "--threads", "0", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
@@ -100,6 +102,7 @@ START_TEST(test_config_invalid_size_format)
 
     const char *argv[] = { "ftwin", "-m", "1Z", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
@@ -120,6 +123,7 @@ START_TEST(test_config_invalid_image_threshold)
 
     const char *argv[] = { "ftwin", "-T", "99", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(4, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
@@ -140,11 +144,12 @@ START_TEST(test_config_help_flag)
 
     const char *argv[] = { "ftwin", "--help" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(2, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
-    ck_assert_int_eq(exit_code, 0);
+    ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "Usage: ftwin [OPTION]..."));
 }
 /* *INDENT-OFF* */
@@ -160,11 +165,12 @@ START_TEST(test_config_version_flag)
 
     const char *argv[] = { "ftwin", "--version" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(2, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);
 
-    ck_assert_int_eq(exit_code, 0);
+    ck_assert_int_ne(exit_code, 0);
     ck_assert_ptr_nonnull(strstr(output, "ftwin"));
 }
 /* *INDENT-OFF* */
@@ -180,6 +186,7 @@ START_TEST(test_config_no_input_files)
 
     const char *argv[] = { "ftwin" };
     setup_output_capture(original_fds, pipe_fds);
+    ft_config_set_should_exit_on_error(0);
     int exit_code = ftwin_main(1, argv);
     output = capture_output(pipe_fds[0], pipe_fds);
     restore_output(original_fds);

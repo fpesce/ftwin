@@ -493,11 +493,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_ignore_suite());
     srunner_add_suite(suite_runner, make_ft_archive_suite());
     srunner_add_suite(suite_runner, make_ft_image_suite());
-    /* Disabled: Config tests call ftwin_main which calls exit() on error,
-     * killing the test runner. These tests need to be refactored to not
-     * call functions that exit the process.
-     * srunner_add_suite(suite_runner, make_ft_config_suite());
-     */
+    srunner_add_suite(suite_runner, make_ft_config_suite());
 }
 
 int main(int argc, char **argv)
@@ -575,11 +571,9 @@ int main(int argc, char **argv)
         case FT_IMAGE_SUITE:
             srunner_add_suite(suite_runner, make_ft_image_suite());
             break;
-            /* Disabled: see add_all_suites() comment
-               case FT_CONFIG_SUITE:
-               srunner_add_suite(suite_runner, make_ft_config_suite());
-               break;
-             */
+        case FT_CONFIG_SUITE:
+            srunner_add_suite(suite_runner, make_ft_config_suite());
+            break;
         default:
             /* Run all tests if the number is unrecognized */
             add_all_suites(suite_runner);
