@@ -30,6 +30,13 @@
 #include "human_size.h"
 #include "key_hash.h"
 
+static int should_exit_on_error = 1;
+
+void ft_config_set_should_exit_on_error(int should_exit)
+{
+    should_exit_on_error = should_exit;
+}
+
 /* Forward declarations for key functions defined in ftwin.c */
 const void *ft_fsize_get_key(const void *opaque);
 const void *ft_gids_get_key(const void *opaque);
@@ -201,7 +208,9 @@ static void print_usage_and_exit(const char *name, const apr_getopt_option_t *op
         (void) fprintf(stderr, "Error: %s %s\n\n", error_msg, arg);
     }
     usage(name, opt_option);
-    exit(EXIT_FAILURE);
+    if (should_exit_on_error) {
+        exit(EXIT_FAILURE);
+    }
 }
 
 static const int HASH_STR_BUCKET_SIZE = 32;
@@ -321,11 +330,15 @@ typedef struct
 
 static void handle_flag_option(int option, ft_conf_t *conf);
 static void handle_string_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts);
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option);
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option);
+static apr_status_t handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+                                          const apr_getopt_option_t *opt_option);
+static apr_status_t handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name,
+                                          const apr_getopt_option_t *opt_option);
 
-static void process_options(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name)
+static apr_status_t process_options(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name)
 {
+    apr_status_t status = APR_SUCCESS;
+
     switch (option) {
         /* Simple Flags */
     case 'a':
@@ -354,7 +367,7 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, str
     case 'm':
     case 'M':
     case 'x':
-        handle_numeric_option(option, optarg, conf, name, opt_option);
+        status = handle_numeric_option(option, optarg, conf, name, opt_option);
         break;
 
         /* Special/Complex Cases */
@@ -364,13 +377,15 @@ static void process_options(int option, const char *optarg, ft_conf_t *conf, str
     case 'T':
     case 'J':
     case 't':
-        handle_special_option(option, optarg, conf, opts, name, opt_option);
+        status = handle_special_option(option, optarg, conf, opts, name, opt_option);
         break;
 
     default:
         /* Should not happen. */
         break;
     }
+
+    return status;
 }
 
 static const flag_option_mapping_t flag_mappings[] = {
@@ -426,7 +441,8 @@ static void handle_string_option(int option, const char *optarg, ft_conf_t *conf
     }
 }
 
-static void handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name, const apr_getopt_option_t *opt_option)
+static apr_status_t handle_numeric_option(int option, const char *optarg, ft_conf_t *conf, const char *name,
+                                          const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'j':{
@@ -434,6 +450,7 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
             long threads = strtol(optarg, &endptr, BASE_TEN);
             if (*endptr != '\0' || threads < 1 || threads > MAX_THREADS) {
                 print_usage_and_exit(name, opt_option, "Invalid number of threads (must be 1-256):", optarg);
+                return APR_EGENERAL;
             }
             conf->num_threads = (unsigned int) threads;
             break;
@@ -442,24 +459,28 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
         conf->minsize = parse_human_size(optarg);
         if (conf->minsize < 0) {
             print_usage_and_exit(name, opt_option, "Invalid size for --minimal-length:", optarg);
+            return APR_EGENERAL;
         }
         break;
     case 'M':
         conf->maxsize = parse_human_size(optarg);
         if (conf->maxsize < 0) {
             print_usage_and_exit(name, opt_option, "Invalid size for --max-size:", optarg);
+            return APR_EGENERAL;
         }
         break;
     case 'x':
         conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
         if (ULONG_MAX == conf->minsize) {
             print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
+            return APR_EGENERAL;
         }
         break;
     default:
         /* Should not happen. */
         break;
     }
+    return APR_SUCCESS;
 }
 
 /**
@@ -468,7 +489,8 @@ static void handle_numeric_option(int option, const char *optarg, ft_conf_t *con
  * This function centralizes the logic for image comparison options,
  * reducing the complexity of the main option handling switch.
  */
-static void handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name, const apr_getopt_option_t *opt_option)
+static apr_status_t handle_image_options(int option, const char *optarg, ft_conf_t *conf, char **wregex, const char *name,
+                                         const apr_getopt_option_t *opt_option)
 {
     switch (option) {
     case 'I':
@@ -495,26 +517,36 @@ static void handle_image_options(int option, const char *optarg, ft_conf_t *conf
             break;
         default:
             print_usage_and_exit(name, opt_option, "invalid threshold:", optarg);
+            return APR_EGENERAL;
         }
         break;
     default:
         /* Should not be reached */
         break;
     }
+    return APR_SUCCESS;
 }
 
-static void handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option)
+static apr_status_t handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name,
+                                          const apr_getopt_option_t *opt_option)
 {
+    apr_status_t status = APR_SUCCESS;
     switch (option) {
     case 'h':
         usage(name, opt_option);
-        exit(0);
+        if (should_exit_on_error) {
+            exit(0);
+        }
+        return APR_EGENERAL;
     case 'V':
         version();
-        exit(0);
+        if (should_exit_on_error) {
+            exit(0);
+        }
+        return APR_EGENERAL;
     case 'I':
     case 'T':
-        handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
+        status = handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
         break;
 #if HAVE_JANSSON
     case 'J':
@@ -533,6 +565,7 @@ static void handle_special_option(int option, const char *optarg, ft_conf_t *con
         /* Should not happen. */
         break;
     }
+    return status;
 }
 
 apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, int *first_arg_index)
@@ -555,7 +588,19 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
     }
 
     while (APR_SUCCESS == (status = apr_getopt_long(opt_state, opt_option, &option, &optarg))) {
-        process_options(option, optarg, conf, &opts, argv[0]);
+        status = process_options(option, optarg, conf, &opts, argv[0]);
+        if (status != APR_SUCCESS) {
+            /*
+             * A non-success status here typically means an option like --help
+             * or --version was processed, and exit was suppressed. Stop parsing.
+             */
+            return status;
+        }
+    }
+
+    if (argc - opt_state->ind < 2) {
+        print_usage_and_exit(argv[0], opt_option, "Please submit at least two files or one directory to process.", "");
+        return APR_EGENERAL;
     }
 
     status = apr_uid_current(&(conf->userid), &(conf->groupid), conf->pool);
