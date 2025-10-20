@@ -40,7 +40,7 @@ static void create_test_file(const char *path, const char *content)
     FILE *file = fopen(path, "w");
     ck_assert_ptr_ne(file, NULL);
     if (content) {
-	ck_assert_int_ge(fputs(content, file), 0);
+        ck_assert_int_ge(fputs(content, file), 0);
     }
     ck_assert_int_eq(fclose(file), 0);
 }
@@ -70,8 +70,8 @@ static void add_file_to_archive(struct archive *archive, const char *filename)
 
     length = fread(buffer, 1, sizeof(buffer), file);
     while (length > 0) {
-	archive_write_data(archive, buffer, length);
-	length = fread(buffer, 1, sizeof(buffer), file);
+        archive_write_data(archive, buffer, length);
+        length = fread(buffer, 1, sizeof(buffer), file);
     }
 
     ck_assert_int_eq(fclose(file), 0);
@@ -87,7 +87,7 @@ static void create_test_archive(const char *archive_name, const char **filenames
     archive_write_open_filename(archive, archive_name);
 
     for (int i = 0; i < num_files; ++i) {
-	add_file_to_archive(archive, filenames[i]);
+        add_file_to_archive(archive, filenames[i]);
     }
 
     archive_write_close(archive);
