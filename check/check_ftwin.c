@@ -132,8 +132,8 @@ START_TEST(test_ftwin_size_options)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 
@@ -176,8 +176,8 @@ START_TEST(test_ftwin_no_recurse)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 
@@ -215,8 +215,8 @@ START_TEST(test_ftwin_hidden_files)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 
@@ -254,8 +254,8 @@ START_TEST(test_ftwin_show_hidden_files)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 
@@ -352,8 +352,8 @@ START_TEST(test_ftwin_json_output_validation)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(sizeof(argv) / sizeof(argv[0]), argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
     (void) dup2(original_stdout, STDOUT_FILENO);
@@ -400,8 +400,8 @@ START_TEST(test_ftwin_non_existent_path)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 
@@ -439,8 +439,8 @@ START_TEST(test_ftwin_no_duplicates)
     ft_config_set_should_terminate_apr(0);
     (void) ftwin_main(argc, argv);
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     (void) close(stdout_pipe[1]);
     (void) close(stderr_pipe[1]);
 

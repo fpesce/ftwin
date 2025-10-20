@@ -49,14 +49,13 @@
 
 int ft_file_cmp(const void *param1, const void *param2);
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static int should_manage_apr = 1;
 
-#ifdef FTWIN_TEST_BUILD
 void ft_config_set_should_terminate_apr(int should_terminate)
 {
-    ft_config_set_should_exit_on_error(should_terminate);
+    should_manage_apr = should_terminate;
 }
-#endif
 
 const void *ft_fsize_get_key(const void *opaque)
 {
