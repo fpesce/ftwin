@@ -355,6 +355,19 @@ START_TEST(test_filecmp_permission_denied)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_ft_file_make_non_existent)
+{
+    ft_file_t *file = ft_file_make(pool, "non_existent_file", NULL);
+    ck_assert_ptr_nonnull(file);
+    ck_assert_str_eq(file->path, "non_existent_file");
+    ck_assert_int_eq(file->size, 0);
+    ck_assert_int_eq(file->mtime, 0);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 Suite *make_ft_file_suite(void)
 {
     Suite *suite = NULL;
@@ -371,6 +384,7 @@ Suite *make_ft_file_suite(void)
     tcase_add_test(tc_core, test_filecmp);
     tcase_add_test(tc_core, test_checksum_permission_denied);
     tcase_add_test(tc_core, test_filecmp_permission_denied);
+    tcase_add_test(tc_core, test_ft_file_make_non_existent);
     suite_add_tcase(suite, tc_core);
 
     return suite;
