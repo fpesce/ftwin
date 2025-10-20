@@ -268,9 +268,9 @@ START_TEST(test_ft_archive_untar_large_file)
     // Create a large file
     FILE *file = fopen(filename, "w");
     for (int i = 0; i < file_size; i++) {
-        fputc('a', file);
+        (void) fputc('a', file);
     }
-    fclose(file);
+    (void) fclose(file);
 
     const char *files_to_archive[] = { filename };
     create_test_archive(archive_name, files_to_archive, 1);

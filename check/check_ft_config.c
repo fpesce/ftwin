@@ -25,6 +25,9 @@
 enum
 { CAPTURE_BUFFER_SIZE = 4096 };
 
+static const double THRESHOLD_MIN = 0.49;
+static const double THRESHOLD_MAX = 0.51;
+
 static char *capture_output(int file_descriptor, int *pipe_fds)
 {
     static char buffer[CAPTURE_BUFFER_SIZE];
@@ -159,7 +162,7 @@ START_TEST(test_config_threshold_option)
     ft_config_set_should_exit_on_error(1);
 
     ck_assert_int_eq(exit_code, APR_SUCCESS);
-    ck_assert(conf->threshold > 0.49 && conf->threshold < 0.51);
+    ck_assert(conf->threshold > THRESHOLD_MIN && conf->threshold < THRESHOLD_MAX);
 
     apr_pool_destroy(pool);
 }
