@@ -301,10 +301,10 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_checksum_permission_denied)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     ft_hash_t hash;
     const char *fname = "unreadable_file";
-    apr_file_t *file;
+    apr_file_t *file = NULL;
 
     // Create a file and then make it unreadable
     status = apr_file_open(&file, fname, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
@@ -313,7 +313,7 @@ START_TEST(test_checksum_permission_denied)
     status = apr_file_perms_set(fname, APR_FPROT_UWRITE);       // Write-only for user
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = checksum_file(fname, 1, 1024, &hash, pool);
+    status = checksum_file(fname, 1, (apr_off_t) BUFFER_SIZE_1K, &hash, pool);
     ck_assert_int_ne(status, APR_SUCCESS);
 
     // Cleanup
@@ -326,11 +326,11 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_filecmp_permission_denied)
 {
-    apr_status_t status;
-    int result;
+    apr_status_t status = APR_SUCCESS;
+    int result = 0;
     const char *fname1 = "unreadable_file1";
     const char *fname2 = "readable_file2";
-    apr_file_t *file;
+    apr_file_t *file = NULL;
 
     // Create an unreadable file
     status = apr_file_open(&file, fname1, APR_CREATE | APR_WRITE, APR_OS_DEFAULT, pool);
@@ -344,7 +344,7 @@ START_TEST(test_filecmp_permission_denied)
     ck_assert_int_eq(status, APR_SUCCESS);
     (void) apr_file_close(file);
 
-    status = filecmp(pool, fname1, fname2, 1, 1024, &result);
+    status = filecmp(pool, fname1, fname2, 1, (apr_off_t) BUFFER_SIZE_1K, &result);
     ck_assert_int_ne(status, APR_SUCCESS);
 
     // Cleanup
