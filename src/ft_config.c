@@ -30,6 +30,7 @@
 #include "human_size.h"
 #include "key_hash.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static int should_exit_on_error = 1;
 
 void ft_config_set_should_exit_on_error(int should_exit)
@@ -523,38 +524,62 @@ static apr_status_t handle_image_options(int option, const char *optarg, ft_conf
     return APR_SUCCESS;
 }
 
+static apr_status_t handle_informational_option(int option, const char *name, const apr_getopt_option_t *opt_option)
+{
+    if (option == 'h') {
+        usage(name, opt_option);
+    } else { /* 'V' */
+        version();
+    }
+
+    if (should_exit_on_error) {
+        exit(0);
+    }
+    return APR_EGENERAL; /* Indicates to stop processing */
+}
+
+#if HAVE_JANSSON
+/**
+ * @brief Handles the --json option.
+ */
+static void handle_json_option(ft_conf_t *conf)
+{
+    set_option(&conf->mask, OPTION_JSON, 1);
+    if (is_option_set(conf->mask, OPTION_VERBO)) {
+        (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
+        set_option(&conf->mask, OPTION_VERBO, 0);
+    }
+}
+#endif /* HAVE_JANSSON */
+
+
+/**
+ * @brief Handles the --tar-cmp option.
+ */
+static void handle_archive_option(ft_conf_t *conf, struct regex_options *opts)
+{
+    set_option(&conf->mask, OPTION_UNTAR, 1);
+    *(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
+}
+
 static apr_status_t handle_special_option(int option, const char *optarg, ft_conf_t *conf, struct regex_options *opts, const char *name, const apr_getopt_option_t *opt_option)
 {
     apr_status_t status = APR_SUCCESS;
     switch (option) {
     case 'h':
-        usage(name, opt_option);
-        if (should_exit_on_error) {
-            exit(0);
-        }
-        return APR_EGENERAL;
     case 'V':
-        version();
-        if (should_exit_on_error) {
-            exit(0);
-        }
-        return APR_EGENERAL;
+        return handle_informational_option(option, name, opt_option);
     case 'I':
     case 'T':
         status = handle_image_options(option, optarg, conf, opts->whitelist_regex, name, opt_option);
         break;
 #if HAVE_JANSSON
     case 'J':
-        set_option(&conf->mask, OPTION_JSON, 1);
-        if (is_option_set(conf->mask, OPTION_VERBO)) {
-            (void) fprintf(stderr, "Warning: Verbose mode disabled for JSON output.\n");
-            set_option(&conf->mask, OPTION_VERBO, 0);
-        }
+        handle_json_option(conf);
         break;
 #endif
     case 't':
-        set_option(&conf->mask, OPTION_UNTAR, 1);
-        *(opts->archive_regex) = apr_pstrdup(conf->pool, ".*\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|zip|rar|7z|tar)$");
+        handle_archive_option(conf, opts);
         break;
     default:
         /* Should not happen. */
