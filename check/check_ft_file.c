@@ -23,6 +23,7 @@
 #include "checksum.h"
 #include "debug.h"
 #include "ft_file.h"
+#include "ft_types.h"
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *main_pool = NULL;

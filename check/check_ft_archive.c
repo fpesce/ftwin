@@ -263,7 +263,7 @@ START_TEST(test_ft_archive_untar_large_file)
 {
     const char *archive_name = "large_file.tar";
     const char *filename = "large_file.txt";
-    const int file_size = 20000; // Larger than ARCHIVE_BLOCK_SIZE
+    const int file_size = 20000;        // Larger than ARCHIVE_BLOCK_SIZE
 
     // Create a large file
     FILE *file = fopen(filename, "w");
