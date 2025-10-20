@@ -145,7 +145,7 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
  * @brief Gets the file paths for comparison, handling archive extraction if needed.
  * @return APR_SUCCESS on success, or an error status if extraction fails.
  */
-static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2)
+apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2)
 {
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
         if (file1->subpath) {

@@ -76,38 +76,6 @@ static json_t *create_file_json_object(ft_file_t *file, ft_conf_t *conf)
     return obj;
 }
 
-static apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2)
-{
-    if (is_option_set(conf->mask, OPTION_UNTAR)) {
-        if (file1->subpath) {
-            *path1 = ft_archive_untar_file(file1, conf->pool);
-            if (!*path1) {
-                return APR_EGENERAL;
-            }
-        }
-        else {
-            *path1 = file1->path;
-        }
-        if (file2->subpath) {
-            *path2 = ft_archive_untar_file(file2, conf->pool);
-            if (!*path2) {
-                if (file1->subpath) {
-                    (void) apr_file_remove(*path1, conf->pool);
-                }
-                return APR_EGENERAL;
-            }
-        }
-        else {
-            *path2 = file2->path;
-        }
-    }
-    else {
-        *path1 = file1->path;
-        *path2 = file2->path;
-    }
-    return APR_SUCCESS;
-}
-
 static void cleanup_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char *path1, char *path2)
 {
     if (is_option_set(conf->mask, OPTION_UNTAR)) {
