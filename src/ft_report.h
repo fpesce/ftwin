@@ -31,4 +31,6 @@ typedef struct reporting_colors_t
  */
 apr_status_t ft_report_duplicates(ft_conf_t *conf);
 
+apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2);
+
 #endif /* FT_REPORT_H */
