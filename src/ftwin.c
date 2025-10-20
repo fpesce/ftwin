@@ -49,6 +49,14 @@
 
 int ft_file_cmp(const void *param1, const void *param2);
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static int should_manage_apr = 1;
+
+void ft_config_set_should_terminate_apr(int should_terminate)
+{
+    should_manage_apr = should_terminate;
+}
+
 const void *ft_fsize_get_key(const void *opaque)
 {
     const ft_fsize_t *fsize = opaque;
@@ -128,35 +136,46 @@ int ftwin_main(int argc, const char **argv)
     ft_conf_t *conf = NULL;
     apr_pool_t *pool = NULL;
     int first_arg_index = 0;
-    apr_status_t status = apr_initialize();
+    apr_status_t status = APR_SUCCESS;
 
-    if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        return -1;
+    if (should_manage_apr) {
+        status = apr_initialize();
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return -1;
+        }
     }
 
     status = apr_pool_create(&pool, NULL);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        apr_terminate();
+        if (should_manage_apr) {
+            apr_terminate();
+        }
         return -1;
     }
 
     conf = ft_config_create(pool);
     status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
     if (APR_SUCCESS != status) {
-        apr_terminate();
+        if (should_manage_apr) {
+            apr_terminate();
+        }
         return -1;
     }
 
     status = run_ftwin_processing(conf, argc, argv, first_arg_index);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        apr_terminate();
+        if (should_manage_apr) {
+            apr_terminate();
+        }
         return -1;
     }
 
-    apr_terminate();
+    if (should_manage_apr) {
+        apr_terminate();
+    }
     return 0;
 }
 

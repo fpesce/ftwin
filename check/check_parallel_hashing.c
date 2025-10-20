@@ -138,7 +138,11 @@ START_TEST(test_parallel_correctness)
     dup2(stderr_pipe1[1], STDERR_FILENO);
 
     const char *argv1[] = { "ftwin", "-j", "1", "check/tests/parallel_test" };
+    ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     ftwin_main(4, argv1);
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe1[1]);
     close(stderr_pipe1[1]);
@@ -157,7 +161,11 @@ START_TEST(test_parallel_correctness)
     dup2(stderr_pipe2[1], STDERR_FILENO);
 
     const char *argv2[] = { "ftwin", "-j", "4", "check/tests/parallel_test" };
+    ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     ftwin_main(4, argv2);
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe2[1]);
     close(stderr_pipe2[1]);
@@ -184,6 +192,26 @@ START_TEST(test_parallel_correctness)
     /* Cleanup */
     free(output1);
     ck_assert_int_eq(recursive_delete(test_dir, main_pool), APR_SUCCESS);
+}
+
+static void teardown_many_files(void)
+{
+    recursive_delete("check/tests/many_test", main_pool);
+}
+
+static void teardown_various_file_sizes(void)
+{
+    recursive_delete("check/tests/size_test", main_pool);
+}
+
+static void teardown_thread_counts(void)
+{
+    recursive_delete("check/tests/thread_test", main_pool);
+}
+
+static void teardown_parallel_correctness(void)
+{
+    recursive_delete("check/tests/parallel_test", main_pool);
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -215,7 +243,11 @@ static void run_ftwin_with_thread_count(const char *thread_count)
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     const char *argv[] = { "ftwin", "-j", thread_count, "check/tests/thread_test" };
+    ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -286,7 +318,11 @@ START_TEST(test_various_file_sizes)
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     const char *argv[] = { "ftwin", "-j", "2", "check/tests/size_test" };
+    ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -345,7 +381,11 @@ static void run_many_files_test(const char *test_dir)
     dup2(stderr_pipe[1], STDERR_FILENO);
 
     const char *argv[] = { "ftwin", "-j", "4", test_dir };
+    ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
+    ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -388,10 +428,13 @@ Suite *make_parallel_hashing_suite(void)
     /* Increase timeout for these tests as they create many files */
     tcase_set_timeout(tc_core, PARALLEL_TIMEOUT_SECONDS);
 
-    tcase_add_checked_fixture(tc_core, setup, NULL);
+    tcase_add_checked_fixture(tc_core, setup, teardown_parallel_correctness);
     tcase_add_test(tc_core, test_parallel_correctness);
+    tcase_add_checked_fixture(tc_core, setup, teardown_thread_counts);
     tcase_add_test(tc_core, test_thread_counts);
+    tcase_add_checked_fixture(tc_core, setup, teardown_various_file_sizes);
     tcase_add_test(tc_core, test_various_file_sizes);
+    tcase_add_checked_fixture(tc_core, setup, teardown_many_files);
     tcase_add_test(tc_core, test_many_files);
 
     suite_add_tcase(suite, tc_core);
