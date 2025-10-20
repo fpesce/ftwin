@@ -144,46 +144,46 @@ START_TEST(test_get_comparison_paths)
     const char *archive_name2 = "test2.tar";
     create_test_archive(archive_name2, &filenames[1], 1);
 
-    ft_file_t *file1_archived = ft_file_make(main_pool, archive_name1, "file1.txt");
-    ft_file_t *file2_archived = ft_file_make(main_pool, archive_name2, "file2.txt");
-    ft_file_t *file1_regular = ft_file_make(main_pool, "file1.txt", NULL);
+    ft_file_t *archived_file_a = ft_file_make(main_pool, archive_name1, "file1.txt");
+    ft_file_t *archived_file_b = ft_file_make(main_pool, archive_name2, "file2.txt");
+    ft_file_t *regular_file = ft_file_make(main_pool, "file1.txt", NULL);
 
     char *path1 = NULL;
     char *path2 = NULL;
 
     // Test case 1: Both files are in archives
-    ck_assert_int_eq(get_comparison_paths(conf, file1_archived, file2_archived, &path1, &path2), APR_SUCCESS);
+    ck_assert_int_eq(get_comparison_paths(conf, archived_file_a, archived_file_b, &path1, &path2), APR_SUCCESS);
     ck_assert_ptr_ne(path1, NULL);
     ck_assert_ptr_ne(path2, NULL);
-    ck_assert_str_ne(path1, file1_archived->path);
-    ck_assert_str_ne(path2, file2_archived->path);
+    ck_assert_str_ne(path1, archived_file_a->path);
+    ck_assert_str_ne(path2, archived_file_b->path);
     (void) apr_file_remove(path1, main_pool);
     (void) apr_file_remove(path2, main_pool);
 
     // Test case 2: First file is in an archive, second is a regular file
     path1 = NULL;
     path2 = NULL;
-    ck_assert_int_eq(get_comparison_paths(conf, file1_archived, file1_regular, &path1, &path2), APR_SUCCESS);
+    ck_assert_int_eq(get_comparison_paths(conf, archived_file_a, regular_file, &path1, &path2), APR_SUCCESS);
     ck_assert_ptr_ne(path1, NULL);
-    ck_assert_str_ne(path1, file1_archived->path);
-    ck_assert_str_eq(path2, file1_regular->path);
+    ck_assert_str_ne(path1, archived_file_a->path);
+    ck_assert_str_eq(path2, regular_file->path);
     (void) apr_file_remove(path1, main_pool);
 
     // Test case 3: First file is a regular file, second is in an archive
     path1 = NULL;
     path2 = NULL;
-    ck_assert_int_eq(get_comparison_paths(conf, file1_regular, file2_archived, &path1, &path2), APR_SUCCESS);
-    ck_assert_str_eq(path1, file1_regular->path);
+    ck_assert_int_eq(get_comparison_paths(conf, regular_file, archived_file_b, &path1, &path2), APR_SUCCESS);
+    ck_assert_str_eq(path1, regular_file->path);
     ck_assert_ptr_ne(path2, NULL);
-    ck_assert_str_ne(path2, file2_archived->path);
+    ck_assert_str_ne(path2, archived_file_b->path);
     (void) apr_file_remove(path2, main_pool);
 
     // Test case 4: Failure case - file not in archive
     ft_file_t *archived_file_missing = ft_file_make(main_pool, archive_name1, "nonexistent.txt");
-    ck_assert_int_eq(get_comparison_paths(conf, archived_file_missing, file1_regular, &path1, &path2), APR_EGENERAL);
+    ck_assert_int_eq(get_comparison_paths(conf, archived_file_missing, regular_file, &path1, &path2), APR_EGENERAL);
 
     // Test case 5: Failure case - second file not in archive
-    ck_assert_int_eq(get_comparison_paths(conf, file1_archived, archived_file_missing, &path1, &path2), APR_EGENERAL);
+    ck_assert_int_eq(get_comparison_paths(conf, archived_file_a, archived_file_missing, &path1, &path2), APR_EGENERAL);
 
     // Cleanup
     (void) remove(archive_name1);
