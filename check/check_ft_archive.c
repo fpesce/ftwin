@@ -258,6 +258,40 @@ START_TEST(test_ft_archive_untar_non_existent_archive)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_ft_archive_untar_large_file)
+{
+    const char *archive_name = "large_file.tar";
+    const char *filename = "large_file.txt";
+    const int file_size = 20000;        // Larger than ARCHIVE_BLOCK_SIZE
+
+    // Create a large file
+    FILE *file = fopen(filename, "w");
+    for (int i = 0; i < file_size; i++) {
+        (void) fputc('a', file);
+    }
+    (void) fclose(file);
+
+    const char *files_to_archive[] = { filename };
+    create_test_archive(archive_name, files_to_archive, 1);
+
+    ft_file_t *file_to_extract = ft_file_make(main_pool, archive_name, filename);
+    char *extracted_path = ft_archive_untar_file(file_to_extract, main_pool);
+    ck_assert_ptr_ne(extracted_path, NULL);
+
+    // Verify file size
+    apr_finfo_t finfo;
+    ck_assert_int_eq(apr_stat(&finfo, extracted_path, APR_FINFO_SIZE, main_pool), APR_SUCCESS);
+    ck_assert_int_eq(finfo.size, file_size);
+
+    (void) remove(extracted_path);
+    (void) remove(archive_name);
+    (void) remove(filename);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 Suite *make_ft_archive_suite(void)
 {
     Suite *suite = suite_create("Archive");
@@ -268,6 +302,7 @@ Suite *make_ft_archive_suite(void)
     tcase_add_test(tc_core, test_ft_archive_untar_file_not_found);
     tcase_add_test(tc_core, test_ft_archive_untar_invalid_archive);
     tcase_add_test(tc_core, test_ft_archive_untar_non_existent_archive);
+    tcase_add_test(tc_core, test_ft_archive_untar_large_file);
 
     suite_add_tcase(suite, tc_core);
 

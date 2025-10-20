@@ -494,6 +494,8 @@ Suite *make_ft_ignore_suite(void);
 Suite *make_ft_archive_suite(void);
 Suite *make_ft_image_suite(void);
 Suite *make_ft_config_suite(void);
+Suite *make_ft_report_suite(void);
+Suite *make_ft_report_json_suite(void);
 
 enum test_suite
 {
@@ -524,6 +526,8 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_archive_suite());
     srunner_add_suite(suite_runner, make_ft_image_suite());
     srunner_add_suite(suite_runner, make_ft_config_suite());
+    srunner_add_suite(suite_runner, make_ft_report_suite());
+    srunner_add_suite(suite_runner, make_ft_report_json_suite());
 }
 
 int main(int argc, char **argv)

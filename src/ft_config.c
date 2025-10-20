@@ -468,9 +468,9 @@ static apr_status_t handle_numeric_option(int option, const char *optarg, ft_con
         }
         break;
     case 'x':
-        conf->excess_size = (apr_off_t) strtoul(optarg, NULL, BASE_TEN);
-        if (ULONG_MAX == conf->minsize) {
-            print_usage_and_exit(name, opt_option, "can't parse for -x / --excessive-size", optarg);
+        conf->excess_size = parse_human_size(optarg);
+        if (conf->excess_size < 0) {
+            print_usage_and_exit(name, opt_option, "Invalid size for --excessive-size:", optarg);
             return APR_EGENERAL;
         }
         break;
