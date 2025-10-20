@@ -22,18 +22,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CAPTURE_BUFFER_SIZE 4096
+enum { CAPTURE_BUFFER_SIZE = 4096 };
 
-static char *capture_output(int fd, int *pipe_fds)
+static char *capture_output(int file_descriptor, int *pipe_fds)
 {
     static char buffer[CAPTURE_BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
 
-    close(pipe_fds[1]);         // Close the write end
-    read(fd, buffer, sizeof(buffer) - 1);
+    close(pipe_fds[1]); // Close the write end
+    read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static void setup_output_capture(int *original_fds, int *pipe_fds)
 {
     ck_assert_int_eq(pipe(pipe_fds), 0);
@@ -45,8 +46,8 @@ static void setup_output_capture(int *original_fds, int *pipe_fds)
 
 static void restore_output(int *original_fds)
 {
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
     dup2(original_fds[1], STDOUT_FILENO);
     dup2(original_fds[0], STDERR_FILENO);
     close(original_fds[0]);
@@ -58,12 +59,11 @@ START_TEST(test_config_invalid_numeric_arg)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "-j", "foo", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -80,12 +80,11 @@ START_TEST(test_config_zero_threads)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "--threads", "0", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -102,12 +101,11 @@ START_TEST(test_config_invalid_size_format)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "-m", "1Z", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -124,12 +122,11 @@ START_TEST(test_config_invalid_image_threshold)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "-T", "99", "dummy_path" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(4, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -146,12 +143,11 @@ START_TEST(test_config_help_flag)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "--help" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(2, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -168,12 +164,11 @@ START_TEST(test_config_version_flag)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin", "--version" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(2, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -190,12 +185,11 @@ START_TEST(test_config_no_input_files)
 {
     int original_fds[2];
     int pipe_fds[2];
-    char *output;
+    char *output = NULL;
 
     const char *argv[] = { "ftwin" };
     setup_output_capture(original_fds, pipe_fds);
     ft_config_set_should_exit_on_error(0);
-    ft_config_set_should_terminate_apr(0);
     int exit_code = ftwin_main(1, argv);
     restore_output(original_fds);
     output = capture_output(pipe_fds[0], pipe_fds);
@@ -211,12 +205,11 @@ static void teardown_config_test(void)
 {
     /* Reset flags after each test */
     ft_config_set_should_exit_on_error(1);
-    ft_config_set_should_terminate_apr(1);
 }
 
 Suite *make_ft_config_suite(void)
 {
-    Suite *s = suite_create("Config");
+    Suite *suite = suite_create("Config");
     TCase *tc_core = tcase_create("Core");
 
     /* Add teardown to reset flag after each test */
@@ -230,6 +223,6 @@ Suite *make_ft_config_suite(void)
     tcase_add_test(tc_core, test_config_version_flag);
     tcase_add_test(tc_core, test_config_no_input_files);
 
-    suite_add_tcase(s, tc_core);
-    return s;
+    suite_add_tcase(suite, tc_core);
+    return suite;
 }
