@@ -22,14 +22,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { CAPTURE_BUFFER_SIZE = 4096 };
+enum
+{ CAPTURE_BUFFER_SIZE = 4096 };
 
 static char *capture_output(int file_descriptor, int *pipe_fds)
 {
     static char buffer[CAPTURE_BUFFER_SIZE];
     memset(buffer, 0, sizeof(buffer));
 
-    close(pipe_fds[1]); // Close the write end
+    close(pipe_fds[1]);         // Close the write end
     read(file_descriptor, buffer, sizeof(buffer) - 1);
     return buffer;
 }
@@ -46,8 +47,8 @@ static void setup_output_capture(int *original_fds, int *pipe_fds)
 
 static void restore_output(int *original_fds)
 {
-    (void)fflush(stdout);
-    (void)fflush(stderr);
+    (void) fflush(stdout);
+    (void) fflush(stderr);
     dup2(original_fds[1], STDOUT_FILENO);
     dup2(original_fds[0], STDERR_FILENO);
     close(original_fds[0]);
@@ -195,7 +196,7 @@ START_TEST(test_config_no_input_files)
     output = capture_output(pipe_fds[0], pipe_fds);
 
     ck_assert_int_ne(exit_code, 0);
-    ck_assert_ptr_nonnull(strstr(output, "Please submit at least two files or one directory to process."));
+    ck_assert_ptr_nonnull(strstr(output, "Please submit at least one file or directory to process."));
 }
 /* *INDENT-OFF* */
 END_TEST

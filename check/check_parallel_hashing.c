@@ -139,8 +139,10 @@ START_TEST(test_parallel_correctness)
 
     const char *argv1[] = { "ftwin", "-j", "1", "check/tests/parallel_test" };
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     ftwin_main(4, argv1);
     ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe1[1]);
     close(stderr_pipe1[1]);
@@ -160,8 +162,10 @@ START_TEST(test_parallel_correctness)
 
     const char *argv2[] = { "ftwin", "-j", "4", "check/tests/parallel_test" };
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     ftwin_main(4, argv2);
     ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe2[1]);
     close(stderr_pipe2[1]);
@@ -240,8 +244,10 @@ static void run_ftwin_with_thread_count(const char *thread_count)
 
     const char *argv[] = { "ftwin", "-j", thread_count, "check/tests/thread_test" };
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
     ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -313,8 +319,10 @@ START_TEST(test_various_file_sizes)
 
     const char *argv[] = { "ftwin", "-j", "2", "check/tests/size_test" };
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
     ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
@@ -374,8 +382,10 @@ static void run_many_files_test(const char *test_dir)
 
     const char *argv[] = { "ftwin", "-j", "4", test_dir };
     ft_config_set_should_exit_on_error(0);
+    ft_config_set_should_terminate_apr(0);
     int return_value = ftwin_main(4, argv);
     ft_config_set_should_exit_on_error(1);
+    ft_config_set_should_terminate_apr(1);
 
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);

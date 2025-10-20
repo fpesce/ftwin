@@ -528,14 +528,15 @@ static apr_status_t handle_informational_option(int option, const char *name, co
 {
     if (option == 'h') {
         usage(name, opt_option);
-    } else { /* 'V' */
+    }
+    else {                      /* 'V' */
         version();
     }
 
     if (should_exit_on_error) {
         exit(0);
     }
-    return APR_EGENERAL; /* Indicates to stop processing */
+    return APR_EGENERAL;        /* Indicates to stop processing */
 }
 
 #if HAVE_JANSSON
@@ -618,8 +619,8 @@ apr_status_t ft_config_parse_args(ft_conf_t *conf, int argc, const char **argv, 
         }
     }
 
-    if (argc - opt_state->ind < 2) {
-        print_usage_and_exit(argv[0], opt_option, "Please submit at least two files or one directory to process.", "");
+    if (argc - opt_state->ind < 1) {
+        print_usage_and_exit(argv[0], opt_option, "Please submit at least one file or directory to process.", "");
         return APR_EGENERAL;
     }
 
