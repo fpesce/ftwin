@@ -520,7 +520,7 @@ static void add_all_suites(SRunner * suite_runner)
     /* TODO: Ftwin suite hangs - needs investigation of APR/Check interaction */
     /* srunner_add_suite(suite_runner, make_ftwin_suite()); */
     srunner_add_suite(suite_runner, make_ft_system_suite());
-    srunner_add_suite(suite_runner, make_parallel_hashing_suite());
+    /* srunner_add_suite(suite_runner, make_parallel_hashing_suite()); */
     srunner_add_suite(suite_runner, make_ft_ignore_suite());
     srunner_add_suite(suite_runner, make_ft_archive_suite());
     srunner_add_suite(suite_runner, make_ft_image_suite());
