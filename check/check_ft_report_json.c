@@ -21,13 +21,17 @@
 
 // Placeholder test - the JSON reporting functions operate on complex
 // internal state that's difficult to test in isolation
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_json_placeholder)
 {
     // This test suite exists but needs real test data to be meaningful
     ck_assert_int_eq(1, 1);
 }
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
 
-END_TEST Suite *make_ft_report_json_suite(void)
+Suite *make_ft_report_json_suite(void)
 {
     Suite *suite = suite_create("ReportJSON");
     TCase *tc_core = tcase_create("Core");

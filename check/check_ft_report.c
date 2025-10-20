@@ -21,6 +21,7 @@
 #include <ft_config.h>
 #include <ft_types.h>
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_chksum_cmp)
 {
     ft_file_t file1 = {.path = "file1",.prioritized = 0 };
@@ -46,8 +47,11 @@ START_TEST(test_chksum_cmp)
     file2.prioritized = 1;
     ck_assert_int_gt(ft_chksum_cmp(&chk1, &chk2), 0);
 }
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
 
-END_TEST Suite *make_ft_report_suite(void)
+Suite *make_ft_report_suite(void)
 {
     Suite *suite = suite_create("Report");
     TCase *tc_core = tcase_create("Core");
