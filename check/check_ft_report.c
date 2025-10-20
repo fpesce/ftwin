@@ -179,11 +179,11 @@ START_TEST(test_get_comparison_paths)
     (void) apr_file_remove(path2, main_pool);
 
     // Test case 4: Failure case - file not in archive
-    ft_file_t *invalid_file_in_archive = ft_file_make(main_pool, archive_name1, "nonexistent.txt");
-    ck_assert_int_eq(get_comparison_paths(conf, invalid_file_in_archive, file1_regular, &path1, &path2), APR_EGENERAL);
+    ft_file_t *archived_file_missing = ft_file_make(main_pool, archive_name1, "nonexistent.txt");
+    ck_assert_int_eq(get_comparison_paths(conf, archived_file_missing, file1_regular, &path1, &path2), APR_EGENERAL);
 
     // Test case 5: Failure case - second file not in archive
-    ck_assert_int_eq(get_comparison_paths(conf, file1_archived, invalid_file_in_archive, &path1, &path2), APR_EGENERAL);
+    ck_assert_int_eq(get_comparison_paths(conf, file1_archived, archived_file_missing, &path1, &path2), APR_EGENERAL);
 
     // Cleanup
     (void) remove(archive_name1);
