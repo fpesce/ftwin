@@ -291,6 +291,7 @@ START_TEST(test_ft_archive_untar_large_file)
 END_TEST
 /* *INDENT-ON* */
 
+
 Suite *make_ft_archive_suite(void)
 {
     Suite *suite = suite_create("Archive");
