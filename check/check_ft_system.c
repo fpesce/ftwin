@@ -30,7 +30,6 @@ START_TEST(test_get_cpu_cores)
     ck_assert_uint_ge(core_count, MIN_CORES);
     ck_assert_uint_le(core_count, MAX_CORES);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

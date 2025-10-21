@@ -47,7 +47,6 @@ START_TEST(test_ignore_simple_pattern)
     result = ft_ignore_match(context, "/test/file.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -70,7 +69,6 @@ START_TEST(test_ignore_directory_pattern)
     result = ft_ignore_match(context, "/test/build", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -98,7 +96,6 @@ START_TEST(test_ignore_doublestar_pattern)
     result = ft_ignore_match(context, "/test/file.txt", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -122,7 +119,6 @@ START_TEST(test_ignore_negation_pattern)
     result = ft_ignore_match(context, "/test/important.log", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_WHITELISTED);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -145,7 +141,6 @@ START_TEST(test_ignore_rooted_pattern)
     result = ft_ignore_match(context, "/test/subdir/build", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -178,7 +173,6 @@ START_TEST(test_ignore_hierarchical_context)
     result = ft_ignore_match(child_context, "/test/subdir/file.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -220,7 +214,6 @@ START_TEST(test_ignore_load_file)
     /* Clean up */
     (void) apr_file_remove(gitignore_path, main_pool);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -245,7 +238,6 @@ START_TEST(test_ignore_vcs_directories)
     result = ft_ignore_match(context, "/test/.github", 1);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -269,7 +261,6 @@ START_TEST(test_ignore_wildcard_patterns)
     result = ft_ignore_match(context, "/test/mytest.c", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -290,7 +281,6 @@ START_TEST(test_ignore_last_match_wins)
     result = ft_ignore_match(context, "/test/important.log", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -326,7 +316,6 @@ START_TEST(test_ignore_load_file_with_cr)
     /* Clean up */
     (void) apr_file_remove(gitignore_path, main_pool);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -343,7 +332,6 @@ START_TEST(test_ignore_leading_whitespace)
     result = ft_ignore_match(context, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_IGNORED);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -363,7 +351,6 @@ START_TEST(test_ignore_question_mark)
     result = ft_ignore_match(context, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -383,7 +370,6 @@ START_TEST(test_ignore_char_class)
     result = ft_ignore_match(context, "/test/filea.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -403,7 +389,6 @@ START_TEST(test_ignore_escaped_char)
     result = ft_ignore_match(context, "/test/file.o", 0);
     ck_assert_int_eq(result, FT_IGNORE_MATCH_NONE);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

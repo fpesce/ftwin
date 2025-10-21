@@ -17,6 +17,7 @@
 #include <check.h>
 #include "key_hash.h"
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_apr_off_t_key_cmp_less)
 {
     apr_off_t val1 = 10;
@@ -24,8 +25,11 @@ START_TEST(test_apr_off_t_key_cmp_less)
     int result = apr_off_t_key_cmp(&val1, &val2, sizeof(apr_off_t));
     ck_assert_int_lt(result, 0);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_gid_t_key_cmp_less)
 {
     gid_t val1 = 100;
@@ -33,7 +37,9 @@ START_TEST(test_gid_t_key_cmp_less)
     int result = gid_t_key_cmp(&val1, &val2, sizeof(gid_t));
     ck_assert_int_lt(result, 0);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 Suite *make_key_hash_suite(void)
 {

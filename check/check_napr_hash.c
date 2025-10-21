@@ -94,7 +94,6 @@ START_TEST(test_napr_hash_basic)
     result = napr_hash_search(hash, key2, strlen(key2), NULL);
     ck_assert_ptr_eq(result, key2);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -147,7 +146,6 @@ START_TEST(test_napr_hash_rebuild)
     /* Verify all items are still accessible after rebuild */
     verify_hash_after_rebuild(hash, keys, num_rebuild_keys);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -206,7 +204,6 @@ START_TEST(test_napr_hash_remove_multiple)
     populate_hash_for_removal_test(hash, keys, hash_values, LOOP_LIMIT);
     verify_removal(hash, keys, hash_values);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -260,7 +257,6 @@ START_TEST(test_napr_hash_iterator_multiple_elements)
 
     ck_assert_int_eq(count, 8);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -278,7 +274,6 @@ START_TEST(test_napr_hash_pool_get)
     hash_pool = napr_hash_pool_get(hash);
     ck_assert_ptr_eq(hash_pool, pool);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -320,7 +315,6 @@ START_TEST(test_napr_hash_iterator_empty_buckets)
 
     ck_assert_int_eq(count, 2);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
