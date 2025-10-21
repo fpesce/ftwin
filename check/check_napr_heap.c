@@ -124,7 +124,6 @@ START_TEST(test_napr_heap_unordered_bug)
     populate_heap(heap, values, num_values);
     validate_heap_extraction(heap, expected_sorted_values, num_values);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

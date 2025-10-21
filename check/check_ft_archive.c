@@ -172,7 +172,6 @@ START_TEST(test_ftwin_archive_duplicates)
     (void) remove("d.txt");
     (void) remove("test_archive.tar");
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

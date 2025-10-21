@@ -43,7 +43,6 @@ START_TEST(test_format_human_size)
     // Test TiB
     ck_assert_str_eq(format_human_size(TIB, pool), "1.0 TiB");
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -71,7 +70,6 @@ START_TEST(test_parse_human_size_valid)
     ck_assert_int_eq(parse_human_size("1.5K"), (apr_off_t) (KIB_MULTIPLIER * KIB));
     ck_assert_int_eq(parse_human_size("2.5M"), (apr_off_t) (MIB_MULTIPLIER * MIB));
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
@@ -85,7 +83,6 @@ START_TEST(test_parse_human_size_invalid)
     ck_assert_int_eq(parse_human_size("1.5.5K"), error_code);
     ck_assert_int_eq(parse_human_size(""), error_code);
 }
-
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */

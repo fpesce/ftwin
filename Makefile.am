@@ -73,7 +73,7 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      src/napr_hash.c src/napr_threadpool.c \
 		      check/check_human_size.c src/human_size.c src/ft_system.c \
 		      check/check_ft_system.c check/check_parallel_hashing.c src/ft_ignore.c \
-		      check/check_ft_ignore.c src/key_hash.c src/ft_config.c src/ft_traverse.c \
+		      check/check_ft_ignore.c src/key_hash.c check/check_key_hash.c src/ft_config.c src/ft_traverse.c \
 		      src/ft_process.c src/ft_archive.c src/ft_report.c src/ft_report_json.c \
 		      src/ft_image.c check/check_ft_archive.c check/check_ft_image.c \
 		      check/check_ft_config.c check/check_ft_report.c check/check_ft_report_json.c
