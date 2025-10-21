@@ -224,9 +224,9 @@ START_TEST(test_ft_hash_add_ignore_list)
 
     ft_conf_t *conf = ft_config_create(pool);
     const char *ignore_list = "file1.txt,file2.log,another_dir/";
-		const char *filename = "file1.txt";
-		const char *filename2 = "file2.log";
-		const char *filename3 = "another_dir/";
+    const char *filename = "file1.txt";
+    const char *filename2 = "file2.log";
+    const char *filename3 = "another_dir/";
 
     ft_config_set_should_exit_on_error(0);
     // This is a static function, but we can test its effects through the config struct.
@@ -544,11 +544,11 @@ Suite *make_ft_config_suite(void)
     tcase_add_test(tc_core, test_config_help_flag);
     tcase_add_test(tc_core, test_config_version_flag);
     tcase_add_test(tc_core, test_config_no_input_files);
-		tcase_add_test(tc_core, test_ft_hash_add_ignore_list);
-		tcase_add_test(tc_core, test_handle_string_option_p_priority_path);
-		tcase_add_test(tc_core, test_handle_string_option_s_separator);
-		tcase_add_test(tc_core, test_handle_string_option_w_whitelist);
-		tcase_add_test(tc_core, test_handle_image_options_threshold);
+    tcase_add_test(tc_core, test_ft_hash_add_ignore_list);
+    tcase_add_test(tc_core, test_handle_string_option_p_priority_path);
+    tcase_add_test(tc_core, test_handle_string_option_s_separator);
+    tcase_add_test(tc_core, test_handle_string_option_w_whitelist);
+    tcase_add_test(tc_core, test_handle_image_options_threshold);
 
     suite_add_tcase(suite, tc_core);
     return suite;
