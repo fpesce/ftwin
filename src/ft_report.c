@@ -65,6 +65,10 @@ static apr_status_t compare_and_report_pair(ft_conf_t *conf, ft_fsize_t *fsize, 
  * true duplicates. This simplifies the main reporting loop by encapsulating
  * the logic for handling a single file's potential duplicates.
  *
+ * @param[in] conf The configuration structure containing reporting options.
+ * @param[in] fsize The file size structure containing the checksum array.
+ * @param[in] index The index of the file to process in the checksum array.
+ * @param[in] colors The color codes to use for formatting output.
  * @return APR_SUCCESS on success, or an error status if reporting fails.
  */
 static apr_status_t process_and_report_duplicates_for_file(ft_conf_t *conf, ft_fsize_t *fsize, apr_size_t index, const reporting_colors_t *colors)
@@ -143,6 +147,11 @@ apr_status_t ft_report_duplicates(ft_conf_t *conf)
 
 /**
  * @brief Gets the file paths for comparison, handling archive extraction if needed.
+ * @param[in] conf The configuration structure containing archive options.
+ * @param[in] file1 The first file to compare.
+ * @param[in] file2 The second file to compare.
+ * @param[out] path1 Pointer to receive the path for file1 (may be extracted from archive).
+ * @param[out] path2 Pointer to receive the path for file2 (may be extracted from archive).
  * @return APR_SUCCESS on success, or an error status if extraction fails.
  */
 apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char **path1, char **path2)
@@ -179,6 +188,11 @@ apr_status_t get_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *
 
 /**
  * @brief Cleans up temporary files created during archive extraction.
+ * @param[in] conf The configuration structure containing archive options.
+ * @param[in] file1 The first file that was compared.
+ * @param[in] file2 The second file that was compared.
+ * @param[in] path1 The path for file1 (may be a temporary extracted file).
+ * @param[in] path2 The path for file2 (may be a temporary extracted file).
  */
 static void cleanup_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_t *file2, char *path1, char *path2)
 {
@@ -194,6 +208,9 @@ static void cleanup_comparison_paths(ft_conf_t *conf, ft_file_t *file1, ft_file_
 
 /**
  * @brief Formats and prints the output for a duplicate file entry.
+ * @param[in] conf The configuration structure containing output options.
+ * @param[in] file The file to print.
+ * @param[in] colors The color codes to use for formatting output.
  */
 static void format_and_print_duplicate(ft_conf_t *conf, const ft_file_t *file, const reporting_colors_t *colors)
 {

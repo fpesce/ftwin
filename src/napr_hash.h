@@ -37,32 +37,29 @@ typedef struct napr_hash_index_t napr_hash_index_t;
 
 /**
  * @brief Callback function to extract the key from a stored data item.
- * @param[in] data A pointer to the stored data item.
+ * The function takes one parameter: a pointer to the stored data item.
  * @return A pointer to the key.
  */
 typedef const void *(get_key_callback_fn_t) (const void *);
 
 /**
  * @brief Callback function to get the length of a key.
- * @param[in] data A pointer to the stored data item.
+ * The function takes one parameter: a pointer to the stored data item.
  * @return The length of the key.
  */
 typedef apr_size_t (get_key_len_callback_fn_t) (const void *);
 
 /**
  * @brief Callback function to compare two keys.
- * @param[in] key1 The first key.
- * @param[in] key2 The second key.
- * @param[in] len The length to compare (can be ignored if keys are null-terminated).
- * @return An integer less than, equal to, or greater than zero if key1 is found,
- *         respectively, to be less than, to match, or be greater than key2.
+ * Takes three parameters: the first key, the second key, and the length to compare.
+ * @return An integer less than, equal to, or greater than zero if the first key is found,
+ *         respectively, to be less than, to match, or be greater than the second key.
  */
 typedef int (key_cmp_callback_fn_t) (const void *, const void *, apr_size_t);
 
 /**
  * @brief Callback function to compute the hash value of a key.
- * @param[in] key The key to hash.
- * @param[in] klen A pointer to the key's length.
+ * Takes two parameters: the key to hash and the key's length.
  * @return The computed hash value.
  */
 typedef apr_uint32_t (hash_callback_fn_t) (register const void *, register apr_size_t);
@@ -94,6 +91,14 @@ napr_hash_t *napr_hash_make_ex(napr_hash_create_args_t * args);
 /**
  * @brief Creates a new hash table (deprecated).
  * @deprecated Please use napr_hash_make_ex with napr_hash_create_args_t instead.
+ * @param[in] pool The pool to use for all allocations.
+ * @param[in] nel The expected number of elements to store.
+ * @param[in] ffactor The desired filling factor (density).
+ * @param[in] get_key Function to get the key from a datum.
+ * @param[in] get_key_len Function to get the key length from a datum.
+ * @param[in] key_cmp Function to compare two keys.
+ * @param[in] hash The hash function to use.
+ * @return A pointer to the new hash table.
  * @see napr_hash_make_ex
  */
 napr_hash_t *napr_hash_make(apr_pool_t *pool, apr_size_t nel, apr_size_t ffactor, get_key_callback_fn_t get_key,

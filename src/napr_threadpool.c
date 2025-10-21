@@ -67,6 +67,12 @@ static inline napr_list_t *napr_list_make(apr_pool_t *pool)
     return napr_list;
 }
 
+/**
+ * @brief Adds an element to the front of a list (cons operation).
+ * @param[in] napr_list The list to add to.
+ * @param[in] element The element to add.
+ * @return 0 on success, -1 on failure (allocation error).
+ */
 static int napr_list_cons(napr_list_t *napr_list, void *element)
 {
     napr_cell_t *cell = NULL;

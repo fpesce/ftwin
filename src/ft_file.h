@@ -56,8 +56,8 @@ apr_status_t checksum_file(const char *filename, apr_off_t size, apr_off_t exces
  * @param[in] fname2 The path to the second file.
  * @param[in] size The size of the files (assumed to be identical).
  * @param[in] excess_size The file size threshold to switch from mmap to buffered I/O.
- * @param[out] i Pointer to an integer that will be set to 0 if the files are identical,
- *               or a non-zero value otherwise.
+ * @param[out] result_out Pointer to an integer that will be set to 0 if the files are identical,
+ *                        or a non-zero value otherwise.
  * @return APR_SUCCESS on successful comparison, or an APR error code if a file cannot be read.
  */
 apr_status_t filecmp(apr_pool_t *pool, const char *fname1, const char *fname2, apr_off_t size, apr_off_t excess_size, int *result_out);
