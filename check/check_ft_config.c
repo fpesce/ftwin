@@ -80,6 +80,177 @@ END_TEST
 /* *INDENT-ON* */
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_handle_image_options_threshold)
+{
+    apr_pool_t *pool = NULL;
+    ck_assert_int_eq(apr_pool_create(&pool, NULL), APR_SUCCESS);
+
+    // Test case for threshold '1'
+    ft_conf_t *conf1 = ft_config_create(pool);
+    const char *argv1[] = { "ftwin", "-T", "1", "dummy_path" };
+    int argc1 = sizeof(argv1) / sizeof(argv1[0]);
+    int first_arg1 = 0;
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code1 = ft_config_parse_args(conf1, argc1, argv1, &first_arg1);
+    ft_config_set_should_exit_on_error(1);
+    ck_assert_int_eq(exit_code1, APR_SUCCESS);
+    ck_assert_double_eq(conf1->threshold, 0.2);
+
+    // Test case for threshold '2'
+    ft_conf_t *conf2 = ft_config_create(pool);
+    const char *argv2[] = { "ftwin", "-T", "2", "dummy_path" };
+    int argc2 = sizeof(argv2) / sizeof(argv2[0]);
+    int first_arg2 = 0;
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code2 = ft_config_parse_args(conf2, argc2, argv2, &first_arg2);
+    ft_config_set_should_exit_on_error(1);
+    ck_assert_int_eq(exit_code2, APR_SUCCESS);
+    ck_assert_double_eq(conf2->threshold, 0.3);
+
+    // Test case for threshold '4'
+    ft_conf_t *conf4 = ft_config_create(pool);
+    const char *argv4[] = { "ftwin", "-T", "4", "dummy_path" };
+    int argc4 = sizeof(argv4) / sizeof(argv4[0]);
+    int first_arg4 = 0;
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code4 = ft_config_parse_args(conf4, argc4, argv4, &first_arg4);
+    ft_config_set_should_exit_on_error(1);
+    ck_assert_int_eq(exit_code4, APR_SUCCESS);
+    ck_assert_double_eq(conf4->threshold, 0.6);
+
+    // Test case for threshold '5'
+    ft_conf_t *conf5 = ft_config_create(pool);
+    const char *argv5[] = { "ftwin", "-T", "5", "dummy_path" };
+    int argc5 = sizeof(argv5) / sizeof(argv5[0]);
+    int first_arg5 = 0;
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code5 = ft_config_parse_args(conf5, argc5, argv5, &first_arg5);
+    ft_config_set_should_exit_on_error(1);
+    ck_assert_int_eq(exit_code5, APR_SUCCESS);
+    ck_assert_double_eq(conf5->threshold, 0.7);
+
+    apr_pool_destroy(pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_handle_string_option_p_priority_path)
+{
+    apr_pool_t *pool = NULL;
+    ck_assert_int_eq(apr_pool_create(&pool, NULL), APR_SUCCESS);
+
+    ft_conf_t *conf = ft_config_create(pool);
+    const char *priority_path = "/my/priority/path";
+    const char *argv[] = { "ftwin", "-p", priority_path, "dummy_path" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    int first_arg = 0;
+
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code = ft_config_parse_args(conf, argc, argv, &first_arg);
+    ft_config_set_should_exit_on_error(1);
+
+    ck_assert_int_eq(exit_code, APR_SUCCESS);
+    ck_assert_str_eq(conf->p_path, priority_path);
+    ck_assert_int_eq(conf->p_path_len, strlen(priority_path));
+
+    apr_pool_destroy(pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_handle_string_option_s_separator)
+{
+    apr_pool_t *pool = NULL;
+    ck_assert_int_eq(apr_pool_create(&pool, NULL), APR_SUCCESS);
+
+    ft_conf_t *conf = ft_config_create(pool);
+    const char *separator = ";";
+    const char *argv[] = { "ftwin", "-s", separator, "dummy_path" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    int first_arg = 0;
+
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code = ft_config_parse_args(conf, argc, argv, &first_arg);
+    ft_config_set_should_exit_on_error(1);
+
+    ck_assert_int_eq(exit_code, APR_SUCCESS);
+    ck_assert_int_eq(conf->sep, *separator);
+
+    apr_pool_destroy(pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_handle_string_option_w_whitelist)
+{
+    apr_pool_t *pool = NULL;
+    ck_assert_int_eq(apr_pool_create(&pool, NULL), APR_SUCCESS);
+
+    ft_conf_t *conf = ft_config_create(pool);
+    const char *whitelist_regex = "\\.c$";
+    const char *argv[] = { "ftwin", "-w", whitelist_regex, "dummy_path" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    int first_arg = 0;
+
+    ft_config_set_should_exit_on_error(0);
+    apr_status_t exit_code = ft_config_parse_args(conf, argc, argv, &first_arg);
+    ft_config_set_should_exit_on_error(1);
+
+    ck_assert_int_eq(exit_code, APR_SUCCESS);
+    ck_assert_ptr_nonnull(conf->wl_regex);
+
+    // Check that the regex matches a known string
+    int ovector[30];
+    int rc = pcre_exec(conf->wl_regex, NULL, "test.c", 6, 0, 0, ovector, 30);
+    ck_assert_int_ge(rc, 0);
+
+    apr_pool_destroy(pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_ft_hash_add_ignore_list)
+{
+    apr_pool_t *pool = NULL;
+    ck_assert_int_eq(apr_pool_create(&pool, NULL), APR_SUCCESS);
+
+    ft_conf_t *conf = ft_config_create(pool);
+    const char *ignore_list = "file1.txt,file2.log,another_dir/";
+		const char *filename = "file1.txt";
+		const char *filename2 = "file2.log";
+		const char *filename3 = "another_dir/";
+
+    ft_config_set_should_exit_on_error(0);
+    // This is a static function, but we can test its effects through the config struct.
+    // The function `ft_config_parse_args` will call `ft_hash_add_ignore_list` when passed the -i option.
+    const char *argv[] = { "ftwin", "-i", ignore_list, "dummy_path" };
+    int argc = sizeof(argv) / sizeof(argv[0]);
+    int first_arg = 0;
+    apr_status_t exit_code = ft_config_parse_args(conf, argc, argv, &first_arg);
+    ft_config_set_should_exit_on_error(1);
+
+    ck_assert_int_eq(exit_code, APR_SUCCESS);
+
+    // Check that the files were added to the ignore hash
+    ck_assert_ptr_nonnull(napr_hash_search(conf->ig_files, filename, strlen(filename), NULL));
+    ck_assert_ptr_nonnull(napr_hash_search(conf->ig_files, filename2, strlen(filename2), NULL));
+    ck_assert_ptr_nonnull(napr_hash_search(conf->ig_files, filename3, strlen(filename3), NULL));
+
+    apr_pool_destroy(pool);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_config_invalid_excessive_size)
 {
     int original_fds[2];
@@ -373,6 +544,11 @@ Suite *make_ft_config_suite(void)
     tcase_add_test(tc_core, test_config_help_flag);
     tcase_add_test(tc_core, test_config_version_flag);
     tcase_add_test(tc_core, test_config_no_input_files);
+		tcase_add_test(tc_core, test_ft_hash_add_ignore_list);
+		tcase_add_test(tc_core, test_handle_string_option_p_priority_path);
+		tcase_add_test(tc_core, test_handle_string_option_s_separator);
+		tcase_add_test(tc_core, test_handle_string_option_w_whitelist);
+		tcase_add_test(tc_core, test_handle_image_options_threshold);
 
     suite_add_tcase(suite, tc_core);
     return suite;
