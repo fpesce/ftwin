@@ -23,10 +23,18 @@
 #include <string.h>
 
 enum
-{ CAPTURE_BUFFER_SIZE = 4096 };
+{
+    CAPTURE_BUFFER_SIZE = 4096,
+    MAX_NB_MATCH = 30
+};
 
 static const double THRESHOLD_MIN = 0.49;
 static const double THRESHOLD_MAX = 0.51;
+
+static const double TEST_VALUE_TWO = 0.2;
+static const double TEST_VALUE_THREE = 0.3;
+static const double TEST_VALUE_SIX = 0.6;
+static const double TEST_VALUE_SEVEN = 0.7;
 
 static char *capture_output(int file_descriptor, int *pipe_fds)
 {
@@ -94,7 +102,7 @@ START_TEST(test_handle_image_options_threshold)
     apr_status_t exit_code1 = ft_config_parse_args(conf1, argc1, argv1, &first_arg1);
     ft_config_set_should_exit_on_error(1);
     ck_assert_int_eq(exit_code1, APR_SUCCESS);
-    ck_assert_double_eq(conf1->threshold, 0.2);
+    ck_assert_double_eq(conf1->threshold, TEST_VALUE_TWO);
 
     // Test case for threshold '2'
     ft_conf_t *conf2 = ft_config_create(pool);
@@ -105,7 +113,7 @@ START_TEST(test_handle_image_options_threshold)
     apr_status_t exit_code2 = ft_config_parse_args(conf2, argc2, argv2, &first_arg2);
     ft_config_set_should_exit_on_error(1);
     ck_assert_int_eq(exit_code2, APR_SUCCESS);
-    ck_assert_double_eq(conf2->threshold, 0.3);
+    ck_assert_double_eq(conf2->threshold, TEST_VALUE_THREE);
 
     // Test case for threshold '4'
     ft_conf_t *conf4 = ft_config_create(pool);
@@ -116,7 +124,7 @@ START_TEST(test_handle_image_options_threshold)
     apr_status_t exit_code4 = ft_config_parse_args(conf4, argc4, argv4, &first_arg4);
     ft_config_set_should_exit_on_error(1);
     ck_assert_int_eq(exit_code4, APR_SUCCESS);
-    ck_assert_double_eq(conf4->threshold, 0.6);
+    ck_assert_double_eq(conf4->threshold, TEST_VALUE_SIX);
 
     // Test case for threshold '5'
     ft_conf_t *conf5 = ft_config_create(pool);
@@ -127,7 +135,7 @@ START_TEST(test_handle_image_options_threshold)
     apr_status_t exit_code5 = ft_config_parse_args(conf5, argc5, argv5, &first_arg5);
     ft_config_set_should_exit_on_error(1);
     ck_assert_int_eq(exit_code5, APR_SUCCESS);
-    ck_assert_double_eq(conf5->threshold, 0.7);
+    ck_assert_double_eq(conf5->threshold, TEST_VALUE_SEVEN);
 
     apr_pool_destroy(pool);
 }
@@ -206,9 +214,10 @@ START_TEST(test_handle_string_option_w_whitelist)
     ck_assert_ptr_nonnull(conf->wl_regex);
 
     // Check that the regex matches a known string
-    int ovector[30];
-    int rc = pcre_exec(conf->wl_regex, NULL, "test.c", 6, 0, 0, ovector, 30);
-    ck_assert_int_ge(rc, 0);
+    int ovector[MAX_NB_MATCH];
+    const char *test_file = "test.c";
+    int return_code = pcre_exec(conf->wl_regex, NULL, test_file, strlen(test_file), 0, 0, ovector, MAX_NB_MATCH);
+    ck_assert_int_ge(return_code, 0);
 
     apr_pool_destroy(pool);
 }
