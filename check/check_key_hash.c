@@ -17,11 +17,16 @@
 #include <check.h>
 #include "key_hash.h"
 
+static const apr_off_t VAL_OFF_TEN = 10;
+static const apr_off_t VAL_OFF_TWENTY = 20;
+static const gid_t GID_HUNDRED = 100;
+static const gid_t GID_TWO_HUNDRED = 200;
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_apr_off_t_key_cmp_less)
 {
-    apr_off_t val1 = 10;
-    apr_off_t val2 = 20;
+    apr_off_t val1 = VAL_OFF_TEN;
+    apr_off_t val2 = VAL_OFF_TWENTY;
     int result = apr_off_t_key_cmp(&val1, &val2, sizeof(apr_off_t));
     ck_assert_int_lt(result, 0);
 }
@@ -32,8 +37,8 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_gid_t_key_cmp_less)
 {
-    gid_t val1 = 100;
-    gid_t val2 = 200;
+    gid_t val1 = GID_HUNDRED;
+    gid_t val2 = GID_TWO_HUNDRED;
     int result = gid_t_key_cmp(&val1, &val2, sizeof(gid_t));
     ck_assert_int_lt(result, 0);
 }
@@ -43,10 +48,10 @@ END_TEST
 
 Suite *make_key_hash_suite(void)
 {
-    Suite *s = suite_create("KeyHash");
+    Suite *suite = suite_create("KeyHash");
     TCase *tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_apr_off_t_key_cmp_less);
     tcase_add_test(tc_core, test_gid_t_key_cmp_less);
-    suite_add_tcase(s, tc_core);
-    return s;
+    suite_add_tcase(suite, tc_core);
+    return suite;
 }
