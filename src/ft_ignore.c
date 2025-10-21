@@ -150,8 +150,8 @@ static void set_pcre_anchors(char **result_cursor, const struct pcre_anchor_para
  * @brief Handles the conversion of a glob star (`*`) or double-star (`**`)
  * into its PCRE equivalent.
  *
- * @param p A pointer to the current position in the glob pattern.
- * @param r A pointer to the current position in the result buffer.
+ * @param pattern_cursor A pointer to the current position in the glob pattern.
+ * @param result_cursor A pointer to the current position in the result buffer.
  */
 static void handle_star(const char **pattern_cursor, char **result_cursor)
 {
@@ -178,8 +178,8 @@ static void handle_star(const char **pattern_cursor, char **result_cursor)
 /**
  * @brief Converts a glob question mark (`?`) into its PCRE equivalent.
  *
- * @param p A pointer to the current position in the glob pattern.
- * @param r A pointer to the current position in the result buffer.
+ * @param pattern_cursor A pointer to the current position in the glob pattern.
+ * @param result_cursor A pointer to the current position in the result buffer.
  */
 static void handle_question_mark(const char **pattern_cursor, char **result_cursor)
 {
@@ -190,8 +190,8 @@ static void handle_question_mark(const char **pattern_cursor, char **result_curs
 /**
  * @brief Converts a glob character class (`[abc]`) into its PCRE equivalent.
  *
- * @param p A pointer to the current position in the glob pattern.
- * @param r A pointer to the current position in the result buffer.
+ * @param pattern_cursor A pointer to the current position in the glob pattern.
+ * @param result_cursor A pointer to the current position in the result buffer.
  */
 static void handle_char_class(const char **pattern_cursor, char **result_cursor)
 {
@@ -227,8 +227,8 @@ static void handle_char_class(const char **pattern_cursor, char **result_cursor)
  * dispatches to specialized handlers for glob metacharacters like `*`, `?`,
  * and `[`.
  *
- * @param p The glob pattern string (with prefixes like `!` already handled).
- * @param r A pointer to the current position in the result buffer.
+ * @param pattern_cursor The glob pattern string (with prefixes like `!` already handled).
+ * @param result_cursor A pointer to the current position in the result buffer.
  * @param flags Flags that may include FT_IGNORE_DIR_ONLY.
  */
 static void convert_glob_body_to_pcre(const char **pattern_cursor, char **result_cursor, unsigned int flags)

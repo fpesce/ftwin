@@ -29,8 +29,7 @@ typedef struct napr_heap_t napr_heap_t;
 
 /**
  * @brief Callback function to compare two elements in the heap.
- * @param[in] a The first element.
- * @param[in] b The second element.
+ * Takes two parameters: the first element and the second element.
  * @return Should return an integer less than, equal to, or greater than zero if the
  *         first argument is considered to be respectively less than, equal to, or
  *         greater than the second.
@@ -39,7 +38,7 @@ typedef int (napr_heap_cmp_callback_fn_t) (const void *, const void *);
 
 /**
  * @brief Optional callback function to delete/deallocate an element when not using APR pools.
- * @param[in] data The element to delete.
+ * The function takes one parameter: a pointer to the element to delete.
  */
 typedef void (napr_heap_del_callback_fn_t) (void *);
 
