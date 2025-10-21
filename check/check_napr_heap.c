@@ -147,7 +147,9 @@ START_TEST(test_napr_heap_insert_full)
 
     validate_heap_extraction(heap, expected_sorted_values, num_values);
 }
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
 
 Suite *make_napr_heap_suite(void)
 {
