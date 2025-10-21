@@ -216,7 +216,7 @@ START_TEST(test_handle_string_option_w_whitelist)
     // Check that the regex matches a known string
     int ovector[MAX_NB_MATCH];
     const char *test_file = "test.c";
-    int return_code = pcre_exec(conf->wl_regex, NULL, test_file, strlen(test_file), 0, 0, ovector, MAX_NB_MATCH);
+    int return_code = pcre_exec(conf->wl_regex, NULL, test_file, (int) strlen(test_file), 0, 0, ovector, MAX_NB_MATCH);
     ck_assert_int_ge(return_code, 0);
 
     apr_pool_destroy(pool);
