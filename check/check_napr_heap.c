@@ -128,6 +128,27 @@ START_TEST(test_napr_heap_unordered_bug)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_napr_heap_insert_full)
+{
+    const int num_values = 257; /* INITIAL_MAX is 256 */
+    apr_off_t values[num_values];
+    apr_off_t expected_sorted_values[num_values];
+
+    for (int i = 0; i < num_values; i++) {
+        values[i] = i;
+        expected_sorted_values[i] = num_values - 1 - i;
+    }
+
+    napr_heap_t *heap = napr_heap_make_r(pool, check_heap_numbers_cmp);
+
+    populate_heap(heap, values, num_values);
+    ck_assert_int_eq(napr_heap_size(heap), num_values);
+
+    validate_heap_extraction(heap, expected_sorted_values, num_values);
+}
+END_TEST
+
 Suite *make_napr_heap_suite(void)
 {
     Suite *suite = suite_create("Napr_Heap");
@@ -135,6 +156,7 @@ Suite *make_napr_heap_suite(void)
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_napr_heap_unordered_bug);
+    tcase_add_test(tc_core, test_napr_heap_insert_full);
     suite_add_tcase(suite, tc_core);
 
     return suite;
