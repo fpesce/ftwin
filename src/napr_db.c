@@ -159,6 +159,138 @@ static apr_status_t select_live_meta(napr_db_env_t * env)
 }
 
 /**
+ * @brief Open or create the database file.
+ *
+ * @param env Database environment
+ * @param path Path to database file
+ * @param[out] is_new_file Set to 1 if the file was created, 0 otherwise
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t
+db_file_open(napr_db_env_t *env, const char *path, int *is_new_file)
+{
+    apr_status_t status;
+    apr_int32_t file_flags;
+
+    if (env->flags & NAPR_DB_RDONLY) {
+        file_flags = APR_READ | APR_BINARY;
+    } else {
+        file_flags = APR_READ | APR_WRITE | APR_BINARY;
+    }
+
+    apr_finfo_t finfo;
+    status = apr_stat(&finfo, path, APR_FINFO_SIZE, env->pool);
+
+    if (status != APR_SUCCESS && status != APR_ENOENT) {
+        return status;
+    }
+
+    if (status == APR_SUCCESS) {
+        *is_new_file = 0;
+        return apr_file_open(&env->file, path, file_flags, APR_OS_DEFAULT,
+                             env->pool);
+    }
+
+    /* File doesn't exist */
+    if (!(env->flags & NAPR_DB_CREATE)) {
+        return APR_ENOENT;
+    }
+
+    *is_new_file = 1;
+    file_flags |= APR_CREATE | APR_TRUNCATE;
+    status = apr_file_open(&env->file, path, file_flags,
+                           APR_FPROT_UREAD | APR_FPROT_UWRITE, env->pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    apr_off_t min_size = (apr_off_t)2 * PAGE_SIZE;
+    status = apr_file_trunc(env->file, min_size);
+    if (status != APR_SUCCESS) {
+        apr_file_close(env->file);
+        env->file = NULL;
+    }
+    return status;
+}
+
+/**
+ * @brief Memory map the database file.
+ *
+ * @param env Database environment
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t
+db_mmap_file(napr_db_env_t *env)
+{
+    apr_status_t status;
+
+    status = apr_mmap_create(&env->mmap, env->file, 0, env->mapsize,
+                             APR_MMAP_READ |
+                                 ((env->flags & NAPR_DB_RDONLY) ? 0
+                                                               : APR_MMAP_WRITE),
+                             env->pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    status = apr_mmap_offset(&env->map_addr, env->mmap, 0);
+    if (status != APR_SUCCESS) {
+        apr_mmap_delete(env->mmap);
+        env->mmap = NULL;
+    }
+
+    return status;
+}
+
+/**
+ * @brief Initialize or validate meta pages.
+ *
+ * @param env Database environment
+ * @param is_new_file 1 if the database is new, 0 otherwise
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t
+db_init_meta(napr_db_env_t *env, int is_new_file)
+{
+    env->meta0 = (DB_MetaPage *)env->map_addr;
+    env->meta1 = (DB_MetaPage *)((char *)env->map_addr + PAGE_SIZE);
+
+    if (is_new_file) {
+        init_meta_page(env->meta0, 0);
+        init_meta_page(env->meta1, 1);
+
+        apr_status_t status = apr_file_sync(env->file);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+        env->live_meta = env->meta1;
+        return APR_SUCCESS;
+    }
+
+    return select_live_meta(env);
+}
+
+/**
+ * @brief Initialize the writer lock.
+ *
+ * @param env Database environment
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t
+db_init_writer_lock(napr_db_env_t *env)
+{
+    if (env->flags & NAPR_DB_INTRAPROCESS_LOCK) {
+        env->writer_proc_mutex = NULL;
+        return apr_thread_mutex_create(&env->writer_thread_mutex,
+                                       APR_THREAD_MUTEX_DEFAULT, env->pool);
+    }
+
+    env->writer_thread_mutex = NULL;
+    return apr_proc_mutex_create(&env->writer_proc_mutex, NULL,
+                                 APR_LOCK_DEFAULT, env->pool);
+}
+
+/**
  * @brief Open a database environment.
  *
  * Opens and memory-maps the database file. If the file doesn't exist
@@ -169,10 +301,10 @@ static apr_status_t select_live_meta(napr_db_env_t * env)
  * @param flags Flags (NAPR_DB_CREATE, NAPR_DB_RDONLY, NAPR_DB_INTRAPROCESS_LOCK)
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned int flags)
+apr_status_t
+napr_db_env_open(napr_db_env_t *env, const char *path, unsigned int flags)
 {
-    apr_status_t status = APR_SUCCESS;
-    apr_int32_t file_flags = 0;
+    apr_status_t status;
     int is_new_file = 0;
 
     if (!env || !path) {
@@ -180,131 +312,24 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
     }
 
     if (env->mapsize == 0) {
-        return APR_EINVAL;      /* Must call set_mapsize first */
+        return APR_EINVAL; /* Must call set_mapsize first */
     }
 
     env->flags = flags;
 
-    /* Determine file flags */
-    if (flags & NAPR_DB_RDONLY) {
-        file_flags = APR_READ | APR_BINARY;
-    }
-    else {
-        file_flags = APR_READ | APR_WRITE | APR_BINARY;
-    }
-
-    /* Check if file exists */
-    apr_finfo_t finfo;
-    status = apr_stat(&finfo, path, APR_FINFO_SIZE, env->pool);
-
-    if (status != APR_SUCCESS && status != APR_ENOENT) {
-        /* Other error */
+    status = db_file_open(env, path, &is_new_file);
+    if (status != APR_SUCCESS) {
         return status;
     }
 
-    if (status == APR_SUCCESS) {
-        /* File exists - open it */
-        is_new_file = 0;
-        status = apr_file_open(&env->file, path, file_flags, APR_OS_DEFAULT, env->pool);
-        if (status != APR_SUCCESS) {
-            return status;
-        }
-    } else {
-        /* File doesn't exist */
-        if (!(flags & NAPR_DB_CREATE)) {
-            return APR_ENOENT;  /* CREATE flag not set */
-        }
-
-        /* Create new file */
-        is_new_file = 1;
-        file_flags |= APR_CREATE | APR_TRUNCATE;
-        status = apr_file_open(&env->file, path, file_flags, APR_FPROT_UREAD | APR_FPROT_UWRITE, env->pool);
-        if (status != APR_SUCCESS) {
-            return status;
-        }
-
-        /* Ensure file is at least 2 pages (for 2 meta pages) */
-        apr_off_t min_size = (apr_off_t) 2 * PAGE_SIZE;
-        status = apr_file_trunc(env->file, min_size);
-        if (status != APR_SUCCESS) {
-            apr_file_close(env->file);
-            env->file = NULL;
-            return status;
-        }
-    }
-
-    /* Memory map the file */
-    status = apr_mmap_create(&env->mmap, env->file, 0, env->mapsize, APR_MMAP_READ | ((flags & NAPR_DB_RDONLY) ? 0 : APR_MMAP_WRITE), env->pool);
+    status = db_mmap_file(env);
     if (status != APR_SUCCESS) {
         apr_file_close(env->file);
         env->file = NULL;
         return status;
     }
 
-    /* Get base address of memory map */
-    status = apr_mmap_offset(&env->map_addr, env->mmap, 0);
-    if (status != APR_SUCCESS) {
-        apr_mmap_delete(env->mmap);
-        env->mmap = NULL;
-        apr_file_close(env->file);
-        env->file = NULL;
-        return status;
-    }
-
-    /* Set up meta page pointers */
-    env->meta0 = (DB_MetaPage *) env->map_addr;
-    env->meta1 = (DB_MetaPage *) ((char *) env->map_addr + PAGE_SIZE);
-
-    if (is_new_file) {
-        /* Initialize meta pages for new database */
-        init_meta_page(env->meta0, 0);
-        init_meta_page(env->meta1, 1);
-
-        /* Ensure durability - sync to disk */
-        status = apr_file_sync(env->file);
-        if (status != APR_SUCCESS) {
-            apr_mmap_delete(env->mmap);
-            env->mmap = NULL;
-            env->map_addr = NULL;
-            apr_file_close(env->file);
-            env->file = NULL;
-            return status;
-        }
-
-        /* Select live meta page (will be meta1 since it has higher TXNID) */
-        env->live_meta = env->meta1;
-    }
-    else {
-        /* Existing database - validate and select live meta page */
-        status = select_live_meta(env);
-        if (status != APR_SUCCESS) {
-            apr_mmap_delete(env->mmap);
-            env->mmap = NULL;
-            env->map_addr = NULL;
-            apr_file_close(env->file);
-            env->file = NULL;
-            return status;
-        }
-    }
-
-    /* Initialize writer synchronization mutex */
-    if (flags & NAPR_DB_INTRAPROCESS_LOCK) {
-        /* Intra-process locking: use thread mutex (faster) */
-        status = apr_thread_mutex_create(&env->writer_thread_mutex, APR_THREAD_MUTEX_DEFAULT, env->pool);
-        if (status != APR_SUCCESS) {
-            apr_mmap_delete(env->mmap);
-            env->mmap = NULL;
-            env->map_addr = NULL;
-            apr_file_close(env->file);
-            env->file = NULL;
-            return status;
-        }
-        env->writer_proc_mutex = NULL;
-        return APR_SUCCESS;
-    }
-
-    /* Inter-process locking: use process mutex */
-    status = apr_proc_mutex_create(&env->writer_proc_mutex, NULL, APR_LOCK_DEFAULT, env->pool);
+    status = db_init_meta(env, is_new_file);
     if (status != APR_SUCCESS) {
         apr_mmap_delete(env->mmap);
         env->mmap = NULL;
@@ -313,9 +338,17 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
         env->file = NULL;
         return status;
     }
-    env->writer_thread_mutex = NULL;
 
-    return APR_SUCCESS;
+    status = db_init_writer_lock(env);
+    if (status != APR_SUCCESS) {
+        apr_mmap_delete(env->mmap);
+        env->mmap = NULL;
+        env->map_addr = NULL;
+        apr_file_close(env->file);
+        env->file = NULL;
+    }
+
+    return status;
 }
 
 /**
@@ -527,23 +560,26 @@ apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
     return status;
 }
 
-apr_status_t napr_db_get(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key,
+                         napr_db_val_t *data)
 {
-    (void) txn;
-    (void) key;
-    (void) data;
+    (void)txn;
+    (void)key;
+    (void)data;
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_put(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_put(napr_db_txn_t *txn, napr_db_val_t *key,
+                         napr_db_val_t *data)
 {
-    (void) txn;
-    (void) key;
-    (void) data;
+    (void)txn;
+    (void)key;
+    (void)data;
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_del(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key,
+                         napr_db_val_t *data)
 {
     (void) txn;
     (void) key;
@@ -564,11 +600,13 @@ apr_status_t napr_db_cursor_close(napr_db_cursor_t * cursor)
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, napr_db_val_t * key, napr_db_val_t * data, int operation)
+apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor,
+                                const napr_db_val_t *key, napr_db_val_t *data,
+                                int operation)
 {
-    (void) cursor;
-    (void) key;
-    (void) data;
-    (void) operation;
+    (void)cursor;
+    (void)key;
+    (void)data;
+    (void)operation;
     return APR_ENOTIMPL;
 }
