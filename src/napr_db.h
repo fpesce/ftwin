@@ -213,7 +213,7 @@ extern "C"
  * @param data Value to store
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_put(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data);
 
 /**
  * @brief Delete a key-value pair.
