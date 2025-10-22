@@ -11,6 +11,7 @@
 #include <apr_pools.h>
 #include <apr_file_io.h>
 #include "../src/napr_db_internal.h"
+#include "check_db_constants.h"
 
 /* Test fixtures */
 static apr_pool_t *test_pool = NULL;
@@ -55,7 +56,7 @@ START_TEST(test_env_create_setmapsize_close)
     ck_assert_ptr_null(env->map_addr);
 
     /* Set mapsize */
-    apr_size_t mapsize = 10 * 1024 * 1024;      /* 10 MB */
+    apr_size_t mapsize = TEN_MB;
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_uint_eq(env->mapsize, mapsize);
@@ -81,7 +82,7 @@ START_TEST(test_env_open_new_db)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);
@@ -147,7 +148,7 @@ START_TEST(test_env_open_existing_db)
 {
     napr_db_env_t *env1 = NULL, *env2 = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* First, create a new database */
     status = napr_db_env_create(&env1, test_pool);
@@ -215,7 +216,7 @@ START_TEST(test_env_open_intraprocess_lock)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);
@@ -253,7 +254,7 @@ START_TEST(test_env_open_interprocess_lock)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);

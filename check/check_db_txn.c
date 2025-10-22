@@ -13,6 +13,7 @@
 #include <apr_thread_proc.h>
 #include <apr_time.h>
 #include "../src/napr_db_internal.h"
+#include "check_db_constants.h"
 
 /* Test fixtures */
 static apr_pool_t *test_pool = NULL;
@@ -46,7 +47,7 @@ START_TEST(test_txn_read_lifecycle)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -91,7 +92,7 @@ START_TEST(test_txn_write_lifecycle)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -136,7 +137,7 @@ START_TEST(test_txn_write_abort)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -215,7 +216,7 @@ START_TEST(test_swmr_intraprocess)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment with INTRAPROCESS_LOCK */
     status = napr_db_env_create(&env, test_pool);
@@ -281,7 +282,7 @@ START_TEST(test_concurrent_readers)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn1 = NULL, *txn2 = NULL, *txn3 = NULL;
     apr_status_t status;
-    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+    apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);

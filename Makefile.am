@@ -49,7 +49,8 @@ noinst_HEADERS = src/debug.h \
 		  src/ft_report_json.h \
 		  src/ft_image.h \
 		  src/napr_db_internal.h \
-		  src/napr_db.h
+		  src/napr_db.h \
+		  check/check_db_constants.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/ft_config.c \
