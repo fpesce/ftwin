@@ -287,10 +287,10 @@ END_TEST
  */
 Suite *make_db_env_suite(void)
 {
-    Suite *s = NULL;
+    Suite *suite = NULL;
     TCase *tc_core = NULL;
 
-    s = suite_create("DB Environment");
+    suite = suite_create("DB Environment");
 
     /* Core test case */
     tc_core = tcase_create("Core");
@@ -302,7 +302,7 @@ Suite *make_db_env_suite(void)
     tcase_add_test(tc_core, test_env_open_intraprocess_lock);
     tcase_add_test(tc_core, test_env_open_interprocess_lock);
 
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }
