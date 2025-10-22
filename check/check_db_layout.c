@@ -160,8 +160,8 @@ END_TEST
  */
 Suite *make_db_layout_suite(void)
 {
-    Suite *suite;
-    TCase *tc_core;
+    Suite *suite = NULL;
+    TCase *tc_core = NULL;
 
     suite = suite_create("DB Layout");
 
