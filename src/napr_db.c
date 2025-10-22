@@ -12,6 +12,9 @@
 #include "napr_db_internal.h"
 #include <apr_file_io.h>
 #include <apr_mmap.h>
+#include <apr_thread_mutex.h>
+#include <apr_proc_mutex.h>
+#include <apr_global_mutex.h>
 #include <string.h>
 
 /**
@@ -47,6 +50,8 @@ apr_status_t napr_db_env_create(napr_db_env_t ** env, apr_pool_t *pool)
     e->meta0 = NULL;
     e->meta1 = NULL;
     e->live_meta = NULL;
+    e->writer_thread_mutex = NULL;
+    e->writer_proc_mutex = NULL;
 
     *env = e;
     return APR_SUCCESS;
@@ -281,6 +286,34 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
         }
     }
 
+    /* Initialize writer synchronization mutex */
+    if (flags & NAPR_DB_INTRAPROCESS_LOCK) {
+        /* Intra-process locking: use thread mutex (faster) */
+        status = apr_thread_mutex_create(&env->writer_thread_mutex, APR_THREAD_MUTEX_DEFAULT, env->pool);
+        if (status != APR_SUCCESS) {
+            apr_mmap_delete(env->mmap);
+            env->mmap = NULL;
+            env->map_addr = NULL;
+            apr_file_close(env->file);
+            env->file = NULL;
+            return status;
+        }
+        env->writer_proc_mutex = NULL;
+    }
+    else {
+        /* Inter-process locking: use process mutex */
+        status = apr_proc_mutex_create(&env->writer_proc_mutex, NULL, APR_LOCK_DEFAULT, env->pool);
+        if (status != APR_SUCCESS) {
+            apr_mmap_delete(env->mmap);
+            env->mmap = NULL;
+            env->map_addr = NULL;
+            apr_file_close(env->file);
+            env->file = NULL;
+            return status;
+        }
+        env->writer_thread_mutex = NULL;
+    }
+
     return APR_SUCCESS;
 }
 
@@ -318,26 +351,183 @@ apr_status_t napr_db_env_close(napr_db_env_t * env)
     return APR_SUCCESS;
 }
 
-/* Stub implementations for functions declared in API but not yet implemented */
+/*
+ * Internal helper functions for transaction synchronization
+ */
 
+/**
+ * @brief Acquire the writer lock.
+ *
+ * Implements SWMR by serializing write transactions using the
+ * appropriate mutex type (thread or process mutex).
+ *
+ * @param env Database environment
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t db_writer_lock(napr_db_env_t * env)
+{
+    if (env->writer_thread_mutex) {
+        /* Intra-process locking */
+        return apr_thread_mutex_lock(env->writer_thread_mutex);
+    }
+    else if (env->writer_proc_mutex) {
+        /* Inter-process locking */
+        return apr_proc_mutex_lock(env->writer_proc_mutex);
+    }
+    else {
+        /* No mutex initialized - this should not happen */
+        return APR_EINVAL;
+    }
+}
+
+/**
+ * @brief Release the writer lock.
+ *
+ * @param env Database environment
+ * @return APR_SUCCESS or error code
+ */
+static apr_status_t db_writer_unlock(napr_db_env_t * env)
+{
+    if (env->writer_thread_mutex) {
+        /* Intra-process locking */
+        return apr_thread_mutex_unlock(env->writer_thread_mutex);
+    }
+    else if (env->writer_proc_mutex) {
+        /* Inter-process locking */
+        return apr_proc_mutex_unlock(env->writer_proc_mutex);
+    }
+    else {
+        /* No mutex initialized - this should not happen */
+        return APR_EINVAL;
+    }
+}
+
+/*
+ * Transaction API implementation
+ */
+
+/**
+ * @brief Begin a transaction.
+ *
+ * Starts a new read or write transaction. Write transactions acquire
+ * the writer lock (SWMR enforcement). Read transactions are lock-free
+ * and operate on a snapshot.
+ *
+ * @param env Database environment
+ * @param flags Transaction flags (NAPR_DB_RDONLY for read-only)
+ * @param txn Pointer to receive transaction handle
+ * @return APR_SUCCESS or error code
+ */
 apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_txn_t ** txn)
 {
-    (void) env;
-    (void) flags;
-    (void) txn;
-    return APR_ENOTIMPL;
+    apr_status_t status;
+    napr_db_txn_t *t = NULL;
+    apr_pool_t *txn_pool = NULL;
+    int is_write = !(flags & NAPR_DB_RDONLY);
+
+    if (!env || !txn) {
+        return APR_EINVAL;
+    }
+
+    /* Create a child pool for the transaction */
+    status = apr_pool_create(&txn_pool, env->pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Allocate transaction handle */
+    t = apr_pcalloc(txn_pool, sizeof(napr_db_txn_t));
+    if (!t) {
+        apr_pool_destroy(txn_pool);
+        return APR_ENOMEM;
+    }
+
+    /* If write transaction, acquire writer lock (SWMR enforcement) */
+    if (is_write) {
+        status = db_writer_lock(env);
+        if (status != APR_SUCCESS) {
+            apr_pool_destroy(txn_pool);
+            return status;
+        }
+    }
+
+    /* Initialize transaction */
+    t->env = env;
+    t->pool = txn_pool;
+    t->flags = flags;
+
+    /* Capture snapshot from current live meta page */
+    t->txnid = env->live_meta->txnid;
+    t->root_pgno = env->live_meta->root;
+
+    /* If write transaction, increment TXNID for this transaction */
+    if (is_write) {
+        t->txnid++;
+    }
+
+    *txn = t;
+    return APR_SUCCESS;
 }
 
+/**
+ * @brief Commit a transaction.
+ *
+ * For read-only transactions, this just releases resources.
+ * For write transactions, this is skeletal - it releases the writer lock
+ * and cleans up. Full commit logic (CoW, writeback, meta page update)
+ * will be implemented in later iterations.
+ *
+ * @param txn Transaction handle
+ * @return APR_SUCCESS or error code
+ */
 apr_status_t napr_db_txn_commit(napr_db_txn_t * txn)
 {
-    (void) txn;
-    return APR_ENOTIMPL;
+    apr_status_t status = APR_SUCCESS;
+    int is_write = !(txn->flags & NAPR_DB_RDONLY);
+
+    if (!txn) {
+        return APR_EINVAL;
+    }
+
+    /* If write transaction, release writer lock */
+    if (is_write) {
+        status = db_writer_unlock(txn->env);
+    }
+
+    /* Destroy transaction pool (frees all transaction allocations) */
+    apr_pool_destroy(txn->pool);
+
+    return status;
 }
 
+/**
+ * @brief Abort a transaction.
+ *
+ * Discards all changes (for write transactions) and releases resources.
+ * For now, this is skeletal - it just releases the writer lock and
+ * cleans up. Full abort logic will be implemented in later iterations.
+ *
+ * @param txn Transaction handle
+ * @return APR_SUCCESS or error code
+ */
 apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
 {
-    (void) txn;
-    return APR_ENOTIMPL;
+    apr_status_t status = APR_SUCCESS;
+    int is_write = !(txn->flags & NAPR_DB_RDONLY);
+
+    if (!txn) {
+        return APR_EINVAL;
+    }
+
+    /* If write transaction, release writer lock */
+    if (is_write) {
+        status = db_writer_unlock(txn->env);
+    }
+
+    /* Destroy transaction pool (frees all transaction allocations) */
+    apr_pool_destroy(txn->pool);
+
+    return status;
 }
 
 apr_status_t napr_db_get(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data)

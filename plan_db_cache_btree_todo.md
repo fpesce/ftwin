@@ -39,20 +39,20 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 2: Transaction Framework and Synchronization
 
-- [ ] **Internal Definitions (`src/napr_db_internal.h`)**
-    - [ ] Update `napr_db_env_t` to hold synchronization primitives (`apr_thread_mutex_t*` and `apr_proc_mutex_t*`).
-    - [ ] Define the concrete `struct napr_db_txn_t` (env, pool, txnid, snapshot root pgno, flags).
-- [ ] **Implementation (`src/napr_db.c`)**
-    - [ ] Initialize the correct mutex in `napr_db_env_open` based on the `NAPR_DB_INTRAPROCESS_LOCK` flag.
-    - [ ] Implement internal helpers `db_writer_lock(env)` and `db_writer_unlock(env)` to abstract the mutex type.
-    - [ ] Implement `napr_db_txn_begin`:
-        - [ ] Acquire writer lock if it's a write transaction (SWMR enforcement).
-        - [ ] Capture snapshot (root pgno and txnid from `live_meta`).
-        - [ ] Increment TXNID if write transaction.
-    - [ ] Implement skeletal `napr_db_txn_commit` and `napr_db_txn_abort` (focus on releasing the writer lock).
-- [ ] **Testing (`check/check_db_txn.c`)**
-    - [ ] Test Read/Write transaction lifecycle.
-    - [ ] Test SWMR Concurrency: Verify that a second write transaction blocks until the first one finishes.
+- [x] **Internal Definitions (`src/napr_db_internal.h`)**
+    - [x] Update `napr_db_env_t` to hold synchronization primitives (`apr_thread_mutex_t*` and `apr_proc_mutex_t*`).
+    - [x] Define the concrete `struct napr_db_txn_t` (env, pool, txnid, snapshot root pgno, flags).
+- [x] **Implementation (`src/napr_db.c`)**
+    - [x] Initialize the correct mutex in `napr_db_env_open` based on the `NAPR_DB_INTRAPROCESS_LOCK` flag.
+    - [x] Implement internal helpers `db_writer_lock(env)` and `db_writer_unlock(env)` to abstract the mutex type.
+    - [x] Implement `napr_db_txn_begin`:
+        - [x] Acquire writer lock if it's a write transaction (SWMR enforcement).
+        - [x] Capture snapshot (root pgno and txnid from `live_meta`).
+        - [x] Increment TXNID if write transaction.
+    - [x] Implement skeletal `napr_db_txn_commit` and `napr_db_txn_abort` (focus on releasing the writer lock).
+- [x] **Testing (`check/check_db_txn.c`)**
+    - [x] Test Read/Write transaction lifecycle.
+    - [x] Test SWMR Concurrency: Verify that a second write transaction blocks until the first one finishes.
 
 ### Iteration 3: B+ Tree Read Path (Search)
 
