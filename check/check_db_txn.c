@@ -16,8 +16,12 @@
 #include "check_db_constants.h"
 
 /* Test fixtures */
+/*
+ * Managed in setup/teardown.
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
-static const char *test_db_path = "/tmp/test_napr_db_txn.db";
+static const char *const test_db_path = "/tmp/test_napr_db_txn.db";
 
 static void setup(void)
 {
