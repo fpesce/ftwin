@@ -38,6 +38,7 @@ static void teardown(void)
 /*
  * Test: Create, SetMapsize, Close lifecycle
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_env_create_setmapsize_close)
 {
     napr_db_env_t *env = NULL;
@@ -63,8 +64,10 @@ START_TEST(test_env_create_setmapsize_close)
     status = napr_db_env_close(env);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
-
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
+
 /*
  * Test: Open new database (NAPR_DB_CREATE)
  * Verifies:
@@ -73,6 +76,7 @@ END_TEST
  * - Meta Page 0 has TXNID 0, Meta Page 1 has TXNID 1
  * - Both have correct magic, version, root, and last_pgno
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_env_open_new_db)
 {
     napr_db_env_t *env = NULL;
@@ -127,8 +131,10 @@ START_TEST(test_env_open_new_db)
     status = napr_db_env_close(env);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
-
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
+
 /*
  * Test: Open existing database
  * Verifies:
@@ -136,6 +142,7 @@ END_TEST
  * - MMAP is re-established
  * - Correct meta page (highest TXNID) is selected as live_meta
  */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_env_open_existing_db)
 {
     napr_db_env_t *env1 = NULL, *env2 = NULL;
@@ -193,8 +200,86 @@ START_TEST(test_env_open_existing_db)
     status = napr_db_env_close(env2);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
-
+/* *INDENT-OFF* */
 END_TEST
+/* *INDENT-ON* */
+
+/*
+ * Test: Open with NAPR_DB_INTRAPROCESS_LOCK flag
+ * Verifies:
+ * - writer_thread_mutex is initialized
+ * - writer_proc_mutex is NULL
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_env_open_intraprocess_lock)
+{
+    napr_db_env_t *env = NULL;
+    apr_status_t status;
+    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+
+    /* Create and configure environment */
+    status = napr_db_env_create(&env, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(env, mapsize);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Open with INTRAPROCESS_LOCK flag */
+    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Verify thread mutex is initialized */
+    ck_assert_ptr_nonnull(env->writer_thread_mutex);
+
+    /* Verify proc mutex is NULL (not used with INTRAPROCESS_LOCK) */
+    ck_assert_ptr_null(env->writer_proc_mutex);
+
+    /* Close environment */
+    status = napr_db_env_close(env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/*
+ * Test: Open with default (inter-process) locking
+ * Verifies:
+ * - writer_proc_mutex is initialized
+ * - writer_thread_mutex is NULL
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_env_open_interprocess_lock)
+{
+    napr_db_env_t *env = NULL;
+    apr_status_t status;
+    apr_size_t mapsize = 1024 * 1024;   /* 1 MB */
+
+    /* Create and configure environment */
+    status = napr_db_env_create(&env, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(env, mapsize);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Open without INTRAPROCESS_LOCK flag (default inter-process) */
+    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Verify proc mutex is initialized */
+    ck_assert_ptr_nonnull(env->writer_proc_mutex);
+
+    /* Verify thread mutex is NULL (not used in inter-process mode) */
+    ck_assert_ptr_null(env->writer_thread_mutex);
+
+    /* Close environment */
+    status = napr_db_env_close(env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 /*
  * Test suite setup
  */
@@ -212,6 +297,8 @@ Suite *make_db_env_suite(void)
     tcase_add_test(tc_core, test_env_create_setmapsize_close);
     tcase_add_test(tc_core, test_env_open_new_db);
     tcase_add_test(tc_core, test_env_open_existing_db);
+    tcase_add_test(tc_core, test_env_open_intraprocess_lock);
+    tcase_add_test(tc_core, test_env_open_interprocess_lock);
 
     suite_add_tcase(s, tc_core);
 

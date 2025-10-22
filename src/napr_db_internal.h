@@ -14,6 +14,8 @@
 
 #include "napr_db.h"
 #include <apr_mmap.h>
+#include <apr_thread_mutex.h>
+#include <apr_proc_mutex.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -178,6 +180,26 @@ struct napr_db_env_t
     DB_MetaPage *meta0;         /**< Pointer to Meta Page 0 in mmap */
     DB_MetaPage *meta1;         /**< Pointer to Meta Page 1 in mmap */
     DB_MetaPage *live_meta;     /**< Pointer to current active meta page */
+
+    /* Synchronization - SWMR model */
+    apr_thread_mutex_t *writer_thread_mutex;  /**< Intra-process writer lock */
+    apr_proc_mutex_t *writer_proc_mutex;      /**< Inter-process writer lock */
+};
+
+/**
+ * @brief Transaction handle (concrete definition).
+ *
+ * Represents a read or write transaction. Write transactions are
+ * serialized via the SWMR mutex. Read transactions are lock-free
+ * and operate on a snapshot.
+ */
+struct napr_db_txn_t
+{
+    napr_db_env_t *env;         /**< Environment this transaction belongs to */
+    apr_pool_t *pool;           /**< APR pool for transaction allocations */
+    txnid_t txnid;              /**< Transaction ID (snapshot version) */
+    pgno_t root_pgno;           /**< Root page number for this snapshot */
+    unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
 };
 
 #endif /* NAPR_DB_INTERNAL_H */
