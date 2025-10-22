@@ -22,20 +22,20 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Define B+ Tree Node Structures (`DB_BranchNode`, `DB_LeafNode`).
 - [x] **Testing (`check/check_db_layout.c`)**
     - [x] Write tests using `_Static_assert` and `offsetof()` to validate structure sizes and offsets against the specification (Critical for zero-copy).
-- [ ] **Environment Lifecycle Implementation (`src/napr_db.c`)**
-    - [ ] Define the concrete `struct napr_db_env_t` (pool, mapsize, file handle, mmap, meta pointers).
-    - [ ] Implement `napr_db_env_create` and `napr_db_env_set_mapsize`.
-    - [ ] Implement `napr_db_env_open`:
-        - [ ] File handling (Open/Create).
-        - [ ] Initialization (If new: Initialize and write Meta Pages 0 and 1, ensure durability via `apr_file_sync`).
-        - [ ] Memory Mapping (`apr_mmap_create`).
-        - [ ] Meta Page Validation (Magic/Version).
-        - [ ] Meta Page Selection (Select highest valid TXNID as `live_meta`).
-    - [ ] Implement `napr_db_env_close` (Unmap and close handles).
-- [ ] **Testing (`check/check_db_env.c`)**
-    - [ ] Test Create/SetMapsize/Close lifecycle.
-    - [ ] Test Open (New DB): Verify file creation and initial meta page contents.
-    - [ ] Test Open (Existing DB): Verify MMAP and correct meta page selection.
+- [x] **Environment Lifecycle Implementation (`src/napr_db.c`)**
+    - [x] Define the concrete `struct napr_db_env_t` (pool, mapsize, file handle, mmap, meta pointers).
+    - [x] Implement `napr_db_env_create` and `napr_db_env_set_mapsize`.
+    - [x] Implement `napr_db_env_open`:
+        - [x] File handling (Open/Create).
+        - [x] Initialization (If new: Initialize and write Meta Pages 0 and 1, ensure durability via `apr_file_sync`).
+        - [x] Memory Mapping (`apr_mmap_create`).
+        - [x] Meta Page Validation (Magic/Version).
+        - [x] Meta Page Selection (Select highest valid TXNID as `live_meta`).
+    - [x] Implement `napr_db_env_close` (Unmap and close handles).
+- [x] **Testing (`check/check_db_env.c`)**
+    - [x] Test Create/SetMapsize/Close lifecycle.
+    - [x] Test Open (New DB): Verify file creation and initial meta page contents.
+    - [x] Test Open (Existing DB): Verify MMAP and correct meta page selection.
 
 ### Iteration 2: Transaction Framework and Synchronization
 
