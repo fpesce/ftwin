@@ -12,7 +12,8 @@
 #ifndef NAPR_DB_INTERNAL_H
 #define NAPR_DB_INTERNAL_H
 
-#include "../include/napr_db.h"
+#include "napr_db.h"
+#include <apr_mmap.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -151,5 +152,32 @@ typedef struct __attribute__((packed)) DB_LeafNode {
     uint16_t data_size;  /**< Data size in bytes (2 bytes) */
     uint8_t kv_data[];   /**< Key and data (variable length) */
 } DB_LeafNode;
+
+/*
+ * In-memory structures
+ */
+
+/**
+ * @brief Database environment handle (concrete definition).
+ *
+ * Contains all state for an opened database file including
+ * the memory map, file handle, and pointers to meta pages.
+ */
+struct napr_db_env_t
+{
+    apr_pool_t *pool;           /**< APR pool for allocations */
+    apr_size_t mapsize;         /**< Size of memory map in bytes */
+    unsigned int flags;         /**< Environment flags */
+
+    /* File and mapping */
+    apr_file_t *file;           /**< Database file handle */
+    apr_mmap_t *mmap;           /**< Memory map handle */
+    void *map_addr;             /**< Base address of memory map */
+
+    /* Meta pages */
+    DB_MetaPage *meta0;         /**< Pointer to Meta Page 0 in mmap */
+    DB_MetaPage *meta1;         /**< Pointer to Meta Page 1 in mmap */
+    DB_MetaPage *live_meta;     /**< Pointer to current active meta page */
+};
 
 #endif /* NAPR_DB_INTERNAL_H */
