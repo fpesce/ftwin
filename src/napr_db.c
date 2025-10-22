@@ -556,7 +556,7 @@ apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_put(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
 {
     (void) txn;
     (void) key;
