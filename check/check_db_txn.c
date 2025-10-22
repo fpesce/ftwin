@@ -172,7 +172,7 @@ END_TEST
 /*
  * Thread data structure for SWMR concurrency test
  */
-    struct thread_data
+struct thread_data
 {
     napr_db_env_t *env;
     apr_time_t start_time;      /* Time when thread started trying to acquire lock */
@@ -256,7 +256,7 @@ START_TEST(test_swmr_intraprocess)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Wait for both threads to complete */
-    apr_status_t thread_status;
+    apr_status_t thread_status = APR_SUCCESS;
     apr_thread_join(&thread_status, thread1);
     apr_thread_join(&thread_status, thread2);
 
@@ -339,10 +339,10 @@ END_TEST
  */
 Suite *make_db_txn_suite(void)
 {
-    Suite *s = NULL;
+    Suite *suite = NULL;
     TCase *tc_core = NULL;
 
-    s = suite_create("DB Transactions");
+    suite = suite_create("DB Transactions");
 
     /* Core test case */
     tc_core = tcase_create("Core");
@@ -354,7 +354,7 @@ Suite *make_db_txn_suite(void)
     tcase_add_test(tc_core, test_swmr_intraprocess);
     tcase_add_test(tc_core, test_concurrent_readers);
 
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }
