@@ -35,25 +35,25 @@ apr_status_t napr_db_env_create(napr_db_env_t ** env, apr_pool_t *pool)
     }
 
     /* Allocate environment structure from pool */
-    napr_db_env_t *e = apr_pcalloc(pool, sizeof(napr_db_env_t));
-    if (!e) {
+    napr_db_env_t *env_handle = apr_pcalloc(pool, sizeof(napr_db_env_t));
+    if (!env_handle) {
         return APR_ENOMEM;
     }
 
     /* Initialize fields */
-    e->pool = pool;
-    e->mapsize = 0;
-    e->flags = 0;
-    e->file = NULL;
-    e->mmap = NULL;
-    e->map_addr = NULL;
-    e->meta0 = NULL;
-    e->meta1 = NULL;
-    e->live_meta = NULL;
-    e->writer_thread_mutex = NULL;
-    e->writer_proc_mutex = NULL;
+    env_handle->pool = pool;
+    env_handle->mapsize = 0;
+    env_handle->flags = 0;
+    env_handle->file = NULL;
+    env_handle->mmap = NULL;
+    env_handle->map_addr = NULL;
+    env_handle->meta0 = NULL;
+    env_handle->meta1 = NULL;
+    env_handle->live_meta = NULL;
+    env_handle->writer_thread_mutex = NULL;
+    env_handle->writer_proc_mutex = NULL;
 
-    *env = e;
+    *env = env_handle;
     return APR_SUCCESS;
 }
 
@@ -197,6 +197,11 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
     apr_finfo_t finfo;
     status = apr_stat(&finfo, path, APR_FINFO_SIZE, env->pool);
 
+    if (status != APR_SUCCESS && status != APR_ENOENT) {
+        /* Other error */
+        return status;
+    }
+
     if (status == APR_SUCCESS) {
         /* File exists - open it */
         is_new_file = 0;
@@ -204,8 +209,7 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
         if (status != APR_SUCCESS) {
             return status;
         }
-    }
-    else if (status == APR_ENOENT) {
+    } else {
         /* File doesn't exist */
         if (!(flags & NAPR_DB_CREATE)) {
             return APR_ENOENT;  /* CREATE flag not set */
@@ -227,10 +231,6 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
             env->file = NULL;
             return status;
         }
-    }
-    else {
-        /* Other error */
-        return status;
     }
 
     /* Memory map the file */
@@ -300,20 +300,20 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
             return status;
         }
         env->writer_proc_mutex = NULL;
+        return APR_SUCCESS;
     }
-    else {
-        /* Inter-process locking: use process mutex */
-        status = apr_proc_mutex_create(&env->writer_proc_mutex, NULL, APR_LOCK_DEFAULT, env->pool);
-        if (status != APR_SUCCESS) {
-            apr_mmap_delete(env->mmap);
-            env->mmap = NULL;
-            env->map_addr = NULL;
-            apr_file_close(env->file);
-            env->file = NULL;
-            return status;
-        }
-        env->writer_thread_mutex = NULL;
+
+    /* Inter-process locking: use process mutex */
+    status = apr_proc_mutex_create(&env->writer_proc_mutex, NULL, APR_LOCK_DEFAULT, env->pool);
+    if (status != APR_SUCCESS) {
+        apr_mmap_delete(env->mmap);
+        env->mmap = NULL;
+        env->map_addr = NULL;
+        apr_file_close(env->file);
+        env->file = NULL;
+        return status;
     }
+    env->writer_thread_mutex = NULL;
 
     return APR_SUCCESS;
 }
@@ -371,14 +371,12 @@ static apr_status_t db_writer_lock(napr_db_env_t * env)
         /* Intra-process locking */
         return apr_thread_mutex_lock(env->writer_thread_mutex);
     }
-    else if (env->writer_proc_mutex) {
+    if (env->writer_proc_mutex) {
         /* Inter-process locking */
         return apr_proc_mutex_lock(env->writer_proc_mutex);
     }
-    else {
-        /* No mutex initialized - this should not happen */
-        return APR_EINVAL;
-    }
+    /* No mutex initialized - this should not happen */
+    return APR_EINVAL;
 }
 
 /**
@@ -393,14 +391,12 @@ static apr_status_t db_writer_unlock(napr_db_env_t * env)
         /* Intra-process locking */
         return apr_thread_mutex_unlock(env->writer_thread_mutex);
     }
-    else if (env->writer_proc_mutex) {
+    if (env->writer_proc_mutex) {
         /* Inter-process locking */
         return apr_proc_mutex_unlock(env->writer_proc_mutex);
     }
-    else {
-        /* No mutex initialized - this should not happen */
-        return APR_EINVAL;
-    }
+    /* No mutex initialized - this should not happen */
+    return APR_EINVAL;
 }
 
 /*
@@ -422,7 +418,7 @@ static apr_status_t db_writer_unlock(napr_db_env_t * env)
 apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_txn_t ** txn)
 {
     apr_status_t status = APR_SUCCESS;
-    napr_db_txn_t *t = NULL;
+    napr_db_txn_t *txn_handle = NULL;
     apr_pool_t *txn_pool = NULL;
     int is_write = !(flags & NAPR_DB_RDONLY);
 
@@ -437,8 +433,8 @@ apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_
     }
 
     /* Allocate transaction handle */
-    t = apr_pcalloc(txn_pool, sizeof(napr_db_txn_t));
-    if (!t) {
+    txn_handle = apr_pcalloc(txn_pool, sizeof(napr_db_txn_t));
+    if (!txn_handle) {
         apr_pool_destroy(txn_pool);
         return APR_ENOMEM;
     }
@@ -453,20 +449,20 @@ apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_
     }
 
     /* Initialize transaction */
-    t->env = env;
-    t->pool = txn_pool;
-    t->flags = flags;
+    txn_handle->env = env;
+    txn_handle->pool = txn_pool;
+    txn_handle->flags = flags;
 
     /* Capture snapshot from current live meta page */
-    t->txnid = env->live_meta->txnid;
-    t->root_pgno = env->live_meta->root;
+    txn_handle->txnid = env->live_meta->txnid;
+    txn_handle->root_pgno = env->live_meta->root;
 
     /* If write transaction, increment TXNID for this transaction */
     if (is_write) {
-        t->txnid++;
+        txn_handle->txnid++;
     }
 
-    *txn = t;
+    *txn = txn_handle;
     return APR_SUCCESS;
 }
 
@@ -568,11 +564,11 @@ apr_status_t napr_db_cursor_close(napr_db_cursor_t * cursor)
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, napr_db_val_t * key, napr_db_val_t * data, int op)
+apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, napr_db_val_t * key, napr_db_val_t * data, int operation)
 {
     (void) cursor;
     (void) key;
     (void) data;
-    (void) op;
+    (void) operation;
     return APR_ENOTIMPL;
 }
