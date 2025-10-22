@@ -201,7 +201,8 @@ extern "C"
  * @param data Pointer to receive value (output)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_get(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key,
+                             napr_db_val_t *data);
 
 /**
  * @brief Store a key-value pair.
@@ -213,7 +214,8 @@ extern "C"
  * @param data Value to store
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_put(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_put(napr_db_txn_t *txn, napr_db_val_t *key,
+                             napr_db_val_t *data);
 
 /**
  * @brief Delete a key-value pair.
@@ -225,7 +227,8 @@ extern "C"
  * @param data Optional: if non-NULL, only delete if value matches
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_del(napr_db_txn_t * txn, napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key,
+                             napr_db_val_t *data);
 
 /*
  * Cursor operations
@@ -257,7 +260,9 @@ extern "C"
  * @param operation Cursor operation (NAPR_DB_FIRST, NAPR_DB_NEXT, etc.)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, napr_db_val_t * key, napr_db_val_t * data, int operation);
+    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor,
+                                    const napr_db_val_t *key,
+                                    napr_db_val_t *data, int operation);
 
 #ifdef __cplusplus
 }
