@@ -498,6 +498,7 @@ Suite *make_ft_report_suite(void);
 Suite *make_ft_report_json_suite(void);
 Suite *make_key_hash_suite(void);
 Suite *make_ft_process_suite(void);
+Suite *make_db_layout_suite(void);
 
 enum test_suite
 {
@@ -513,7 +514,8 @@ enum test_suite
     FT_ARCHIVE_SUITE,
     FT_IMAGE_SUITE,
     FT_CONFIG_SUITE,
-    KEY_HASH_SUITE
+    KEY_HASH_SUITE,
+    DB_LAYOUT_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -533,6 +535,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_report_json_suite());
     srunner_add_suite(suite_runner, make_key_hash_suite());
     srunner_add_suite(suite_runner, make_ft_process_suite());
+    srunner_add_suite(suite_runner, make_db_layout_suite());
 }
 
 int main(int argc, char **argv)
@@ -615,6 +618,9 @@ int main(int argc, char **argv)
             break;
         case KEY_HASH_SUITE:
             srunner_add_suite(suite_runner, make_key_hash_suite());
+            break;
+        case DB_LAYOUT_SUITE:
+            srunner_add_suite(suite_runner, make_db_layout_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */

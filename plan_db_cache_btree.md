@@ -83,7 +83,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Context:** We are implementing `napr_db` in C using APR, following strict TDD. The format is 64-bit little-endian. Page size is 4096 bytes.
 
-**Task 1: Create `include/napr_db.h`.**
+**Task 1: Create `src/napr_db.h`.**
 1. Include APR headers (apr_pools.h, apr_errno.h, apr_file_io.h).
 2. Define `napr_db_val_t` (size and data pointer).
 3. Declare opaque handles: `napr_db_env_t`, `napr_db_txn_t`, `napr_db_cursor_t`.
@@ -97,7 +97,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 3. Define Page Flags (P_BRANCH, P_LEAF, P_OVERFLOW, P_FREE).
 4. Define the on-disk structures: `DB_PageHeader`, `DB_MetaPage`, `DB_BranchNode`, `DB_LeafNode`.
 
-**Task 3: Create `tests/test_db_layout.c`.**
+**Task 3: Create `check/check_db_layout.c`.**
 1. Write tests using `_Static_assert` and `offsetof()` to verify the `sizeof()` and layout of all on-disk structures match the specification exactly. This is critical for zero-copy access.
 
 #### Prompt 1.2: Environment Lifecycle (Initialization and Mapping)
@@ -109,7 +109,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 **Task 1: Update `src/napr_db_internal.h`.**
 1. Define the concrete `struct napr_db_env_t`. Include: pool, mapsize, flags, file handle (`apr_file_t*`), MMAP (`apr_mmap_t*`, `map_addr`), pointers to Meta Page 0, 1, and `live_meta`.
 
-**Task 2: Create `tests/test_db_env.c`.**
+**Task 2: Create `check/check_db_env.c`.**
 1. Test `create`/`set_mapsize`/`close`.
 2. Test `open` (New DB): Use `NAPR_DB_CREATE`. Verify file creation. Verify Meta Pages 0 and 1 are initialized correctly (Magic, TXNIDs 0/1, last_pgno=1).
 3. Test `open` (Existing DB): Re-open the DB. Verify MMAP is established. Verify the correct meta page (highest TXNID) is selected.
@@ -135,11 +135,11 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
    - `apr_proc_mutex_t *writer_proc_mutex;`
 2. Define the concrete `struct napr_db_txn_t` (env, pool, txnid, snapshot root pgno, flags).
 
-**Task 2: Update `tests/test_db_env.c`.**
+**Task 2: Update `check/check_db_env.c`.**
 1. Test `open` with `NAPR_DB_INTRAPROCESS_LOCK`: Verify `writer_thread_mutex` is initialized.
 2. Test `open` default: Verify `writer_proc_mutex` is initialized.
 
-**Task 3: Create `tests/test_db_txn.c`.**
+**Task 3: Create `check/check_db_txn.c`.**
 1. Test Read/Write Txn lifecycle.
 2. Test SWMR (Concurrency): Start Write Txn 1. In a second thread/process, attempt Write Txn 2. Verify it blocks until Txn 1 commits/aborts.
 
@@ -168,7 +168,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Context:** We are starting `napr_cache`, built on `napr_db`. It uses APR and `libxxhash`.
 
-**Task 1: Create `include/napr_cache.h`.**
+**Task 1: Create `src/napr_cache.h`.**
 1. Include headers (APR types, `napr_db.h`, `xxhash.h`).
 2. Define `napr_cache_entry_t`: mtime, ctime (apr_time_t), size (apr_off_t), hash (XXH128_hash_t).
 3. Add comments warning about platform dependency.
@@ -179,7 +179,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 2. Define the concrete `struct napr_cache_t`: pool, db_env, lock_file_handle, visited_set, visited_mutex.
 3. Provide stubs for all API functions.
 
-**Task 3: Create `tests/test_cache_model.c`.**
+**Task 3: Create `check/check_cache_model.c`.**
 1. CRITICAL Test: Verify that `sizeof(napr_cache_entry_t)` is exactly 40 bytes. Use `_Static_assert`. This confirms correct packing required for zero-copy.
 
 #### Prompt 8.2: Initialization, Process Lock, and DB Integration
@@ -188,7 +188,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Prerequisite:** Prompt 8.1 complete.
 
-**Task 1: Create `tests/test_cache_init.c`.**
+**Task 1: Create `check/check_cache_init.c`.**
 1. Test Open/Close Lifecycle.
 2. Test Process Exclusivity:
    - Open Cache 1.
@@ -216,7 +216,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Prerequisite:** Prompt 8.2 complete.
 
-**Task 1: Create `tests/test_cache_access.c`.**
+**Task 1: Create `check/check_cache_access.c`.**
 1. Test CRUD Lifecycle:
    - Begin Write Txn, Upsert entry A, Commit.
    - Begin Read Txn, Lookup A.
@@ -241,7 +241,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Prerequisite:** Iteration 8 complete.
 
-**Task 1: Create `tests/test_cache_mark_sweep.c`.**
+**Task 1: Create `check/check_cache_mark_sweep.c`.**
 1. Test Memory Management (CRITICAL):
    - Create a short-lived scratch pool. Allocate a path string from it.
    - Mark it visited.
@@ -261,7 +261,7 @@ Follow these prompts sequentially. **Remember Rule #1: Implement only the curren
 
 **Prerequisite:** Prompt 9.1 complete.
 
-**Task 1: Update `tests/test_cache_mark_sweep.c`.**
+**Task 1: Update `check/check_cache_mark_sweep.c`.**
 1. Test Sweep Logic Integration:
    - Populate cache: A, B, C, D.
    - Mark subset: A, C.
