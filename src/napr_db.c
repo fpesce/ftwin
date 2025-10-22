@@ -219,7 +219,7 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
         }
 
         /* Ensure file is at least 2 pages (for 2 meta pages) */
-        apr_off_t min_size = 2 * PAGE_SIZE;
+        apr_off_t min_size = (apr_off_t) 2 * PAGE_SIZE;
         status = apr_file_trunc(env->file, min_size);
         if (status != APR_SUCCESS) {
             apr_file_close(env->file);

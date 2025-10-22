@@ -30,6 +30,46 @@ typedef uint64_t pgno_t;
 typedef uint64_t txnid_t;
 
 /*
+ * Size and offset constants for validation
+ */
+
+/* Basic types */
+#define PGNO_T_SIZE 8
+#define TXNID_T_SIZE 8
+
+/* DB_PageHeader layout */
+#define DB_PAGEHEADER_SIZE 18
+#define DB_PAGEHEADER_PGNO_OFFSET 0
+#define DB_PAGEHEADER_FLAGS_OFFSET 8
+#define DB_PAGEHEADER_NUM_KEYS_OFFSET 10
+#define DB_PAGEHEADER_LOWER_OFFSET 12
+#define DB_PAGEHEADER_UPPER_OFFSET 14
+#define DB_PAGEHEADER_PADDING_OFFSET 16
+
+/* DB_MetaPage layout */
+#define DB_METAPAGE_SIZE PAGE_SIZE
+#define DB_METAPAGE_MAGIC_OFFSET 0
+#define DB_METAPAGE_VERSION_OFFSET 4
+#define DB_METAPAGE_TXNID_OFFSET 8
+#define DB_METAPAGE_ROOT_OFFSET 16
+#define DB_METAPAGE_LAST_PGNO_OFFSET 24
+#define DB_METAPAGE_PAYLOAD_SIZE (4 + 4 + 8 + 8 + 8)
+#define DB_METAPAGE_RESERVED_SIZE (PAGE_SIZE - DB_METAPAGE_PAYLOAD_SIZE)
+
+/* DB_BranchNode layout */
+#define DB_BRANCHNODE_BASE_SIZE 10
+#define DB_BRANCHNODE_PGNO_OFFSET 0
+#define DB_BRANCHNODE_KEY_SIZE_OFFSET 8
+#define DB_BRANCHNODE_KEY_DATA_OFFSET 10
+
+/* DB_LeafNode layout */
+#define DB_LEAFNODE_BASE_SIZE 4
+#define DB_LEAFNODE_KEY_SIZE_OFFSET 0
+#define DB_LEAFNODE_DATA_SIZE_OFFSET 2
+#define DB_LEAFNODE_KV_DATA_OFFSET 4
+
+
+/*
  * Constants
  */
 
@@ -111,7 +151,7 @@ typedef struct DB_MetaPage
     txnid_t txnid;      /**< Transaction ID (8 bytes) */
     pgno_t root;        /**< Root page of B+ tree (8 bytes) */
     pgno_t last_pgno;   /**< Last allocated page number (8 bytes) */
-    uint8_t reserved[4064];  /**< Reserved/padding to PAGE_SIZE */
+    uint8_t reserved[DB_METAPAGE_RESERVED_SIZE];  /**< Reserved/padding to PAGE_SIZE */
 } DB_MetaPage;
 
 /**
