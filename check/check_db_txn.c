@@ -46,7 +46,7 @@ START_TEST(test_txn_read_lifecycle)
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
@@ -91,7 +91,7 @@ START_TEST(test_txn_write_lifecycle)
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
@@ -136,7 +136,7 @@ START_TEST(test_txn_write_abort)
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
@@ -184,7 +184,7 @@ static void *APR_THREAD_FUNC swmr_thread_func(apr_thread_t *thread, void *data)
 {
     struct thread_data *tdata = (struct thread_data *) data;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
 
     /* Record start time */
     tdata->start_time = apr_time_now();
@@ -215,7 +215,7 @@ static void *APR_THREAD_FUNC swmr_thread_func(apr_thread_t *thread, void *data)
 START_TEST(test_swmr_intraprocess)
 {
     napr_db_env_t *env = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment with INTRAPROCESS_LOCK */
@@ -233,7 +233,8 @@ START_TEST(test_swmr_intraprocess)
     struct thread_data tdata2 = {.env = env,.sequence = 2 };
 
     /* Create threads */
-    apr_thread_t *thread1 = NULL, *thread2 = NULL;
+    apr_thread_t *thread1 = NULL;
+    apr_thread_t *thread2 = NULL;
     apr_threadattr_t *attr = NULL;
 
     status = apr_threadattr_create(&attr, test_pool);
@@ -280,8 +281,10 @@ END_TEST
 START_TEST(test_concurrent_readers)
 {
     napr_db_env_t *env = NULL;
-    napr_db_txn_t *txn1 = NULL, *txn2 = NULL, *txn3 = NULL;
-    apr_status_t status;
+    napr_db_txn_t *txn1 = NULL;
+    napr_db_txn_t *txn2 = NULL;
+    napr_db_txn_t *txn3 = NULL;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and open environment */
@@ -332,8 +335,8 @@ END_TEST
  */
 Suite *make_db_txn_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
+    Suite *s = NULL;
+    TCase *tc_core = NULL;
 
     s = suite_create("DB Transactions");
 

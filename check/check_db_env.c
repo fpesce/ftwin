@@ -43,7 +43,7 @@ static void teardown(void)
 START_TEST(test_env_create_setmapsize_close)
 {
     napr_db_env_t *env = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
 
     /* Create environment */
     status = napr_db_env_create(&env, test_pool);
@@ -81,7 +81,7 @@ END_TEST
 START_TEST(test_env_open_new_db)
 {
     napr_db_env_t *env = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
@@ -146,8 +146,9 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_env_open_existing_db)
 {
-    napr_db_env_t *env1 = NULL, *env2 = NULL;
-    apr_status_t status;
+    napr_db_env_t *env1 = NULL;
+    napr_db_env_t *env2 = NULL;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* First, create a new database */
@@ -215,7 +216,7 @@ END_TEST
 START_TEST(test_env_open_intraprocess_lock)
 {
     napr_db_env_t *env = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
@@ -253,7 +254,7 @@ END_TEST
 START_TEST(test_env_open_interprocess_lock)
 {
     napr_db_env_t *env = NULL;
-    apr_status_t status;
+    apr_status_t status = 0;
     apr_size_t mapsize = ONE_MB;
 
     /* Create and configure environment */
@@ -286,8 +287,8 @@ END_TEST
  */
 Suite *make_db_env_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
+    Suite *s = NULL;
+    TCase *tc_core = NULL;
 
     s = suite_create("DB Environment");
 

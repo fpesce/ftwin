@@ -124,7 +124,8 @@ static apr_status_t validate_meta_page(const DB_MetaPage * meta)
  */
 static apr_status_t select_live_meta(napr_db_env_t * env)
 {
-    apr_status_t status0, status1;
+    apr_status_t status0 = APR_SUCCESS;
+    apr_status_t status1 = APR_SUCCESS;
 
     status0 = validate_meta_page(env->meta0);
     status1 = validate_meta_page(env->meta1);
@@ -170,8 +171,8 @@ static apr_status_t select_live_meta(napr_db_env_t * env)
  */
 apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned int flags)
 {
-    apr_status_t status;
-    apr_int32_t file_flags;
+    apr_status_t status = APR_SUCCESS;
+    apr_int32_t file_flags = 0;
     int is_new_file = 0;
 
     if (!env || !path) {
@@ -420,7 +421,7 @@ static apr_status_t db_writer_unlock(napr_db_env_t * env)
  */
 apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_txn_t ** txn)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     napr_db_txn_t *t = NULL;
     apr_pool_t *txn_pool = NULL;
     int is_write = !(flags & NAPR_DB_RDONLY);
