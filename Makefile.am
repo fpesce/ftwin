@@ -47,7 +47,9 @@ noinst_HEADERS = src/debug.h \
 		  src/ft_archive.h \
 		  src/ft_report.h \
 		  src/ft_report_json.h \
-		  src/ft_image.h
+		  src/ft_image.h \
+		  src/napr_db_internal.h \
+		  include/napr_db.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/ft_config.c \
@@ -76,7 +78,8 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      check/check_ft_ignore.c src/key_hash.c check/check_key_hash.c src/ft_config.c src/ft_traverse.c \
 		      src/ft_process.c src/ft_archive.c src/ft_report.c src/ft_report_json.c \
 		      src/ft_image.c check/check_ft_archive.c check/check_ft_image.c check/check_ft_process.c \
-		      check/check_ft_config.c check/check_ft_report.c check/check_ft_report_json.c
+		      check/check_ft_config.c check/check_ft_report.c check/check_ft_report_json.c \
+		      check/check_db_layout.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@
