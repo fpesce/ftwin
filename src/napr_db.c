@@ -548,12 +548,56 @@ apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
     return status;
 }
 
+/**
+ * @brief Retrieve a value for a given key (zero-copy).
+ *
+ * Searches the B+ tree for the specified key and returns a pointer
+ * to the value data directly from the memory map (zero-copy).
+ *
+ * The returned data pointer is valid only for the lifetime of the
+ * transaction and must not be modified.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param data Output: value data (size and pointer set on success)
+ * @return APR_SUCCESS if found, APR_NOTFOUND if not found, error code on failure
+ */
 apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
 {
-    (void) txn;
-    (void) key;
-    (void) data;
-    return APR_ENOTIMPL;
+    DB_PageHeader *leaf_page = NULL;
+    uint16_t index = 0;
+    apr_status_t status = APR_SUCCESS;
+    DB_LeafNode *leaf_node = NULL;
+
+    if (!txn || !key || !data) {
+        return APR_EINVAL;
+    }
+
+    /* Find the leaf page that should contain the key */
+    status = db_find_leaf_page(txn, key, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Search within the leaf page for the exact key */
+    status = db_page_search(leaf_page, key, &index);
+    if (status == APR_NOTFOUND) {
+        /* Key not found in the leaf */
+        return APR_NOTFOUND;
+    }
+    if (status != APR_SUCCESS) {
+        /* Other error */
+        return status;
+    }
+
+    /* Found the key - retrieve the value (zero-copy) */
+    leaf_node = db_page_leaf_node(leaf_page, index);
+
+    /* Set the output data pointer and size */
+    data->size = leaf_node->data_size;
+    data->data = db_leaf_node_value(leaf_node);
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)

@@ -352,4 +352,16 @@ static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
  */
 apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out);
 
+/**
+ * @brief Find the leaf page that should contain a given key.
+ *
+ * Traverses the B+ tree from the root to find the appropriate leaf page.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out);
+
 #endif /* NAPR_DB_INTERNAL_H */

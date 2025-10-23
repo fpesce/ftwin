@@ -127,3 +127,83 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
     *index_out = left;
     return APR_NOTFOUND;
 }
+
+/**
+ * @brief Find the leaf page that should contain a given key.
+ *
+ * Traverses the B+ tree from the root down to the appropriate leaf page.
+ * This function performs tree traversal following child pointers in branch
+ * pages until reaching a leaf.
+ *
+ * @param txn Transaction handle (contains root_pgno snapshot)
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page in the memory map
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out)
+{
+    pgno_t current_pgno = 0;
+    DB_PageHeader *page = NULL;
+    uint16_t index = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!txn || !key || !leaf_page_out) {
+        return APR_EINVAL;
+    }
+
+    /* Start at the root page from the transaction's snapshot */
+    current_pgno = txn->root_pgno;
+
+    /* Traverse the tree */
+    while (1) {
+        /* Calculate page address in memory map */
+        page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+
+        /* Check if this is a leaf page */
+        if (page->flags & P_LEAF) {
+            /* Found the leaf - stop traversal */
+            *leaf_page_out = page;
+            return APR_SUCCESS;
+        }
+
+        /* Must be a branch page */
+        if (!(page->flags & P_BRANCH)) {
+            /* Invalid page type */
+            return APR_EINVAL;
+        }
+
+        /* Search within the branch page to find the correct child */
+        status = db_page_search(page, key, &index);
+
+        /*
+         * For branch pages in a B+ tree:
+         * - Each entry (key[i], child[i]) means: child[i] contains keys >= key[i]
+         * - If the search finds an exact match at index i, follow child[i]
+         * - If not found, index is the insertion point:
+         *   - If index == 0: key < all keys, but there's no "left" child in our design,
+         *     so we follow child[0] (which should contain the smallest keys)
+         *   - If 0 < index < num_keys: key is between key[index-1] and key[index],
+         *     follow child[index-1]
+         *   - If index == num_keys: key > all keys, follow child[num_keys-1]
+         *
+         * Simplification: If search returns APR_NOTFOUND and index > 0, decrement index
+         */
+
+        if (status == APR_NOTFOUND && index > 0) {
+            index--;
+        }
+
+        /* Ensure index is in valid range */
+        if (index >= page->num_keys) {
+            index = page->num_keys - 1;
+        }
+
+        /* Get the child page number from the branch node */
+        DB_BranchNode *branch_node = db_page_branch_node(page, index);
+        current_pgno = branch_node->pgno;
+    }
+
+    /* Should never reach here */
+    return APR_EGENERAL;
+}
