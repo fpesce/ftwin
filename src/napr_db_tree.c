@@ -10,9 +10,6 @@
 #include <string.h>
 #include <apr_hash.h>
 
-/* Maximum depth of B+ tree for path tracking */
-#define MAX_TREE_DEPTH 32
-
 /**
  * @brief Compare two keys.
  *
