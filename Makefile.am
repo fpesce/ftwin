@@ -80,7 +80,8 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      src/ft_process.c src/ft_archive.c src/ft_report.c src/ft_report_json.c \
 		      src/ft_image.c check/check_ft_archive.c check/check_ft_image.c check/check_ft_process.c \
 		      check/check_ft_config.c check/check_ft_report.c check/check_ft_report_json.c \
-		      check/check_db_layout.c check/check_db_env.c check/check_db_txn.c src/napr_db.c
+		      check/check_db_layout.c check/check_db_env.c check/check_db_txn.c check/check_db_page.c \
+		      src/napr_db.c src/napr_db_tree.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@

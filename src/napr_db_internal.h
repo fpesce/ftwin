@@ -242,4 +242,114 @@ struct napr_db_txn_t
     unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
 };
 
+/*
+ * Page accessor helpers for navigating slotted pages
+ *
+ * The slotted page design stores:
+ * - DB_PageHeader at offset 0
+ * - Slot array (uint16_t offsets) starting at offset sizeof(DB_PageHeader)
+ * - Node data area starting from page end, growing backwards
+ *
+ * Each slot contains the offset (from page start) to the node data.
+ */
+
+/**
+ * @brief Get pointer to the slot array in a page.
+ *
+ * @param page Pointer to the page header
+ * @return Pointer to the first slot (uint16_t offset)
+ */
+static inline uint16_t *db_page_slots(DB_PageHeader * page)
+{
+    return (uint16_t *) ((char *) page + sizeof(DB_PageHeader));
+}
+
+/**
+ * @brief Get the offset of a node at a given index.
+ *
+ * @param page Pointer to the page header
+ * @param index Index of the node (0-based)
+ * @return Offset from page start to the node data
+ */
+static inline uint16_t db_page_slot_offset(DB_PageHeader * page, uint16_t index)
+{
+    uint16_t *slots = db_page_slots(page);
+    return slots[index];
+}
+
+/**
+ * @brief Get pointer to a branch node at a given index.
+ *
+ * @param page Pointer to the page header
+ * @param index Index of the node (0-based)
+ * @return Pointer to the DB_BranchNode
+ */
+static inline DB_BranchNode *db_page_branch_node(DB_PageHeader * page, uint16_t index)
+{
+    uint16_t offset = db_page_slot_offset(page, index);
+    return (DB_BranchNode *) ((char *) page + offset);
+}
+
+/**
+ * @brief Get pointer to a leaf node at a given index.
+ *
+ * @param page Pointer to the page header
+ * @param index Index of the node (0-based)
+ * @return Pointer to the DB_LeafNode
+ */
+static inline DB_LeafNode *db_page_leaf_node(DB_PageHeader * page, uint16_t index)
+{
+    uint16_t offset = db_page_slot_offset(page, index);
+    return (DB_LeafNode *) ((char *) page + offset);
+}
+
+/**
+ * @brief Get pointer to the key data in a branch node.
+ *
+ * @param node Pointer to the branch node
+ * @return Pointer to the key data bytes
+ */
+static inline uint8_t *db_branch_node_key(DB_BranchNode * node)
+{
+    return node->key_data;
+}
+
+/**
+ * @brief Get pointer to the key data in a leaf node.
+ *
+ * @param node Pointer to the leaf node
+ * @return Pointer to the key data bytes
+ */
+static inline uint8_t *db_leaf_node_key(DB_LeafNode * node)
+{
+    return node->kv_data;
+}
+
+/**
+ * @brief Get pointer to the value data in a leaf node.
+ *
+ * The value data follows immediately after the key data.
+ *
+ * @param node Pointer to the leaf node
+ * @return Pointer to the value data bytes
+ */
+static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
+{
+    return node->kv_data + node->key_size;
+}
+
+/*
+ * Forward declarations for tree operations
+ */
+
+/**
+ * @brief Search for a key within a page using binary search.
+ *
+ * @param page Pointer to the page header (Branch or Leaf)
+ * @param key Key to search for
+ * @param index_out Output: index of match or insertion point
+ * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
+ */
+apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out);
+
 #endif /* NAPR_DB_INTERNAL_H */
