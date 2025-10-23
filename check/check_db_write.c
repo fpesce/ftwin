@@ -20,31 +20,43 @@
 #define TEST_DB_PATH "/tmp/test_write.db"
 
 /* Test buffer sizes */
-enum {
+enum
+{
     TEST_KEY_BUF_SIZE = 32,
     TEST_DATA_BUF_SIZE = 64
 };
 
 /* Helper to create and open a test database */
 
+/* Struct to hold key/value generation parameters */
+typedef struct
+{
+    const char *key_prefix;
+    const char *value_prefix;
+    int num_keys;
+} key_params_t;
+
+/* Helper to format a buffer and assert success */
+static void format_buffer(char *buffer, const size_t size, const char *prefix, const int idx)
+{
+    const int ret = snprintf(buffer, size, "%s_%03d", prefix, idx);
+    ck_assert_int_ge(ret, 0);
+    ck_assert_int_lt(ret, size);
+}
+
 /* Helper to insert a range of keys into the database */
-static void helper_insert_data_forward(napr_db_txn_t *txn, const char *key_prefix,
-                                       const char *value_prefix, const int num_keys)
+static void helper_insert_data_forward(napr_db_txn_t *txn, const key_params_t *params)
 {
     char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
-    for (int idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
+    for (int idx = 0; idx < params->num_keys; idx++) {
+        format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
+        format_buffer(data_buf, sizeof(data_buf), params->value_prefix, idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -56,23 +68,18 @@ static void helper_insert_data_forward(napr_db_txn_t *txn, const char *key_prefi
     }
 }
 
-static void helper_insert_data_reverse(napr_db_txn_t *txn, const char *key_prefix,
-                                       const char *value_prefix, const int num_keys)
+static void helper_insert_data_reverse(napr_db_txn_t *txn, const key_params_t *params)
 {
     char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
-    for (int idx = num_keys - 1; idx >= 0; idx--) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
+    for (int idx = params->num_keys - 1; idx >= 0; idx--) {
+        format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
+        format_buffer(data_buf, sizeof(data_buf), params->value_prefix, idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -85,23 +92,18 @@ static void helper_insert_data_reverse(napr_db_txn_t *txn, const char *key_prefi
 }
 
 /* Helper to verify a range of keys from the database */
-static void helper_verify_data(napr_db_txn_t *txn, const char *key_prefix,
-                               const char *value_prefix, const int num_keys)
+static void helper_verify_data(napr_db_txn_t *txn, const key_params_t *params)
 {
     char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t retrieved = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
-    for (int idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
+    for (int idx = 0; idx < params->num_keys; idx++) {
+        format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
+        format_buffer(data_buf, sizeof(data_buf), params->value_prefix, idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -205,7 +207,10 @@ START_TEST(test_insert_multiple_keys)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const int num_keys = 10;
+    const key_params_t params = {.key_prefix = "key",
+        .value_prefix = "value_%03d_data",
+        .num_keys = 10
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -219,8 +224,8 @@ START_TEST(test_insert_multiple_keys)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert and verify data */
-    helper_insert_data_forward(txn, "key", "value_%03d_data", num_keys);
-    helper_verify_data(txn, "key", "value_%03d_data", num_keys);
+    helper_insert_data_forward(txn, &params);
+    helper_verify_data(txn, &params);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -404,7 +409,10 @@ START_TEST(test_insert_sorted_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const int num_keys = 8;
+    const key_params_t params = {.key_prefix = "sorted_key",
+        .value_prefix = "sorted_value",
+        .num_keys = 8
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -418,8 +426,8 @@ START_TEST(test_insert_sorted_order)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert and verify data */
-    helper_insert_data_forward(txn, "sorted_key", "sorted_value", num_keys);
-    helper_verify_data(txn, "sorted_key", "sorted_value", num_keys);
+    helper_insert_data_forward(txn, &params);
+    helper_verify_data(txn, &params);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -441,7 +449,10 @@ START_TEST(test_insert_reverse_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const int num_keys = 8;
+    const key_params_t params = {.key_prefix = "reverse_key",
+        .value_prefix = "reverse_value",
+        .num_keys = 8
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -455,8 +466,8 @@ START_TEST(test_insert_reverse_order)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert and verify data */
-    helper_insert_data_reverse(txn, "reverse_key", "reverse_value", num_keys);
-    helper_verify_data(txn, "reverse_key", "reverse_value", num_keys);
+    helper_insert_data_reverse(txn, &params);
+    helper_verify_data(txn, &params);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
