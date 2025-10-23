@@ -450,7 +450,8 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
     DB_PageHeader *page = NULL;
     uint16_t index = 0;
     uint16_t depth = 0;
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!txn || !key || !path_out || !path_len_out || !leaf_page_out) {
         return APR_EINVAL;
