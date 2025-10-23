@@ -480,6 +480,143 @@ END_TEST
 /* *INDENT-ON* */
 
 /*
+ * Test: Persistence - Data survives database close and reopen
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_commit_persistence)
+{
+    apr_pool_t *pool = NULL;
+    napr_db_env_t *env = NULL;
+    napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    const key_params_t params = {.key_prefix = "persist_key",
+        .value_prefix = "persist_value",
+        .num_keys = 5
+    };
+
+    apr_initialize();
+    apr_pool_create(&pool, NULL);
+
+    /* Create test database and insert data */
+    status = create_test_db(pool, &env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Begin write transaction */
+    status = napr_db_txn_begin(env, 0, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Insert data */
+    helper_insert_data_forward(txn, &params);
+
+    /* Commit the transaction */
+    status = napr_db_txn_commit(txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Close the database */
+    napr_db_env_close(env);
+
+    /* Re-open the database */
+    status = napr_db_env_create(&env, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(env, ONE_MB);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Begin read transaction */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Verify all data is still present */
+    helper_verify_data(txn, &params);
+
+    /* Cleanup */
+    napr_db_txn_abort(txn);
+    napr_db_env_close(env);
+    apr_pool_destroy(pool);
+    apr_terminate();
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/*
+ * Test: MVCC Snapshot Isolation - Read transactions see consistent snapshot
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_mvcc_isolation)
+{
+    apr_pool_t *pool = NULL;
+    napr_db_env_t *env = NULL;
+    napr_db_txn_t *r1_txn = NULL;
+    napr_db_txn_t *w1_txn = NULL;
+    napr_db_txn_t *r2_txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    napr_db_val_t retrieved = { 0 };
+    const char *key_str = "isolation_key";
+    const char *data_str = "isolation_value";
+
+    apr_initialize();
+    apr_pool_create(&pool, NULL);
+
+    /* Create test database */
+    status = create_test_db(pool, &env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Start read transaction R1 (snapshot 1 - empty database) */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &r1_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Start write transaction W1 */
+    status = napr_db_txn_begin(env, 0, &w1_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Prepare key and data */
+    key.data = (void *) key_str;
+    key.size = strlen(key_str);
+    data.data = (void *) data_str;
+    data.size = strlen(data_str);
+
+    /* W1: Insert data */
+    status = napr_db_put(w1_txn, &key, &data);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* W1: Commit */
+    status = napr_db_txn_commit(w1_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* R1: Verify data is NOT visible (snapshot isolation) */
+    status = napr_db_get(r1_txn, &key, &retrieved);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+
+    /* Close R1 */
+    napr_db_txn_abort(r1_txn);
+
+    /* Start new read transaction R2 (snapshot 2 - should see committed data) */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &r2_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* R2: Verify data IS visible */
+    status = napr_db_get(r2_txn, &key, &retrieved);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_int_eq(retrieved.size, data.size);
+    ck_assert_int_eq(memcmp(retrieved.data, data.data, data.size), 0);
+
+    /* Cleanup */
+    napr_db_txn_abort(r2_txn);
+    napr_db_env_close(env);
+    apr_pool_destroy(pool);
+    apr_terminate();
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/*
  * Suite creation
  */
 Suite *make_db_write_suite(void)
@@ -500,6 +637,12 @@ Suite *make_db_write_suite(void)
     tcase_add_test(tc_txn, test_insert_duplicate_key);
     tcase_add_test(tc_txn, test_insert_rdonly_rejected);
     suite_add_tcase(suite, tc_txn);
+
+    /* Commit and MVCC tests */
+    TCase *tc_commit = tcase_create("CommitAndMVCC");
+    tcase_add_test(tc_commit, test_commit_persistence);
+    tcase_add_test(tc_commit, test_mvcc_isolation);
+    suite_add_tcase(suite, tc_commit);
 
     return suite;
 }

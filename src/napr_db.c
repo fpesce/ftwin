@@ -514,14 +514,285 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
     int is_write = !(txn->flags & NAPR_DB_RDONLY);
+    apr_hash_index_t *hi = NULL;
+    DB_MetaPage *stale_meta = NULL;
+    pgno_t new_root_pgno = 0;
 
     if (!txn) {
         return APR_EINVAL;
     }
 
-    /* If write transaction, release writer lock */
-    if (is_write) {
+    /* Read-only transactions have nothing to commit */
+    if (!is_write) {
+        apr_pool_destroy(txn->pool);
+        return APR_SUCCESS;
+    }
+
+    /* If no dirty pages, nothing to commit */
+    if (!txn->dirty_pages || apr_hash_count(txn->dirty_pages) == 0) {
         status = db_writer_unlock(txn->env);
+        apr_pool_destroy(txn->pool);
+        return status;
+    }
+
+    /*
+     * STEP 1: Allocate physical page numbers for all dirty pages
+     *
+     * Build a mapping from old (logical) page numbers to new (physical) page numbers.
+     * We iterate through all dirty pages and assign each a new physical PGNO using
+     * db_page_alloc. This mapping will be used in Step 2 to update pointers.
+     */
+    apr_hash_t *pgno_map = apr_hash_make(txn->pool);
+    if (!pgno_map) {
+        status = APR_ENOMEM;
+        goto cleanup;
+    }
+
+    for (hi = apr_hash_first(txn->pool, txn->dirty_pages); hi; hi = apr_hash_next(hi)) {
+        const void *key = NULL;
+        void *val = NULL;
+        pgno_t old_pgno = 0;
+        pgno_t new_pgno = 0;
+        pgno_t *old_pgno_ptr = NULL;
+        pgno_t *new_pgno_ptr = NULL;
+
+        apr_hash_this(hi, &key, NULL, &val);
+        old_pgno = *(const pgno_t *) key;
+
+        /* The page was already allocated by db_page_alloc when dirty page was created
+         * We just need to use the pgno that's already in the page header */
+        DB_PageHeader *dirty_page = (DB_PageHeader *) val;
+        new_pgno = dirty_page->pgno;
+
+        /* Store mapping: old_pgno -> new_pgno */
+        old_pgno_ptr = apr_palloc(txn->pool, sizeof(pgno_t));
+        new_pgno_ptr = apr_palloc(txn->pool, sizeof(pgno_t));
+        if (!old_pgno_ptr || !new_pgno_ptr) {
+            status = APR_ENOMEM;
+            goto cleanup;
+        }
+        *old_pgno_ptr = old_pgno;
+        *new_pgno_ptr = new_pgno;
+        apr_hash_set(pgno_map, old_pgno_ptr, sizeof(pgno_t), new_pgno_ptr);
+    }
+
+    /*
+     * STEP 2: Update pointers in dirty pages
+     *
+     * For each dirty branch page, update child page pointers to use the new
+     * physical page numbers. If a child page was also modified (is dirty),
+     * its pointer must be updated to point to the new location.
+     *
+     * Also identify the new root page number.
+     */
+    new_root_pgno = txn->root_pgno;
+
+    /* Check if root was modified (is in dirty pages) */
+    pgno_t *mapped_root = apr_hash_get(pgno_map, &txn->root_pgno, sizeof(pgno_t));
+    if (mapped_root) {
+        new_root_pgno = *mapped_root;
+    }
+
+    /* Iterate dirty pages and update child pointers in branch nodes */
+    for (hi = apr_hash_first(txn->pool, txn->dirty_pages); hi; hi = apr_hash_next(hi)) {
+        const void *key = NULL;
+        void *val = NULL;
+        DB_PageHeader *dirty_page = NULL;
+        uint16_t i = 0;
+
+        apr_hash_this(hi, &key, NULL, &val);
+        dirty_page = (DB_PageHeader *) val;
+
+        /* Only branch pages have child pointers to update */
+        if (!(dirty_page->flags & P_BRANCH)) {
+            continue;
+        }
+
+        /* Update each branch node's child pointer if child is also dirty */
+        for (i = 0; i < dirty_page->num_keys; i++) {
+            DB_BranchNode *branch_node = db_page_branch_node(dirty_page, i);
+            pgno_t old_child_pgno = branch_node->pgno;
+            pgno_t *new_child_pgno = apr_hash_get(pgno_map, &old_child_pgno, sizeof(pgno_t));
+
+            if (new_child_pgno) {
+                /* Child page was modified, update pointer to new location */
+                branch_node->pgno = *new_child_pgno;
+            }
+        }
+    }
+
+    /*
+     * STEP 3A: Extend file if necessary
+     *
+     * Before writing dirty pages, ensure the file is large enough to hold
+     * all the newly allocated pages. We need to extend the file to accommodate
+     * the new last_pgno.
+     */
+    if (txn->new_last_pgno > txn->env->live_meta->last_pgno) {
+        apr_off_t new_file_size = (txn->new_last_pgno + 1) * PAGE_SIZE;
+        apr_off_t current_pos = 0;
+
+        /* Seek to the new end of file */
+        status = apr_file_seek(txn->env->file, APR_END, &current_pos);
+        if (status != APR_SUCCESS) {
+            goto cleanup;
+        }
+
+        /* If file needs to grow, write a byte at the new end position */
+        if (current_pos < new_file_size) {
+            apr_off_t seek_pos = new_file_size - 1;
+            apr_size_t bytes_written = 1;
+            char zero_byte = 0;
+
+            status = apr_file_seek(txn->env->file, APR_SET, &seek_pos);
+            if (status != APR_SUCCESS) {
+                goto cleanup;
+            }
+
+            status = apr_file_write(txn->env->file, &zero_byte, &bytes_written);
+            if (status != APR_SUCCESS) {
+                goto cleanup;
+            }
+
+            /* Flush the file extension to ensure it's persistent */
+            status = apr_file_sync(txn->env->file);
+            if (status != APR_SUCCESS) {
+                goto cleanup;
+            }
+        }
+    }
+
+    /*
+     * STEP 3B: Writeback phase - Write dirty pages to their new locations
+     *
+     * Copy each dirty page from transaction-private memory to its new location
+     * in the file. We use apr_file_write_full to write directly to the file
+     * at specific offsets, rather than accessing the mmap (which may not
+     * reflect the extended file yet).
+     */
+    for (hi = apr_hash_first(txn->pool, txn->dirty_pages); hi; hi = apr_hash_next(hi)) {
+        const void *key = NULL;
+        void *val = NULL;
+        DB_PageHeader *dirty_page = NULL;
+        pgno_t new_pgno = 0;
+        apr_off_t offset = 0;
+        apr_size_t bytes_to_write = PAGE_SIZE;
+
+        apr_hash_this(hi, &key, NULL, &val);
+        dirty_page = (DB_PageHeader *) val;
+        new_pgno = dirty_page->pgno;
+
+        /* Calculate file offset for this page */
+        offset = new_pgno * PAGE_SIZE;
+
+        /* Seek to the page location */
+        status = apr_file_seek(txn->env->file, APR_SET, &offset);
+        if (status != APR_SUCCESS) {
+            goto cleanup;
+        }
+
+        /* Write the dirty page to file */
+        status = apr_file_write_full(txn->env->file, dirty_page, bytes_to_write, NULL);
+        if (status != APR_SUCCESS) {
+            goto cleanup;
+        }
+    }
+
+    /*
+     * STEP 4: Durability Step 1 - Flush data pages to disk
+     *
+     * Ensure all dirty pages are physically written to disk before updating
+     * the meta page. This guarantees that if the meta page points to a page,
+     * that page's data is durable.
+     */
+    status = apr_file_sync(txn->env->file);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    /*
+     * STEP 5 & 6: Meta page selection and preparation
+     *
+     * We have two meta pages (0 and 1). The "live" meta page is the one
+     * that was used as the snapshot root for this transaction. The "stale"
+     * meta page is the other one - we'll update it to commit our changes.
+     *
+     * Create an updated meta page in memory with:
+     * - New transaction ID (incremented)
+     * - New root page number
+     * - New last_pgno (highest allocated page)
+     */
+    DB_MetaPage updated_meta;
+    pgno_t meta_pgno = 0;
+    apr_off_t meta_offset = 0;
+    apr_size_t meta_bytes = PAGE_SIZE;
+
+    /* Determine which meta page to update */
+    if (txn->env->live_meta == txn->env->meta0) {
+        stale_meta = txn->env->meta1;
+        meta_pgno = 1;
+    }
+    else {
+        stale_meta = txn->env->meta0;
+        meta_pgno = 0;
+    }
+
+    /* Populate the updated meta page */
+    memset(&updated_meta, 0, sizeof(DB_MetaPage));
+    updated_meta.magic = DB_MAGIC;
+    updated_meta.version = DB_VERSION;
+    updated_meta.txnid = txn->txnid;    /* txnid was already incremented in txn_begin */
+    updated_meta.root = new_root_pgno;
+    updated_meta.last_pgno = txn->new_last_pgno;
+
+    /*
+     * STEP 7: Atomic commit point - Write and flush meta page to disk
+     *
+     * Write the updated meta page to disk and synchronously flush it.
+     * Once this completes, the transaction is committed - the new state
+     * is visible to future transactions.
+     *
+     * This is the atomic commit point: either this write succeeds (and all
+     * changes are committed), or it fails (and the old meta page remains
+     * valid, preserving the previous state).
+     */
+    meta_offset = meta_pgno * PAGE_SIZE;
+
+    status = apr_file_seek(txn->env->file, APR_SET, &meta_offset);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = apr_file_write_full(txn->env->file, &updated_meta, meta_bytes, NULL);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = apr_file_sync(txn->env->file);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    /* Copy updated meta to the mmap meta page for future reads */
+    memcpy(stale_meta, &updated_meta, sizeof(DB_MetaPage));
+
+    /*
+     * STEP 8: Update environment - Switch to the new meta page
+     *
+     * Update the environment's live_meta pointer to point to the newly
+     * committed meta page. Future transactions will now see the committed
+     * state.
+     */
+    txn->env->live_meta = stale_meta;
+
+  cleanup:
+    /*
+     * STEP 9: Release writer lock
+     *
+     * Allow the next write transaction to proceed.
+     */
+    if (is_write) {
+        db_writer_unlock(txn->env);
     }
 
     /* Destroy transaction pool (frees all transaction allocations) */
