@@ -59,17 +59,18 @@ This checklist follows the detailed project blueprint, organized by phases and i
 - [x] **Implementation (`src/napr_db_internal.h` and `src/napr_db_tree.c`)**
     - [x] Implement helpers for navigating slotted pages (getting node pointers by index, getting key/data pointers from nodes).
     - [x] Implement binary search algorithm within a page (Branch and Leaf).
-    - [ ] Implement tree traversal (search from root down to the correct leaf).
-    - [ ] Implement `napr_db_get`:
-        - [ ] Perform tree search.
-        - [ ] Return data via `napr_db_val_t` (Zero-copy pointer directly into the memory map).
-- [x] **Testing (`check/check_db_page.c`)**
+    - [x] Implement tree traversal (search from root down to the correct leaf).
+    - [x] Implement `napr_db_get`:
+        - [x] Perform tree search.
+        - [x] Return data via `napr_db_val_t` (Zero-copy pointer directly into the memory map).
+- [x] **Testing (`check/check_db_page.c` and `check/check_db_read.c`)**
     - [x] Test page accessor functions (leaf and branch pages).
     - [x] Test binary search for existing keys.
     - [x] Test binary search for non-existing keys (insertion points).
     - [x] Test empty page search.
-    - [ ] Test retrieval of known keys (requires full tree traversal - Iteration 4).
-    - [ ] Test lookup misses (`APR_NOTFOUND`).
+    - [x] Test retrieval of known keys with manually constructed single-level tree.
+    - [x] Test retrieval of known keys with manually constructed two-level tree.
+    - [x] Test lookup misses (`APR_NOTFOUND`).
 
 ### Iteration 4: B+ Tree Write Path (CoW and Basic Insertion)
 
