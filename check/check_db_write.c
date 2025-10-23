@@ -19,6 +19,12 @@
 /* Test database path in /tmp */
 #define TEST_DB_PATH "/tmp/test_write.db"
 
+/* Test buffer sizes */
+enum {
+    TEST_KEY_BUF_SIZE = 32,
+    TEST_DATA_BUF_SIZE = 64
+};
+
 /* Helper to create and open a test database */
 static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
 {
@@ -115,8 +121,8 @@ START_TEST(test_insert_multiple_keys)
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     napr_db_val_t retrieved = { 0 };
-    char key_buf[32] = { 0 };
-    char data_buf[64] = { 0 };
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     int idx = 0;
     const int num_keys = 10;
 
@@ -354,8 +360,8 @@ START_TEST(test_insert_sorted_order)
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     napr_db_val_t retrieved = { 0 };
-    char key_buf[32] = { 0 };
-    char data_buf[64] = { 0 };
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     int idx = 0;
     const int num_keys = 8;
 
@@ -431,8 +437,8 @@ START_TEST(test_insert_reverse_order)
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     napr_db_val_t retrieved = { 0 };
-    char key_buf[32] = { 0 };
-    char data_buf[64] = { 0 };
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     int idx = 0;
     const int num_keys = 8;
 

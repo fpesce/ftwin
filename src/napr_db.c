@@ -619,7 +619,7 @@ apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
 apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
-    pgno_t path[32];            /* MAX_TREE_DEPTH from napr_db_tree.c */
+    pgno_t path[MAX_TREE_DEPTH] = { 0 };
     uint16_t path_len = 0;
     DB_PageHeader *leaf_page = NULL;
     DB_PageHeader *dirty_page = NULL;
