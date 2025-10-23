@@ -10,6 +10,9 @@
 #include <string.h>
 #include <apr_hash.h>
 
+/* Maximum depth of B+ tree for path tracking */
+#define MAX_TREE_DEPTH 32
+
 /**
  * @brief Compare two keys.
  *
@@ -130,6 +133,32 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint
 }
 
 /**
+ * @brief Get a page, checking dirty pages first for write transactions.
+ *
+ * For write transactions, checks if the page has been modified (exists in dirty_pages hash).
+ * If so, returns the dirty copy. Otherwise returns the page from the memory map.
+ *
+ * @param txn Transaction handle
+ * @param pgno Page number to retrieve
+ * @return Pointer to the page (either dirty copy or mmap)
+ */
+static inline DB_PageHeader *db_get_page(napr_db_txn_t *txn, pgno_t pgno)
+{
+    DB_PageHeader *page = NULL;
+
+    /* For write transactions, check dirty pages first */
+    if (!(txn->flags & NAPR_DB_RDONLY)) {
+        page = apr_hash_get(txn->dirty_pages, &pgno, sizeof(pgno_t));
+        if (page) {
+            return page;
+        }
+    }
+
+    /* Return page from memory map */
+    return (DB_PageHeader *) ((char *) txn->env->map_addr + (pgno * PAGE_SIZE));
+}
+
+/**
  * @brief Find the leaf page that should contain a given key.
  *
  * Traverses the B+ tree from the root down to the appropriate leaf page.
@@ -158,8 +187,8 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
 
     /* Traverse the tree */
     while (1) {
-        /* Calculate page address in memory map */
-        page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+        /* Get page (checks dirty pages first for write txns) */
+        page = db_get_page(txn, current_pgno);
 
         /* Check if this is a leaf page */
         if (page->flags & P_LEAF) {
@@ -308,4 +337,170 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_p
 
     *dirty_copy_out = dirty_copy;
     return APR_SUCCESS;
+}
+
+/**
+ * @brief Insert a key/value pair into a page at the specified index.
+ *
+ * This function assumes:
+ * - The page is a dirty copy (writable)
+ * - The page has enough free space for the insertion
+ * - The page will not split (simple case only)
+ *
+ * The function uses the slotted page design:
+ * - Shifts slot array entries to make room at index
+ * - Packs key/value data at the top of the page (growing downward)
+ * - Updates page header (num_keys, upper)
+ *
+ * @param page Pointer to the dirty page
+ * @param index Index where to insert the new entry
+ * @param key Key to insert
+ * @param data Value to insert (NULL for branch nodes with child_pgno)
+ * @param child_pgno Child page number (for branch nodes, 0 for leaf nodes)
+ * @return APR_SUCCESS on success, APR_ENOSPC if not enough space, error code otherwise
+ */
+apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno)
+{
+    uint16_t *slots = NULL;
+    uint16_t node_size = 0;
+    uint16_t free_space = 0;
+    uint16_t new_offset = 0;
+    uint16_t i = 0;
+
+    if (!page || !key) {
+        return APR_EINVAL;
+    }
+
+    /* Calculate required space */
+    if (page->flags & P_LEAF) {
+        /* Leaf node: DB_LeafNode + key + data */
+        if (!data) {
+            return APR_EINVAL;
+        }
+        node_size = (uint16_t) (sizeof(DB_LeafNode) + key->size + data->size);
+    }
+    else if (page->flags & P_BRANCH) {
+        /* Branch node: DB_BranchNode + key */
+        node_size = (uint16_t) (sizeof(DB_BranchNode) + key->size);
+    }
+    else {
+        return APR_EINVAL;
+    }
+
+    /* Check if there's enough free space */
+    free_space = page->upper - page->lower;
+    if (free_space < (node_size + sizeof(uint16_t))) {
+        return APR_ENOSPC;
+    }
+
+    /* Get slot array */
+    slots = db_page_slots(page);
+
+    /* Shift existing slots to make room at index */
+    for (i = page->num_keys; i > index; i--) {
+        slots[i] = slots[i - 1];
+    }
+
+    /* Allocate space for new node (grows downward from upper) */
+    new_offset = page->upper - node_size;
+
+    /* Create the new node */
+    if (page->flags & P_LEAF) {
+        DB_LeafNode *node = (DB_LeafNode *) ((char *) page + new_offset);
+        node->key_size = (uint16_t) key->size;
+        node->data_size = (uint16_t) data->size;
+        memcpy(node->kv_data, key->data, key->size);
+        memcpy(node->kv_data + key->size, data->data, data->size);
+    }
+    else {                      /* P_BRANCH */
+        DB_BranchNode *node = (DB_BranchNode *) ((char *) page + new_offset);
+        node->pgno = child_pgno;
+        node->key_size = (uint16_t) key->size;
+        memcpy(node->key_data, key->data, key->size);
+    }
+
+    /* Update slot array */
+    slots[index] = new_offset;
+
+    /* Update page header */
+    page->num_keys++;
+    page->lower += sizeof(uint16_t);
+    page->upper = new_offset;
+
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Find the leaf page for a key and record the path (for CoW).
+ *
+ * This is similar to db_find_leaf_page, but it records the path from
+ * root to leaf for later CoW propagation. This is necessary for write
+ * operations to ensure the entire path is copied.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader ** leaf_page_out)
+{
+    pgno_t current_pgno = 0;
+    DB_PageHeader *page = NULL;
+    uint16_t index = 0;
+    uint16_t depth = 0;
+    apr_status_t status = APR_SUCCESS;
+
+    if (!txn || !key || !path_out || !path_len_out || !leaf_page_out) {
+        return APR_EINVAL;
+    }
+
+    /* Start at the root page from the transaction's snapshot */
+    current_pgno = txn->root_pgno;
+
+    /* Traverse the tree and record the path */
+    while (1) {
+        /* Record this page in the path */
+        if (depth >= MAX_TREE_DEPTH) {
+            return APR_EGENERAL;        /* Tree too deep */
+        }
+        path_out[depth] = current_pgno;
+        depth++;
+
+        /* Get page (checks dirty pages first for write txns) */
+        page = db_get_page(txn, current_pgno);
+
+        /* Check if this is a leaf page */
+        if (page->flags & P_LEAF) {
+            /* Found the leaf - stop traversal */
+            *path_len_out = depth;
+            *leaf_page_out = page;
+            return APR_SUCCESS;
+        }
+
+        /* Must be a branch page */
+        if (!(page->flags & P_BRANCH)) {
+            return APR_EINVAL;
+        }
+
+        /* Search within the branch page to find the correct child */
+        status = db_page_search(page, key, &index);
+
+        /* For branch pages: handle insertion point logic */
+        if (status == APR_NOTFOUND && index > 0) {
+            index--;
+        }
+
+        /* Ensure index is in valid range */
+        if (index >= page->num_keys) {
+            index = page->num_keys - 1;
+        }
+
+        /* Get the child page number from the branch node */
+        DB_BranchNode *branch_node = db_page_branch_node(page, index);
+        current_pgno = branch_node->pgno;
+    }
+
+    return APR_EGENERAL;
 }

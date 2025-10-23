@@ -399,4 +399,28 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
  */
 apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out);
 
+/**
+ * @brief Find the leaf page for a key and record the path from root to leaf.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path (must be at least 32 elements)
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader ** leaf_page_out);
+
+/**
+ * @brief Insert a key/value or key/child pair into a page.
+ *
+ * @param page Dirty page to insert into (must have enough free space)
+ * @param index Index where to insert the new entry
+ * @param key Key to insert
+ * @param data Value to insert (NULL for branch nodes with child_pgno)
+ * @param child_pgno Child page number (for branch nodes, 0 for leaf nodes)
+ * @return APR_SUCCESS on success, APR_ENOSPC if not enough space, error code otherwise
+ */
+apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
+
 #endif /* NAPR_DB_INTERNAL_H */
