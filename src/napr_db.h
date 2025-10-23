@@ -111,7 +111,7 @@ extern "C"
  * @param pool APR pool for allocations
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_env_create(napr_db_env_t ** env, apr_pool_t *pool);
+    apr_status_t napr_db_env_create(napr_db_env_t **env, apr_pool_t *pool);
 
 /**
  * @brief Set the memory map size for the database.
@@ -123,7 +123,7 @@ extern "C"
  * @param size Memory map size in bytes
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_env_set_mapsize(napr_db_env_t * env, apr_size_t size);
+    apr_status_t napr_db_env_set_mapsize(napr_db_env_t *env, apr_size_t size);
 
 /**
  * @brief Open a database environment.
@@ -135,7 +135,7 @@ extern "C"
  * @param flags Flags (NAPR_DB_RDONLY, NAPR_DB_CREATE, NAPR_DB_INTRAPROCESS_LOCK)
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned int flags);
+    apr_status_t napr_db_env_open(napr_db_env_t *env, const char *path, unsigned int flags);
 
 /**
  * @brief Close a database environment.
@@ -146,7 +146,7 @@ extern "C"
  * @param env Database environment handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_env_close(napr_db_env_t * env);
+    apr_status_t napr_db_env_close(napr_db_env_t *env);
 
 /*
  * Transaction management
@@ -163,7 +163,7 @@ extern "C"
  * @param txn Pointer to receive transaction handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_txn_t ** txn);
+    apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_txn_t **txn);
 
 /**
  * @brief Commit a transaction.
@@ -174,7 +174,7 @@ extern "C"
  * @param txn Transaction handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_txn_commit(napr_db_txn_t * txn);
+    apr_status_t napr_db_txn_commit(napr_db_txn_t *txn);
 
 /**
  * @brief Abort a transaction.
@@ -184,7 +184,7 @@ extern "C"
  * @param txn Transaction handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_txn_abort(napr_db_txn_t * txn);
+    apr_status_t napr_db_txn_abort(napr_db_txn_t *txn);
 
 /*
  * Data access operations
@@ -201,7 +201,7 @@ extern "C"
  * @param data Pointer to receive value (output)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data);
 
 /**
  * @brief Store a key-value pair.
@@ -213,7 +213,7 @@ extern "C"
  * @param data Value to store
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data);
 
 /**
  * @brief Delete a key-value pair.
@@ -225,7 +225,7 @@ extern "C"
  * @param data Optional: if non-NULL, only delete if value matches
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_del(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data);
+    apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data);
 
 /*
  * Cursor operations
@@ -238,7 +238,7 @@ extern "C"
  * @param cursor Pointer to receive cursor handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_cursor_open(napr_db_txn_t * txn, napr_db_cursor_t ** cursor);
+    apr_status_t napr_db_cursor_open(napr_db_txn_t *txn, napr_db_cursor_t **cursor);
 
 /**
  * @brief Close a cursor.
@@ -246,7 +246,7 @@ extern "C"
  * @param cursor Cursor handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_cursor_close(napr_db_cursor_t * cursor);
+    apr_status_t napr_db_cursor_close(napr_db_cursor_t *cursor);
 
 /**
  * @brief Retrieve key-value pairs using cursor operations.
@@ -257,7 +257,7 @@ extern "C"
  * @param operation Cursor operation (NAPR_DB_FIRST, NAPR_DB_NEXT, etc.)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, const napr_db_val_t * key, napr_db_val_t * data, int operation);
+    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_val_t *data, int operation);
 
 #ifdef __cplusplus
 }

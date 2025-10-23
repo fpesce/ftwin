@@ -1,4 +1,6 @@
 -l 200 -i4 -npsl -di0 -br -nce -d0 -cli0 -npcs -nfc1 -nut
+-T Suite
+-T XXH3_state_t
 -T apr_dir_t
 -T apr_file_t
 -T apr_finfo_t
@@ -31,6 +33,10 @@
 -T json_t
 -T key_cmp_callback_fn_t
 -T napr_cell_t
+-T napr_db_cursor_t
+-T napr_db_env_t
+-T napr_db_txn_t
+-T napr_db_val_t
 -T napr_hash_index_t
 -T napr_hash_t
 -T napr_heap_cmp_callback_fn_t
@@ -39,13 +45,13 @@
 -T napr_heap_t
 -T napr_list_t
 -T napr_threadpool_t
+-T pgno_t
 -T pthread_mutex_t
 -T reporting_colors_t
 -T size_t
 -T threadpool_process_data_callback_fn_t
 -T time_t
+-T txnid_t
 -T uint16_t
 -T uint32_t
 -T uint8_t
--T Suite
--T XXH3_state_t

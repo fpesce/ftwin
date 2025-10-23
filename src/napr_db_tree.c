@@ -63,7 +63,7 @@ static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const ui
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out)
+apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out)
 {
     uint16_t left = 0;
     uint16_t right = 0;
@@ -141,7 +141,7 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
  * @param leaf_page_out Output: pointer to the leaf page in the memory map
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out)
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -223,7 +223,7 @@ apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, D
  * @param pgno_out Output: page number of first allocated page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_alloc(napr_db_txn_t * txn, uint32_t count, pgno_t * pgno_out)
+apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
 {
     pgno_t first_pgno = 0;
 
@@ -260,7 +260,7 @@ apr_status_t db_page_alloc(napr_db_txn_t * txn, uint32_t count, pgno_t * pgno_ou
  * @param dirty_copy_out Output: pointer to the writable dirty copy
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_get_writable(napr_db_txn_t * txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out)
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out)
 {
     DB_PageHeader *dirty_copy = NULL;
     pgno_t pgno = 0;

@@ -28,7 +28,7 @@
  * @param pool APR pool for allocations
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_env_create(napr_db_env_t ** env, apr_pool_t *pool)
+apr_status_t napr_db_env_create(napr_db_env_t **env, apr_pool_t *pool)
 {
     if (!env || !pool) {
         return APR_EINVAL;
@@ -67,7 +67,7 @@ apr_status_t napr_db_env_create(napr_db_env_t ** env, apr_pool_t *pool)
  * @param size Memory map size in bytes
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_env_set_mapsize(napr_db_env_t * env, apr_size_t size)
+apr_status_t napr_db_env_set_mapsize(napr_db_env_t *env, apr_size_t size)
 {
     if (!env) {
         return APR_EINVAL;
@@ -122,7 +122,7 @@ static apr_status_t validate_meta_page(const DB_MetaPage * meta)
  * @param env Database environment
  * @return APR_SUCCESS or error code
  */
-static apr_status_t select_live_meta(napr_db_env_t * env)
+static apr_status_t select_live_meta(napr_db_env_t *env)
 {
     apr_status_t status0 = APR_SUCCESS;
     apr_status_t status1 = APR_SUCCESS;
@@ -166,7 +166,7 @@ static apr_status_t select_live_meta(napr_db_env_t * env)
  * @param[out] is_new_file Set to 1 if the file was created, 0 otherwise
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_file_open(napr_db_env_t * env, const char *path, int *is_new_file)
+static apr_status_t db_file_open(napr_db_env_t *env, const char *path, int *is_new_file)
 {
     apr_status_t status = APR_SUCCESS;
     apr_int32_t file_flags = 0;
@@ -217,7 +217,7 @@ static apr_status_t db_file_open(napr_db_env_t * env, const char *path, int *is_
  * @param env Database environment
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_mmap_file(napr_db_env_t * env)
+static apr_status_t db_mmap_file(napr_db_env_t *env)
 {
     apr_status_t status = APR_SUCCESS;
 
@@ -242,7 +242,7 @@ static apr_status_t db_mmap_file(napr_db_env_t * env)
  * @param is_new_file 1 if the database is new, 0 otherwise
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_init_meta(napr_db_env_t * env, int is_new_file)
+static apr_status_t db_init_meta(napr_db_env_t *env, int is_new_file)
 {
     env->meta0 = (DB_MetaPage *) env->map_addr;
     env->meta1 = (DB_MetaPage *) ((char *) env->map_addr + PAGE_SIZE);
@@ -268,7 +268,7 @@ static apr_status_t db_init_meta(napr_db_env_t * env, int is_new_file)
  * @param env Database environment
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_init_writer_lock(napr_db_env_t * env)
+static apr_status_t db_init_writer_lock(napr_db_env_t *env)
 {
     if (env->flags & NAPR_DB_INTRAPROCESS_LOCK) {
         env->writer_proc_mutex = NULL;
@@ -290,7 +290,7 @@ static apr_status_t db_init_writer_lock(napr_db_env_t * env)
  * @param flags Flags (NAPR_DB_CREATE, NAPR_DB_RDONLY, NAPR_DB_INTRAPROCESS_LOCK)
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned int flags)
+apr_status_t napr_db_env_open(napr_db_env_t *env, const char *path, unsigned int flags)
 {
     apr_status_t status = APR_SUCCESS;
     int is_new_file = 0;
@@ -348,7 +348,7 @@ apr_status_t napr_db_env_open(napr_db_env_t * env, const char *path, unsigned in
  * @param env Database environment handle
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_env_close(napr_db_env_t * env)
+apr_status_t napr_db_env_close(napr_db_env_t *env)
 {
     if (!env) {
         return APR_EINVAL;
@@ -386,7 +386,7 @@ apr_status_t napr_db_env_close(napr_db_env_t * env)
  * @param env Database environment
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_writer_lock(napr_db_env_t * env)
+static apr_status_t db_writer_lock(napr_db_env_t *env)
 {
     if (env->writer_thread_mutex) {
         /* Intra-process locking */
@@ -406,7 +406,7 @@ static apr_status_t db_writer_lock(napr_db_env_t * env)
  * @param env Database environment
  * @return APR_SUCCESS or error code
  */
-static apr_status_t db_writer_unlock(napr_db_env_t * env)
+static apr_status_t db_writer_unlock(napr_db_env_t *env)
 {
     if (env->writer_thread_mutex) {
         /* Intra-process locking */
@@ -436,7 +436,7 @@ static apr_status_t db_writer_unlock(napr_db_env_t * env)
  * @param txn Pointer to receive transaction handle
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_txn_t ** txn)
+apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_txn_t **txn)
 {
     apr_status_t status = APR_SUCCESS;
     napr_db_txn_t *txn_handle = NULL;
@@ -510,7 +510,7 @@ apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_
  * @param txn Transaction handle
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_txn_commit(napr_db_txn_t * txn)
+apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
     int is_write = !(txn->flags & NAPR_DB_RDONLY);
@@ -540,7 +540,7 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t * txn)
  * @param txn Transaction handle
  * @return APR_SUCCESS or error code
  */
-apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
+apr_status_t napr_db_txn_abort(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
     int is_write = !(txn->flags & NAPR_DB_RDONLY);
@@ -574,7 +574,7 @@ apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
  * @param data Output: value data (size and pointer set on success)
  * @return APR_SUCCESS if found, APR_NOTFOUND if not found, error code on failure
  */
-apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
     DB_PageHeader *leaf_page = NULL;
     uint16_t index = 0;
@@ -612,7 +612,7 @@ apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db
     return APR_SUCCESS;
 }
 
-apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
     (void) txn;
     (void) key;
@@ -620,7 +620,7 @@ apr_status_t napr_db_put(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_del(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
+apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
     (void) txn;
     (void) key;
@@ -628,20 +628,20 @@ apr_status_t napr_db_del(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_open(napr_db_txn_t * txn, napr_db_cursor_t ** cursor)
+apr_status_t napr_db_cursor_open(napr_db_txn_t *txn, napr_db_cursor_t **cursor)
 {
     (void) txn;
     (void) cursor;
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_close(napr_db_cursor_t * cursor)
+apr_status_t napr_db_cursor_close(napr_db_cursor_t *cursor)
 {
     (void) cursor;
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_get(napr_db_cursor_t * cursor, const napr_db_val_t * key, napr_db_val_t * data, int operation)
+apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_val_t *data, int operation)
 {
     (void) cursor;
     (void) key;
