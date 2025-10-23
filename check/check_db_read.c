@@ -13,7 +13,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define NUM_TEST_PAGES 5
+enum
+{
+    DECIMAL_BASE = 10,
+    NUM_TEST_PAGES = 5
+};
 
 /* Test database path */
 static const char *const test_db_path = "/tmp/test_db_read.db";
@@ -69,8 +73,8 @@ static void construct_leaf_page(uint8_t *page_buffer, pgno_t pgno, const char **
 
     /* Add entries from the end of the page, working backwards */
     for (int i = num_entries - 1; i >= 0; i--) {
-        const char *key = entries[(size_t)i * 2];
-        const char *value = entries[(size_t)i * 2 + 1];
+        const char *key = entries[(size_t) i * 2];
+        const char *value = entries[(size_t) i * 2 + 1];
         uint16_t key_size = strlen(key);
         uint16_t value_size = strlen(value);
 
@@ -119,8 +123,8 @@ static void construct_branch_page(uint8_t *page_buffer, pgno_t pgno, const char 
 
     /* Add entries from the end of the page, working backwards */
     for (int i = num_entries - 1; i >= 0; i--) {
-        pgno_t child_pgno = (pgno_t) strtol(entries[(size_t)i * 2], NULL, 10);
-        const char *key = entries[(size_t)i * 2 + 1];
+        pgno_t child_pgno = (pgno_t) strtol(entries[(size_t) i * 2], NULL, DECIMAL_BASE);
+        const char *key = entries[(size_t) i * 2 + 1];
         uint16_t key_size = strlen(key);
 
         /* Calculate node size */
@@ -172,7 +176,7 @@ START_TEST(test_get_single_leaf)
      * We need to extend the file manually because the database
      * is initially created with only 2 meta pages.
      */
-    apr_off_t new_size = (apr_off_t)NUM_TEST_PAGES * PAGE_SIZE; /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) NUM_TEST_PAGES * PAGE_SIZE;        /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -180,7 +184,7 @@ START_TEST(test_get_single_leaf)
      * Manually construct a simple tree:
      * Root (page 2) is a leaf with keys: "apple", "banana", "cherry"
      */
-    uint8_t *page2 = (uint8_t *) env->map_addr + ((size_t)2 * PAGE_SIZE);
+    uint8_t *page2 = (uint8_t *) env->map_addr + ((size_t) 2 * PAGE_SIZE);
     const char *leaf_entries[] = {
         "apple", "red",
         "banana", "yellow",
@@ -281,7 +285,7 @@ START_TEST(test_get_two_level_tree)
     /*
      * Extend the file to accommodate our test pages.
      */
-    apr_off_t new_size = (apr_off_t)NUM_TEST_PAGES * PAGE_SIZE; /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) NUM_TEST_PAGES * PAGE_SIZE;        /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -302,14 +306,14 @@ START_TEST(test_get_two_level_tree)
      * - "date": insertion point 2, decrement to 1 → child 4 ✓
      */
 
-    uint8_t *page3 = (uint8_t *) env->map_addr + ((size_t)3 * PAGE_SIZE);
+    uint8_t *page3 = (uint8_t *) env->map_addr + ((size_t) 3 * PAGE_SIZE);
     const char *leaf1_entries[] = {
         "apple", "red",
         "banana", "yellow"
     };
     construct_leaf_page(page3, 3, leaf1_entries, 2);
 
-    uint8_t *page4 = (uint8_t *) env->map_addr + ((size_t)4 * PAGE_SIZE);
+    uint8_t *page4 = (uint8_t *) env->map_addr + ((size_t) 4 * PAGE_SIZE);
     const char *leaf2_entries[] = {
         "cherry", "red",
         "date", "brown",
@@ -317,7 +321,7 @@ START_TEST(test_get_two_level_tree)
     };
     construct_leaf_page(page4, 4, leaf2_entries, 3);
 
-    uint8_t *page2 = (uint8_t *) env->map_addr + ((size_t)2 * PAGE_SIZE);
+    uint8_t *page2 = (uint8_t *) env->map_addr + ((size_t) 2 * PAGE_SIZE);
     const char *branch_entries[] = {
         "3", "apple",           /* Child 3: contains keys >= "apple" */
         "4", "cherry"           /* Child 4: contains keys >= "cherry" */
