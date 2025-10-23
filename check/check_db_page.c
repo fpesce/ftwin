@@ -136,7 +136,7 @@ static DB_PageHeader *create_mock_branch_page(uint8_t *buffer)
     slots[2] = offset;
     {
         DB_BranchNode *node = (DB_BranchNode *) (buffer + offset);
-        node->pgno = 30;
+        node->pgno = TEST_PAGE_NO_30;
         node->key_size = 4;
         memcpy(node->key_data, "key3", 4);
     }
@@ -147,7 +147,7 @@ static DB_PageHeader *create_mock_branch_page(uint8_t *buffer)
     slots[1] = offset;
     {
         DB_BranchNode *node = (DB_BranchNode *) (buffer + offset);
-        node->pgno = 20;
+        node->pgno = TEST_PAGE_NO_20;
         node->key_size = 4;
         memcpy(node->key_data, "key2", 4);
     }
@@ -158,7 +158,7 @@ static DB_PageHeader *create_mock_branch_page(uint8_t *buffer)
     slots[0] = offset;
     {
         DB_BranchNode *node = (DB_BranchNode *) (buffer + offset);
-        node->pgno = 10;
+        node->pgno = TEST_PAGE_NO_10;
         node->key_size = 4;
         memcpy(node->key_data, "key1", 4);
     }
@@ -246,7 +246,7 @@ START_TEST(test_branch_page_accessors)
     /* Test node 0: pgno=10, key="key1" */
     node = db_page_branch_node(page, 0);
     ck_assert_ptr_nonnull(node);
-    ck_assert_uint_eq(node->pgno, 10);
+    ck_assert_uint_eq(node->pgno, TEST_PAGE_NO_10);
     ck_assert_uint_eq(node->key_size, 4);
 
     key_ptr = db_branch_node_key(node);
@@ -254,7 +254,7 @@ START_TEST(test_branch_page_accessors)
 
     /* Test node 1: pgno=20, key="key2" */
     node = db_page_branch_node(page, 1);
-    ck_assert_uint_eq(node->pgno, 20);
+    ck_assert_uint_eq(node->pgno, TEST_PAGE_NO_20);
     ck_assert_uint_eq(node->key_size, 4);
 
     key_ptr = db_branch_node_key(node);
@@ -262,7 +262,7 @@ START_TEST(test_branch_page_accessors)
 
     /* Test node 2: pgno=30, key="key3" */
     node = db_page_branch_node(page, 2);
-    ck_assert_uint_eq(node->pgno, 30);
+    ck_assert_uint_eq(node->pgno, TEST_PAGE_NO_30);
     ck_assert_uint_eq(node->key_size, 4);
 
     key_ptr = db_branch_node_key(node);
