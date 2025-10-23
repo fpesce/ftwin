@@ -13,13 +13,16 @@
 #include <unistd.h>
 
 #include "../src/napr_db_internal.h"
+#include "check_db_constants.h"
 
 /* Test database path in /tmp */
 #define TEST_DB_PATH "/tmp/test_cow.db"
-#define ONE_MB (1024 * 1024)
+
+static const uint32_t DEADBEEF = 0xDEADBEEF;
+static const uint32_t PAGE_COUNT_TEST = 5;
 
 /* Helper to create and open a test database */
-static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t ** env_out)
+static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
 {
     apr_status_t status = APR_SUCCESS;
     napr_db_env_t *env = NULL;
@@ -122,15 +125,15 @@ START_TEST(test_page_alloc_multiple)
     /* Record initial state */
     initial_last_pgno = txn->new_last_pgno;
 
-    /* Allocate 5 contiguous pages */
-    status = db_page_alloc(txn, 5, &allocated_pgno);
+    /* Allocate PAGE_COUNT_TEST contiguous pages */
+    status = db_page_alloc(txn, PAGE_COUNT_TEST, &allocated_pgno);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify allocated page number is correct */
     ck_assert_int_eq(allocated_pgno, initial_last_pgno + 1);
 
-    /* Verify new_last_pgno was incremented by 5 */
-    ck_assert_int_eq(txn->new_last_pgno, initial_last_pgno + 5);
+    /* Verify new_last_pgno was incremented by PAGE_COUNT_TEST */
+    ck_assert_int_eq(txn->new_last_pgno, initial_last_pgno + PAGE_COUNT_TEST);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -372,13 +375,13 @@ START_TEST(test_cow_isolation)
 
     /* Modify the dirty copy */
     DB_MetaPage *dirty_meta = (DB_MetaPage *) dirty_copy;
-    dirty_meta->magic = 0xDEADBEEF;
+    dirty_meta->magic = DEADBEEF;
 
     /* Verify original is unchanged */
     ck_assert_int_eq(original_meta->magic, original_magic);
 
     /* Verify dirty copy has the new value */
-    ck_assert_int_eq(dirty_meta->magic, 0xDEADBEEF);
+    ck_assert_int_eq(dirty_meta->magic, DEADBEEF);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -516,7 +519,7 @@ END_TEST
  */
 Suite *make_db_cow_suite(void)
 {
-    Suite *s = suite_create("DB_COW");
+    Suite *suite = suite_create("DB_COW");
 
     /* Page allocation tests */
     TCase *tc_alloc = tcase_create("PageAlloc");
@@ -524,7 +527,7 @@ Suite *make_db_cow_suite(void)
     tcase_add_test(tc_alloc, test_page_alloc_multiple);
     tcase_add_test(tc_alloc, test_page_alloc_sequential);
     tcase_add_test(tc_alloc, test_page_alloc_rdonly_rejected);
-    suite_add_tcase(s, tc_alloc);
+    suite_add_tcase(suite, tc_alloc);
 
     /* Copy-on-Write tests */
     TCase *tc_cow = tcase_create("CopyOnWrite");
@@ -533,7 +536,7 @@ Suite *make_db_cow_suite(void)
     tcase_add_test(tc_cow, test_cow_isolation);
     tcase_add_test(tc_cow, test_cow_multiple_pages);
     tcase_add_test(tc_cow, test_cow_rdonly_rejected);
-    suite_add_tcase(s, tc_cow);
+    suite_add_tcase(suite, tc_cow);
 
-    return s;
+    return suite;
 }

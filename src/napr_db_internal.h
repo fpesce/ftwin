@@ -145,8 +145,7 @@ typedef struct __attribute__((packed)) DB_PageHeader {
  *
  * Total size must be exactly PAGE_SIZE (4096 bytes).
  */
-typedef struct DB_MetaPage
-{
+typedef struct __attribute__((packed)) DB_MetaPage {
     uint32_t magic;     /**< Magic number: DB_MAGIC (4 bytes) */
     uint32_t version;   /**< Format version: DB_VERSION (4 bytes) */
     txnid_t txnid;      /**< Transaction ID (8 bytes) */
@@ -359,7 +358,7 @@ static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out);
+apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out);
 
 /**
  * @brief Find the leaf page that should contain a given key.
@@ -371,7 +370,7 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out);
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out);
 
 /**
  * @brief Allocate new pages in a write transaction.
@@ -384,7 +383,7 @@ apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, D
  * @param pgno_out Output: page number of first allocated page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_alloc(napr_db_txn_t * txn, uint32_t count, pgno_t * pgno_out);
+apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out);
 
 /**
  * @brief Get a writable copy of a page (Copy-on-Write).
@@ -398,6 +397,6 @@ apr_status_t db_page_alloc(napr_db_txn_t * txn, uint32_t count, pgno_t * pgno_ou
  * @param dirty_copy_out Output: pointer to the writable dirty copy
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_get_writable(napr_db_txn_t * txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out);
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out);
 
 #endif /* NAPR_DB_INTERNAL_H */
