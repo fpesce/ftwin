@@ -133,8 +133,13 @@ START_TEST(test_insert_multiple_keys)
 
     /* Insert multiple keys */
     for (idx = 0; idx < num_keys; idx++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -147,8 +152,13 @@ START_TEST(test_insert_multiple_keys)
 
     /* Verify all keys are retrievable within the same transaction */
     for (idx = 0; idx < num_keys; idx++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -362,8 +372,13 @@ START_TEST(test_insert_sorted_order)
 
     /* Insert keys in sorted order */
     for (idx = 0; idx < num_keys; idx++) {
-        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -376,8 +391,13 @@ START_TEST(test_insert_sorted_order)
 
     /* Verify all keys are retrievable */
     for (idx = 0; idx < num_keys; idx++) {
-        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -429,8 +449,13 @@ START_TEST(test_insert_reverse_order)
 
     /* Insert keys in reverse order */
     for (idx = num_keys - 1; idx >= 0; idx--) {
-        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -443,8 +468,13 @@ START_TEST(test_insert_reverse_order)
 
     /* Verify all keys are retrievable */
     for (idx = 0; idx < num_keys; idx++) {
-        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
-        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
 
         key.data = key_buf;
         key.size = strlen(key_buf);
