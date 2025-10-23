@@ -504,6 +504,7 @@ Suite *make_db_txn_suite(void);
 Suite *make_db_page_suite(void);
 Suite *make_db_read_suite(void);
 Suite *make_db_cow_suite(void);
+Suite *make_db_write_suite(void);
 
 enum test_suite
 {
@@ -525,7 +526,8 @@ enum test_suite
     DB_TXN_SUITE,
     DB_PAGE_SUITE,
     DB_READ_SUITE,
-    DB_COW_SUITE
+    DB_COW_SUITE,
+    DB_WRITE_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -551,6 +553,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_db_page_suite());
     srunner_add_suite(suite_runner, make_db_read_suite());
     srunner_add_suite(suite_runner, make_db_cow_suite());
+    srunner_add_suite(suite_runner, make_db_write_suite());
 }
 
 int main(int argc, char **argv)
@@ -651,6 +654,9 @@ int main(int argc, char **argv)
             break;
         case DB_COW_SUITE:
             srunner_add_suite(suite_runner, make_db_cow_suite());
+            break;
+        case DB_WRITE_SUITE:
+            srunner_add_suite(suite_runner, make_db_write_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */

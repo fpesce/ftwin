@@ -80,10 +80,18 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Implement the Copy-on-Write (CoW) mechanism (`db_page_get_writable`):
         - [x] When modifying a page, create a dirty copy in memory.
         - [x] Cache dirty copies in transaction's hash table for subsequent accesses.
-    - [ ] Ensure the path from the modified leaf up to the root uses these copied pages (deferred).
-    - [ ] Implement `napr_db_put` (Basic insertion without handling page splits) (deferred).
-- [ ] **Implementation (`src/napr_db.c`)** (deferred)
-    - [ ] Implement full `napr_db_txn_commit` logic:
+    - [x] Ensure the path from the modified leaf up to the root uses these copied pages.
+    - [x] Implement `napr_db_put` (Basic insertion without handling page splits).
+- [x] **Implementation (`src/napr_db.c` and `src/napr_db_tree.c`)**
+    - [x] Implement `db_page_insert` helper function for slotted page insertion.
+    - [x] Implement `db_find_leaf_page_with_path` to record path during tree traversal.
+    - [x] Implement `db_get_page` helper to check dirty pages before accessing mmap.
+    - [x] Implement `napr_db_put` for basic insertion (no page splits):
+        - [x] Handle empty tree case (allocate first root page).
+        - [x] Traverse tree to find insertion point, recording path.
+        - [x] CoW path propagation (copy all pages from leaf to root).
+        - [x] Insert key/value into dirty leaf page.
+    - [ ] Implement full `napr_db_txn_commit` logic (deferred to next iteration):
         - [ ] Allocate new physical pages for all dirty pages.
         - [ ] Write dirty pages to their new locations in the file.
         - [ ] Durability Step 1: Flush data pages (via `msync` or equivalent).
@@ -97,10 +105,13 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Test `db_page_get_writable` modifications don't affect original page (isolation).
     - [x] Test `db_page_get_writable` tracks multiple pages independently.
     - [x] Test `db_page_get_writable` rejects read-only transactions.
-- [ ] **Testing (`check/check_db_write.c`)** (deferred)
-    - [ ] Test basic insertion and retrieval.
-    - [ ] Test persistence (Close DB, re-open, verify data).
-    - [ ] Test atomicity (Verify changes are discarded on abort).
+- [x] **Testing (`check/check_db_write.c`)**
+    - [x] Test basic insertion and retrieval (single and multiple keys).
+    - [x] Test insertion in sorted and reverse order.
+    - [x] Test atomicity (Verify changes are discarded on abort).
+    - [x] Test duplicate key rejection.
+    - [x] Test read-only transaction rejects writes.
+    - [ ] Test persistence (Close DB, re-open, verify data) - deferred (requires commit implementation).
 
 ### Iteration 5: B+ Tree Scaling (Splitting)
 

@@ -585,6 +585,11 @@ apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         return APR_EINVAL;
     }
 
+    /* Check for empty database */
+    if (txn->root_pgno == 0) {
+        return APR_NOTFOUND;
+    }
+
     /* Find the leaf page that should contain the key */
     status = db_find_leaf_page(txn, key, &leaf_page);
     if (status != APR_SUCCESS) {
@@ -614,10 +619,121 @@ apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
 apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
-    (void) txn;
-    (void) key;
-    (void) data;
-    return APR_ENOTIMPL;
+    pgno_t path[MAX_TREE_DEPTH] = { 0 };
+    uint16_t path_len = 0;
+    DB_PageHeader *leaf_page = NULL;
+    DB_PageHeader *dirty_page = NULL;
+    uint16_t index = 0;
+    apr_status_t status = APR_SUCCESS;
+    int idx = 0;
+
+    /* Validate inputs */
+    if (!txn || !key || !data) {
+        return APR_EINVAL;
+    }
+
+    /* Ensure this is a write transaction */
+    if (txn->flags & NAPR_DB_RDONLY) {
+        return APR_EACCES;
+    }
+
+    /* Special case: Empty tree (no root yet) */
+    if (txn->root_pgno == 0) {
+        pgno_t new_root_pgno = 0;
+        DB_PageHeader *new_root = NULL;
+
+        /* Allocate the first leaf page */
+        status = db_page_alloc(txn, 1, &new_root_pgno);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Allocate dirty page in memory (cannot write to mmap beyond file size) */
+        new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
+        if (!new_root) {
+            return APR_ENOMEM;
+        }
+
+        /* Initialize the new leaf page */
+        new_root->pgno = new_root_pgno;
+        new_root->flags = P_LEAF;
+        new_root->num_keys = 0;
+        new_root->lower = sizeof(DB_PageHeader);
+        new_root->upper = PAGE_SIZE;
+
+        /* Insert the first key */
+        status = db_page_insert(new_root, 0, key, data, 0);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Store in dirty pages hash (will be written on commit) */
+        pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+        if (!pgno_key) {
+            return APR_ENOMEM;
+        }
+        *pgno_key = new_root_pgno;
+        apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+
+        /* Update transaction's root pointer */
+        txn->root_pgno = new_root_pgno;
+
+        return APR_SUCCESS;
+    }
+
+    /* Normal case: Tree exists, find the leaf page and record path */
+    status = db_find_leaf_page_with_path(txn, key, path, &path_len, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Search within the leaf page to find insertion point */
+    status = db_page_search(leaf_page, key, &index);
+
+    /* If key already exists, this is an update (for now, treat as error) */
+    if (status == APR_SUCCESS) {
+        return APR_EEXIST;      /* Key already exists - updates not yet supported */
+    }
+
+    /* CRITICAL: Copy-on-Write path propagation
+     * Iterate through the path from leaf to root, calling db_page_get_writable
+     * for each page. This ensures the entire path is copied and the transaction
+     * operates on its own version of the tree structure.
+     */
+    for (idx = (int) path_len - 1; idx >= 0; idx--) {
+        pgno_t current_pgno = path[idx];
+        DB_PageHeader *page_to_cow = NULL;
+
+        /* Check if page is already dirty (newly allocated or previously modified) */
+        page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
+
+        if (page_to_cow) {
+            /* Page is already dirty - no need to CoW, just use it */
+            dirty_page = page_to_cow;
+        }
+        else {
+            /* Page is in mmap - need to CoW it */
+            DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+
+            status = db_page_get_writable(txn, original_page, &dirty_page);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+        }
+
+        /* Update leaf_page pointer if this is the leaf (last element in path) */
+        if (idx == (int) path_len - 1) {
+            leaf_page = dirty_page;
+        }
+    }
+
+    /* Insert the new key/value into the dirty leaf page */
+    status = db_page_insert(leaf_page, index, key, data, 0);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
