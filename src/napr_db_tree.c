@@ -362,7 +362,7 @@ apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_
     uint16_t node_size = 0;
     uint16_t free_space = 0;
     uint16_t new_offset = 0;
-    uint16_t i = 0;
+    uint16_t idx = 0;
 
     if (!page || !key) {
         return APR_EINVAL;
@@ -394,8 +394,8 @@ apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_
     slots = db_page_slots(page);
 
     /* Shift existing slots to make room at index */
-    for (i = page->num_keys; i > index; i--) {
-        slots[i] = slots[i - 1];
+    for (idx = page->num_keys; idx > index; idx--) {
+        slots[idx] = slots[idx - 1];
     }
 
     /* Allocate space for new node (grows downward from upper) */
