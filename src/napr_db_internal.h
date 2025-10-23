@@ -15,7 +15,8 @@
 #include "napr_db.h"
 
 /* Maximum depth of B+ tree for path tracking */
-enum { MAX_TREE_DEPTH = 32 };
+enum
+{ MAX_TREE_DEPTH = 32 };
 #include <apr_mmap.h>
 #include <apr_thread_mutex.h>
 #include <apr_proc_mutex.h>

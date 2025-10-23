@@ -20,7 +20,8 @@
 #define TEST_DB_PATH "/tmp/test_write.db"
 
 /* Test buffer sizes */
-enum {
+enum
+{
     TEST_KEY_BUF_SIZE = 32,
     TEST_DATA_BUF_SIZE = 64
 };
@@ -28,7 +29,8 @@ enum {
 /* Helper to create and open a test database */
 
 /* Struct to hold key/value generation parameters */
-typedef struct {
+typedef struct
+{
     const char *key_prefix;
     const char *value_prefix;
     int num_keys;
@@ -49,7 +51,8 @@ static void helper_insert_data_forward(napr_db_txn_t *txn, const key_params_t *p
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     for (int idx = 0; idx < params->num_keys; idx++) {
         format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
@@ -71,7 +74,8 @@ static void helper_insert_data_reverse(napr_db_txn_t *txn, const key_params_t *p
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     for (int idx = params->num_keys - 1; idx >= 0; idx--) {
         format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
@@ -94,7 +98,8 @@ static void helper_verify_data(napr_db_txn_t *txn, const key_params_t *params)
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t retrieved = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     for (int idx = 0; idx < params->num_keys; idx++) {
         format_buffer(key_buf, sizeof(key_buf), params->key_prefix, idx);
@@ -202,9 +207,10 @@ START_TEST(test_insert_multiple_keys)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const key_params_t params = { .key_prefix = "key",
-                                  .value_prefix = "value_%03d_data",
-                                  .num_keys = 10 };
+    const key_params_t params = {.key_prefix = "key",
+        .value_prefix = "value_%03d_data",
+        .num_keys = 10
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -403,9 +409,10 @@ START_TEST(test_insert_sorted_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const key_params_t params = { .key_prefix = "sorted_key",
-                                  .value_prefix = "sorted_value",
-                                  .num_keys = 8 };
+    const key_params_t params = {.key_prefix = "sorted_key",
+        .value_prefix = "sorted_value",
+        .num_keys = 8
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
@@ -442,9 +449,10 @@ START_TEST(test_insert_reverse_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    const key_params_t params = { .key_prefix = "reverse_key",
-                                  .value_prefix = "reverse_value",
-                                  .num_keys = 8 };
+    const key_params_t params = {.key_prefix = "reverse_key",
+        .value_prefix = "reverse_value",
+        .num_keys = 8
+    };
 
     apr_initialize();
     apr_pool_create(&pool, NULL);
