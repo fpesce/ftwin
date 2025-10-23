@@ -478,9 +478,21 @@ apr_status_t napr_db_txn_begin(napr_db_env_t * env, unsigned int flags, napr_db_
     txn_handle->txnid = env->live_meta->txnid;
     txn_handle->root_pgno = env->live_meta->root;
 
-    /* If write transaction, increment TXNID for this transaction */
+    /* Initialize dirty page tracking and allocation state */
+    txn_handle->dirty_pages = NULL;
+    txn_handle->new_last_pgno = env->live_meta->last_pgno;
+
+    /* If write transaction, increment TXNID and create dirty pages tracker */
     if (is_write) {
         txn_handle->txnid++;
+
+        /* Create hash table for tracking dirty pages (CoW) */
+        txn_handle->dirty_pages = apr_hash_make(txn_pool);
+        if (!txn_handle->dirty_pages) {
+            db_writer_unlock(env);
+            apr_pool_destroy(txn_pool);
+            return APR_ENOMEM;
+        }
     }
 
     *txn = txn_handle;

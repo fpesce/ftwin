@@ -74,21 +74,30 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 4: B+ Tree Write Path (CoW and Basic Insertion)
 
-- [ ] **Implementation (`src/napr_db_tree.c`)**
-    - [ ] Implement basic page allocation (simple increment of `last_pgno` for now).
-    - [ ] Implement dirty page tracking within `napr_db_txn_t`.
-    - [ ] Implement the Copy-on-Write (CoW) mechanism:
-        - [ ] When modifying a page, create a dirty copy in memory.
-        - [ ] Ensure the path from the modified leaf up to the root uses these copied pages.
-    - [ ] Implement `napr_db_put` (Basic insertion without handling page splits).
-- [ ] **Implementation (`src/napr_db.c`)**
+- [x] **Implementation (`src/napr_db_tree.c`)** - CoW Foundation (Partial)
+    - [x] Implement basic page allocation (`db_page_alloc` - simple increment of `last_pgno` for now).
+    - [x] Implement dirty page tracking within `napr_db_txn_t` (added `dirty_pages` hash and `new_last_pgno`).
+    - [x] Implement the Copy-on-Write (CoW) mechanism (`db_page_get_writable`):
+        - [x] When modifying a page, create a dirty copy in memory.
+        - [x] Cache dirty copies in transaction's hash table for subsequent accesses.
+    - [ ] Ensure the path from the modified leaf up to the root uses these copied pages (deferred).
+    - [ ] Implement `napr_db_put` (Basic insertion without handling page splits) (deferred).
+- [ ] **Implementation (`src/napr_db.c`)** (deferred)
     - [ ] Implement full `napr_db_txn_commit` logic:
         - [ ] Allocate new physical pages for all dirty pages.
         - [ ] Write dirty pages to their new locations in the file.
         - [ ] Durability Step 1: Flush data pages (via `msync` or equivalent).
         - [ ] Update the stale Meta Page (new root, TXNID, `last_pgno`).
         - [ ] Atomic Commit Point (Durability Step 2): Flush the Meta Page (`fsync`/`apr_file_sync`).
-- [ ] **Testing (`check/check_db_write.c`)**
+- [x] **Testing (`check/check_db_cow.c`)** - CoW Foundation Tests
+    - [x] Test `db_page_alloc` increments `last_pgno` correctly (single, multiple, sequential).
+    - [x] Test `db_page_alloc` rejects read-only transactions.
+    - [x] Test `db_page_get_writable` creates dirty copy on first call.
+    - [x] Test `db_page_get_writable` returns same dirty copy on subsequent calls.
+    - [x] Test `db_page_get_writable` modifications don't affect original page (isolation).
+    - [x] Test `db_page_get_writable` tracks multiple pages independently.
+    - [x] Test `db_page_get_writable` rejects read-only transactions.
+- [ ] **Testing (`check/check_db_write.c`)** (deferred)
     - [ ] Test basic insertion and retrieval.
     - [ ] Test persistence (Close DB, re-open, verify data).
     - [ ] Test atomicity (Verify changes are discarded on abort).
