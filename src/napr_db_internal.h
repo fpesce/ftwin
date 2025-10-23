@@ -145,7 +145,7 @@ typedef struct __attribute__((packed)) DB_PageHeader {
  *
  * Total size must be exactly PAGE_SIZE (4096 bytes).
  */
-typedef struct DB_MetaPage
+typedef struct __attribute__((packed)) DB_MetaPage
 {
     uint32_t magic;     /**< Magic number: DB_MAGIC (4 bytes) */
     uint32_t version;   /**< Format version: DB_VERSION (4 bytes) */
