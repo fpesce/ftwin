@@ -26,6 +26,93 @@ enum {
 };
 
 /* Helper to create and open a test database */
+
+/* Helper to insert a range of keys into the database */
+static void helper_insert_data_forward(napr_db_txn_t *txn, const char *key_prefix,
+                                       const char *value_prefix, const int num_keys)
+{
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    for (int idx = 0; idx < num_keys; idx++) {
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+        data.data = data_buf;
+        data.size = strlen(data_buf);
+
+        status = napr_db_put(txn, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+static void helper_insert_data_reverse(napr_db_txn_t *txn, const char *key_prefix,
+                                       const char *value_prefix, const int num_keys)
+{
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    for (int idx = num_keys - 1; idx >= 0; idx--) {
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+        data.data = data_buf;
+        data.size = strlen(data_buf);
+
+        status = napr_db_put(txn, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+/* Helper to verify a range of keys from the database */
+static void helper_verify_data(napr_db_txn_t *txn, const char *key_prefix,
+                               const char *value_prefix, const int num_keys)
+{
+    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    napr_db_val_t key = { 0 };
+    napr_db_val_t retrieved = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    for (int idx = 0; idx < num_keys; idx++) {
+        int ret = 0;
+        ret = snprintf(key_buf, sizeof(key_buf), "%s_%03d", key_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(key_buf));
+        ret = snprintf(data_buf, sizeof(data_buf), "%s_%03d", value_prefix, idx);
+        ck_assert_int_ge(ret, 0);
+        ck_assert_int_lt(ret, sizeof(data_buf));
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+
+        status = napr_db_get(txn, &key, &retrieved);
+        ck_assert_int_eq(status, APR_SUCCESS);
+        ck_assert_int_eq(retrieved.size, strlen(data_buf));
+        ck_assert_int_eq(memcmp(retrieved.data, data_buf, strlen(data_buf)), 0);
+    }
+}
+
 static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
 {
     apr_status_t status = APR_SUCCESS;
@@ -118,12 +205,6 @@ START_TEST(test_insert_multiple_keys)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    napr_db_val_t retrieved = { 0 };
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
-    int idx = 0;
     const int num_keys = 10;
 
     apr_initialize();
@@ -137,43 +218,9 @@ START_TEST(test_insert_multiple_keys)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Insert multiple keys */
-    for (idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-        data.data = data_buf;
-        data.size = strlen(data_buf);
-
-        status = napr_db_put(txn, &key, &data);
-        ck_assert_int_eq(status, APR_SUCCESS);
-    }
-
-    /* Verify all keys are retrievable within the same transaction */
-    for (idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-
-        status = napr_db_get(txn, &key, &retrieved);
-        ck_assert_int_eq(status, APR_SUCCESS);
-        ck_assert_int_eq(retrieved.size, strlen(data_buf));
-        ck_assert_int_eq(memcmp(retrieved.data, data_buf, strlen(data_buf)), 0);
-    }
+    /* Insert and verify data */
+    helper_insert_data_forward(txn, "key", "value_%03d_data", num_keys);
+    helper_verify_data(txn, "key", "value_%03d_data", num_keys);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -357,12 +404,6 @@ START_TEST(test_insert_sorted_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    napr_db_val_t retrieved = { 0 };
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
-    int idx = 0;
     const int num_keys = 8;
 
     apr_initialize();
@@ -376,43 +417,9 @@ START_TEST(test_insert_sorted_order)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Insert keys in sorted order */
-    for (idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-        data.data = data_buf;
-        data.size = strlen(data_buf);
-
-        status = napr_db_put(txn, &key, &data);
-        ck_assert_int_eq(status, APR_SUCCESS);
-    }
-
-    /* Verify all keys are retrievable */
-    for (idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-
-        status = napr_db_get(txn, &key, &retrieved);
-        ck_assert_int_eq(status, APR_SUCCESS);
-        ck_assert_int_eq(retrieved.size, strlen(data_buf));
-        ck_assert_int_eq(memcmp(retrieved.data, data_buf, strlen(data_buf)), 0);
-    }
+    /* Insert and verify data */
+    helper_insert_data_forward(txn, "sorted_key", "sorted_value", num_keys);
+    helper_verify_data(txn, "sorted_key", "sorted_value", num_keys);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -434,12 +441,6 @@ START_TEST(test_insert_reverse_order)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    napr_db_val_t retrieved = { 0 };
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
-    int idx = 0;
     const int num_keys = 8;
 
     apr_initialize();
@@ -453,43 +454,9 @@ START_TEST(test_insert_reverse_order)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Insert keys in reverse order */
-    for (idx = num_keys - 1; idx >= 0; idx--) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-        data.data = data_buf;
-        data.size = strlen(data_buf);
-
-        status = napr_db_put(txn, &key, &data);
-        ck_assert_int_eq(status, APR_SUCCESS);
-    }
-
-    /* Verify all keys are retrievable */
-    for (idx = 0; idx < num_keys; idx++) {
-        int ret = 0;
-        ret = snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(key_buf));
-        ret = snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
-        ck_assert_int_ge(ret, 0);
-        ck_assert_int_lt(ret, sizeof(data_buf));
-
-        key.data = key_buf;
-        key.size = strlen(key_buf);
-
-        status = napr_db_get(txn, &key, &retrieved);
-        ck_assert_int_eq(status, APR_SUCCESS);
-        ck_assert_int_eq(retrieved.size, strlen(data_buf));
-        ck_assert_int_eq(memcmp(retrieved.data, data_buf, strlen(data_buf)), 0);
-    }
+    /* Insert and verify data */
+    helper_insert_data_reverse(txn, "reverse_key", "reverse_value", num_keys);
+    helper_verify_data(txn, "reverse_key", "reverse_value", num_keys);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
