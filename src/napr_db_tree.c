@@ -8,6 +8,7 @@
 
 #include "napr_db_internal.h"
 #include <string.h>
+#include <apr_hash.h>
 
 /**
  * @brief Compare two keys.
@@ -62,7 +63,7 @@ static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const ui
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out)
+apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out)
 {
     uint16_t left = 0;
     uint16_t right = 0;
@@ -140,7 +141,7 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
  * @param leaf_page_out Output: pointer to the leaf page in the memory map
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out)
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -206,4 +207,105 @@ apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, D
 
     /* Should never reach here */
     return APR_EGENERAL;
+}
+
+/**
+ * @brief Allocate new pages in a write transaction.
+ *
+ * Allocates one or more contiguous pages by incrementing the transaction's
+ * last_pgno counter. This is a simple allocation strategy - the allocated
+ * pages will be written to disk on commit.
+ *
+ * Note: Free page management and reuse will be implemented in later iterations.
+ *
+ * @param txn Write transaction handle
+ * @param count Number of contiguous pages to allocate
+ * @param pgno_out Output: page number of first allocated page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
+{
+    pgno_t first_pgno = 0;
+
+    if (!txn || !pgno_out || count == 0) {
+        return APR_EINVAL;
+    }
+
+    /* Verify this is a write transaction */
+    if (txn->flags & NAPR_DB_RDONLY) {
+        return APR_EINVAL;
+    }
+
+    /* Allocate by incrementing last_pgno */
+    first_pgno = txn->new_last_pgno + 1;
+    txn->new_last_pgno += count;
+
+    *pgno_out = first_pgno;
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Get a writable copy of a page (Copy-on-Write).
+ *
+ * This implements the core CoW mechanism for MVCC:
+ * - On first modification: allocate a new buffer, copy the original page
+ * - On subsequent modifications: return the existing dirty copy
+ *
+ * The dirty copy is stored in the transaction's dirty_pages hash table,
+ * keyed by the original page number. On commit, dirty pages are written
+ * to their original locations in the file.
+ *
+ * @param txn Write transaction handle
+ * @param original_page Pointer to the original page in the memory map
+ * @param dirty_copy_out Output: pointer to the writable dirty copy
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out)
+{
+    DB_PageHeader *dirty_copy = NULL;
+    pgno_t pgno = 0;
+    pgno_t *pgno_key = NULL;
+
+    if (!txn || !original_page || !dirty_copy_out) {
+        return APR_EINVAL;
+    }
+
+    /* Verify this is a write transaction */
+    if (txn->flags & NAPR_DB_RDONLY) {
+        return APR_EINVAL;
+    }
+
+    /* Get the page number from the original page */
+    pgno = original_page->pgno;
+
+    /* Check if we already have a dirty copy of this page */
+    dirty_copy = apr_hash_get(txn->dirty_pages, &pgno, sizeof(pgno_t));
+
+    if (dirty_copy) {
+        /* Already have a dirty copy - return it */
+        *dirty_copy_out = dirty_copy;
+        return APR_SUCCESS;
+    }
+
+    /* Need to create a new dirty copy */
+    dirty_copy = apr_palloc(txn->pool, PAGE_SIZE);
+    if (!dirty_copy) {
+        return APR_ENOMEM;
+    }
+
+    /* Copy the original page to the dirty buffer */
+    memcpy(dirty_copy, original_page, PAGE_SIZE);
+
+    /* Create a persistent key for the hash table */
+    pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+    if (!pgno_key) {
+        return APR_ENOMEM;
+    }
+    *pgno_key = pgno;
+
+    /* Store the dirty copy in the hash table */
+    apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), dirty_copy);
+
+    *dirty_copy_out = dirty_copy;
+    return APR_SUCCESS;
 }

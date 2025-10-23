@@ -16,6 +16,7 @@
 #include <apr_mmap.h>
 #include <apr_thread_mutex.h>
 #include <apr_proc_mutex.h>
+#include <apr_hash.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -144,8 +145,7 @@ typedef struct __attribute__((packed)) DB_PageHeader {
  *
  * Total size must be exactly PAGE_SIZE (4096 bytes).
  */
-typedef struct DB_MetaPage
-{
+typedef struct __attribute__((packed)) DB_MetaPage {
     uint32_t magic;     /**< Magic number: DB_MAGIC (4 bytes) */
     uint32_t version;   /**< Format version: DB_VERSION (4 bytes) */
     txnid_t txnid;      /**< Transaction ID (8 bytes) */
@@ -232,6 +232,10 @@ struct napr_db_env_t
  * Represents a read or write transaction. Write transactions are
  * serialized via the SWMR mutex. Read transactions are lock-free
  * and operate on a snapshot.
+ *
+ * For write transactions, the dirty_pages hash table implements
+ * Copy-on-Write (CoW) semantics: modified pages are copied to
+ * private buffers before changes are made.
  */
 struct napr_db_txn_t
 {
@@ -240,6 +244,10 @@ struct napr_db_txn_t
     txnid_t txnid;              /**< Transaction ID (snapshot version) */
     pgno_t root_pgno;           /**< Root page number for this snapshot */
     unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
+
+    /* Copy-on-Write tracking for write transactions */
+    apr_hash_t *dirty_pages;    /**< Hash table: pgno_t -> DB_PageHeader* (dirty copy) */
+    pgno_t new_last_pgno;       /**< Last page number for this transaction (for allocation) */
 };
 
 /*
@@ -350,7 +358,7 @@ static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out);
+apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out);
 
 /**
  * @brief Find the leaf page that should contain a given key.
@@ -362,6 +370,33 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out);
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out);
+
+/**
+ * @brief Allocate new pages in a write transaction.
+ *
+ * Allocates one or more contiguous pages by incrementing the last_pgno.
+ * This is a simple allocation strategy - free page management will come later.
+ *
+ * @param txn Write transaction handle
+ * @param count Number of contiguous pages to allocate
+ * @param pgno_out Output: page number of first allocated page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out);
+
+/**
+ * @brief Get a writable copy of a page (Copy-on-Write).
+ *
+ * This is the core CoW mechanism. If the page has already been modified
+ * in this transaction, return the existing dirty copy. Otherwise, create
+ * a new dirty copy in transaction-private memory.
+ *
+ * @param txn Write transaction handle
+ * @param original_page Pointer to the original page in the memory map
+ * @param dirty_copy_out Output: pointer to the writable dirty copy
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out);
 
 #endif /* NAPR_DB_INTERNAL_H */
