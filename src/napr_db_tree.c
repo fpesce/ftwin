@@ -34,7 +34,7 @@ static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const ui
     if (key1_size < key2_size) {
         return -1;
     }
-    else if (key1_size > key2_size) {
+    if (key1_size > key2_size) {
         return 1;
     }
 
@@ -64,9 +64,9 @@ static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const ui
  */
 apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uint16_t *index_out)
 {
-    uint16_t left;
-    uint16_t right;
-    int cmp;
+    uint16_t left = 0;
+    uint16_t right = 0;
+    int cmp = 0;
 
     if (!page || !key || !index_out) {
         return APR_EINVAL;
@@ -107,7 +107,7 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
             *index_out = mid;
             return APR_SUCCESS;
         }
-        else if (cmp < 0) {
+        if (cmp < 0) {
             /* Search key is smaller, search left half */
             right = mid;
         }
