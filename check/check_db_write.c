@@ -117,7 +117,7 @@ START_TEST(test_insert_multiple_keys)
     napr_db_val_t retrieved = { 0 };
     char key_buf[32] = { 0 };
     char data_buf[64] = { 0 };
-    int i = 0;
+    int idx = 0;
     const int num_keys = 10;
 
     apr_initialize();
@@ -132,9 +132,9 @@ START_TEST(test_insert_multiple_keys)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert multiple keys */
-    for (i = 0; i < num_keys; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", i);
+    for (idx = 0; idx < num_keys; idx++) {
+        snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -146,9 +146,9 @@ START_TEST(test_insert_multiple_keys)
     }
 
     /* Verify all keys are retrievable within the same transaction */
-    for (i = 0; i < num_keys; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", i);
+    for (idx = 0; idx < num_keys; idx++) {
+        snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "value_%03d_data", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -346,7 +346,7 @@ START_TEST(test_insert_sorted_order)
     napr_db_val_t retrieved = { 0 };
     char key_buf[32] = { 0 };
     char data_buf[64] = { 0 };
-    int i = 0;
+    int idx = 0;
     const int num_keys = 8;
 
     apr_initialize();
@@ -361,9 +361,9 @@ START_TEST(test_insert_sorted_order)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert keys in sorted order */
-    for (i = 0; i < num_keys; i++) {
-        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", i);
+    for (idx = 0; idx < num_keys; idx++) {
+        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -375,9 +375,9 @@ START_TEST(test_insert_sorted_order)
     }
 
     /* Verify all keys are retrievable */
-    for (i = 0; i < num_keys; i++) {
-        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", i);
+    for (idx = 0; idx < num_keys; idx++) {
+        snprintf(key_buf, sizeof(key_buf), "sorted_key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "sorted_value_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -413,7 +413,7 @@ START_TEST(test_insert_reverse_order)
     napr_db_val_t retrieved = { 0 };
     char key_buf[32] = { 0 };
     char data_buf[64] = { 0 };
-    int i = 0;
+    int idx = 0;
     const int num_keys = 8;
 
     apr_initialize();
@@ -428,9 +428,9 @@ START_TEST(test_insert_reverse_order)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert keys in reverse order */
-    for (i = num_keys - 1; i >= 0; i--) {
-        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", i);
+    for (idx = num_keys - 1; idx >= 0; idx--) {
+        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
@@ -442,9 +442,9 @@ START_TEST(test_insert_reverse_order)
     }
 
     /* Verify all keys are retrievable */
-    for (i = 0; i < num_keys; i++) {
-        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", i);
+    for (idx = 0; idx < num_keys; idx++) {
+        snprintf(key_buf, sizeof(key_buf), "reverse_key_%03d", idx);
+        snprintf(data_buf, sizeof(data_buf), "reverse_value_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);

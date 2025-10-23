@@ -625,7 +625,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     DB_PageHeader *dirty_page = NULL;
     uint16_t index = 0;
     apr_status_t status = APR_SUCCESS;
-    int i = 0;
+    int idx = 0;
 
     /* Validate inputs */
     if (!txn || !key || !data) {
@@ -700,8 +700,8 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
      * for each page. This ensures the entire path is copied and the transaction
      * operates on its own version of the tree structure.
      */
-    for (i = (int) path_len - 1; i >= 0; i--) {
-        pgno_t current_pgno = path[i];
+    for (idx = (int) path_len - 1; idx >= 0; idx--) {
+        pgno_t current_pgno = path[idx];
         DB_PageHeader *page_to_cow = NULL;
 
         /* Check if page is already dirty (newly allocated or previously modified) */
@@ -722,7 +722,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         }
 
         /* Update leaf_page pointer if this is the leaf (last element in path) */
-        if (i == (int) path_len - 1) {
+        if (idx == (int) path_len - 1) {
             leaf_page = dirty_page;
         }
     }
