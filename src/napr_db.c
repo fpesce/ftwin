@@ -564,10 +564,10 @@ apr_status_t napr_db_txn_abort(napr_db_txn_t * txn)
  */
 apr_status_t napr_db_get(napr_db_txn_t * txn, const napr_db_val_t * key, napr_db_val_t * data)
 {
-    DB_PageHeader *leaf_page;
-    uint16_t index;
-    apr_status_t status;
-    DB_LeafNode *leaf_node;
+    DB_PageHeader *leaf_page = NULL;
+    uint16_t index = 0;
+    apr_status_t status = APR_SUCCESS;
+    DB_LeafNode *leaf_node = NULL;
 
     if (!txn || !key || !data) {
         return APR_EINVAL;

@@ -7,13 +7,18 @@
  */
 
 #include "../src/napr_db_internal.h"
+#include "check_db_constants.h"
 #include <check.h>
 #include <apr_file_io.h>
 #include <string.h>
 #include <stdlib.h>
 
 /* Test database path */
-static const char *test_db_path = "/tmp/test_db_read.db";
+static const char *const test_db_path = "/tmp/test_db_read.db";
+/*
+ * Managed in setup/teardown.
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
 
 /**
@@ -146,14 +151,15 @@ START_TEST(test_get_single_leaf)
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
-    napr_db_val_t key, data;
+    apr_status_t status = APR_SUCCESS;
+    napr_db_val_t key;
+    napr_db_val_t data;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 1024 * 1024); /* 1MB */
+    status = napr_db_env_set_mapsize(env, ONE_MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
@@ -256,14 +262,15 @@ START_TEST(test_get_two_level_tree)
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
-    apr_status_t status;
-    napr_db_val_t key, data;
+    apr_status_t status = APR_SUCCESS;
+    napr_db_val_t key;
+    napr_db_val_t data;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 1024 * 1024); /* 1MB */
+    status = napr_db_env_set_mapsize(env, ONE_MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
@@ -393,19 +400,19 @@ END_TEST
  */
 Suite *make_db_read_suite(void)
 {
-    Suite *s = suite_create("DB_READ");
+    Suite *suite = suite_create("DB_READ");
 
     /* Test case for single leaf tree */
     TCase *tc_single = tcase_create("SingleLeaf");
     tcase_add_checked_fixture(tc_single, setup, teardown);
     tcase_add_test(tc_single, test_get_single_leaf);
-    suite_add_tcase(s, tc_single);
+    suite_add_tcase(suite, tc_single);
 
     /* Test case for two-level tree */
     TCase *tc_two_level = tcase_create("TwoLevel");
     tcase_add_checked_fixture(tc_two_level, setup, teardown);
     tcase_add_test(tc_two_level, test_get_two_level_tree);
-    suite_add_tcase(s, tc_two_level);
+    suite_add_tcase(suite, tc_two_level);
 
-    return s;
+    return suite;
 }

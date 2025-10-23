@@ -142,9 +142,10 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t * key, uin
  */
 apr_status_t db_find_leaf_page(napr_db_txn_t * txn, const napr_db_val_t * key, DB_PageHeader ** leaf_page_out)
 {
-    pgno_t current_pgno;
-    DB_PageHeader *page;
-    uint16_t index;
+    pgno_t current_pgno = 0;
+    DB_PageHeader *page = NULL;
+    uint16_t index = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
 
     if (!txn || !key || !leaf_page_out) {
