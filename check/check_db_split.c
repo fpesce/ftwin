@@ -256,12 +256,12 @@ END_TEST
  */
 Suite *make_db_split_suite(void)
 {
-    Suite *s = suite_create("DB_Split");
+    Suite *suite = suite_create("DB_Split");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_leaf_split_basic);
     tcase_add_test(tc_core, test_leaf_split_key_distribution);
-    suite_add_tcase(s, tc_core);
+    suite_add_tcase(suite, tc_core);
 
-    return s;
+    return suite;
 }
