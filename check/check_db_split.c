@@ -135,6 +135,15 @@ static void populate_leaf_page(DB_PageHeader *page, int num_keys)
     }
 }
 
+static void verify_page_nodes(DB_PageHeader *page)
+{
+    for (int idx = 0; idx < page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(page, idx);
+        ck_assert_ptr_nonnull(node);
+        ck_assert_int_gt(node->key_size, 0);
+    }
+}
+
 static void verify_leaf_split_basic(db_split_fixture *fixture)
 {
     DB_PageHeader *right_page = NULL;
@@ -143,7 +152,6 @@ static void verify_leaf_split_basic(db_split_fixture *fixture)
     uint16_t expected_left_keys = 0;
     uint16_t expected_right_keys = 0;
     apr_status_t status = APR_SUCCESS;
-    int idx = 0;
 
     populate_leaf_page(fixture->left_page, TEST_KEY_COUNT);
     original_num_keys = fixture->left_page->num_keys;
@@ -161,17 +169,8 @@ static void verify_leaf_split_basic(db_split_fixture *fixture)
     ck_assert_ptr_nonnull(divider_key.data);
     ck_assert_int_gt(divider_key.size, 0);
 
-    for (idx = 0; idx < fixture->left_page->num_keys; idx++) {
-        DB_LeafNode *node = db_page_leaf_node(fixture->left_page, idx);
-        ck_assert_ptr_nonnull(node);
-        ck_assert_int_gt(node->key_size, 0);
-    }
-
-    for (idx = 0; idx < right_page->num_keys; idx++) {
-        DB_LeafNode *node = db_page_leaf_node(right_page, idx);
-        ck_assert_ptr_nonnull(node);
-        ck_assert_int_gt(node->key_size, 0);
-    }
+    verify_page_nodes(fixture->left_page);
+    verify_page_nodes(right_page);
 }
 
 /*
@@ -195,13 +194,35 @@ START_TEST(test_leaf_split_basic)
 END_TEST
 /* *INDENT-ON* */
 
+static void verify_left_page_keys(db_split_fixture *fixture)
+{
+    char key_buf[TEST_KEY_BUF_SIZE];
+
+    for (int idx = 0; idx < fixture->left_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(fixture->left_page, idx);
+        (void)snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        ck_assert_int_eq(node->key_size, strlen(key_buf));
+        ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
+    }
+}
+
+static void verify_right_page_keys(DB_PageHeader *right_page)
+{
+    char key_buf[TEST_KEY_BUF_SIZE];
+
+    for (int idx = 0; idx < right_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(right_page, idx);
+        (void)snprintf(key_buf, sizeof(key_buf), "key_%03d", idx + 4);
+        ck_assert_int_eq(node->key_size, strlen(key_buf));
+        ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
+    }
+}
+
 static void verify_leaf_split_key_distribution(db_split_fixture *fixture)
 {
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
     apr_status_t status = APR_SUCCESS;
-    int idx = 0;
-    char key_buf[TEST_KEY_BUF_SIZE];
 
     populate_leaf_page(fixture->left_page, TEST_KEY_SO_COUNT);
     ck_assert_int_eq(fixture->left_page->num_keys, TEST_KEY_SO_COUNT);
@@ -216,19 +237,8 @@ static void verify_leaf_split_key_distribution(db_split_fixture *fixture)
     ck_assert_int_eq(divider_key.size, first_right_node->key_size);
     ck_assert_int_eq(memcmp(divider_key.data, db_leaf_node_key(first_right_node), divider_key.size), 0);
 
-    for (idx = 0; idx < fixture->left_page->num_keys; idx++) {
-        DB_LeafNode *node = db_page_leaf_node(fixture->left_page, idx);
-        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
-        ck_assert_int_eq(node->key_size, strlen(key_buf));
-        ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
-    }
-
-    for (idx = 0; idx < right_page->num_keys; idx++) {
-        DB_LeafNode *node = db_page_leaf_node(right_page, idx);
-        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx + 4);
-        ck_assert_int_eq(node->key_size, strlen(key_buf));
-        ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
-    }
+    verify_left_page_keys(fixture);
+    verify_right_page_keys(right_page);
 }
 
 /*
