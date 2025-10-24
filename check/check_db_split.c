@@ -18,11 +18,11 @@
 /* Test database path in /tmp */
 #define TEST_DB_PATH "/tmp/test_split.db"
 
-static int NB_KEY_TEST = 10;
-
 /* Test buffer sizes */
 enum
 {
+    TEST_KEY_SO_COUNT = 8,
+    TEST_KEY_COUNT = 10,
     TEST_KEY_BUF_SIZE = 32,
     TEST_DATA_BUF_SIZE = 64
 };
@@ -119,7 +119,7 @@ START_TEST(test_leaf_split_basic)
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), left_page);
 
     /* Insert several keys into the page (not enough to fill it completely for now) */
-    for (idx = 0; idx < NB_KEY_TEST; idx++) {
+    for (idx = 0; idx < TEST_KEY_COUNT; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_value_%03d", idx);
 
@@ -133,7 +133,7 @@ START_TEST(test_leaf_split_basic)
     }
 
     original_num_keys = left_page->num_keys;
-    ck_assert_int_eq(original_num_keys, NB_KEY_TEST);
+    ck_assert_int_eq(original_num_keys, TEST_KEY_COUNT);
 
     /* Perform the split */
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
@@ -235,8 +235,8 @@ START_TEST(test_leaf_split_key_distribution)
     *pgno_key = left_pgno;
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), left_page);
 
-    /* Insert 8 keys in sorted order */
-    for (idx = 0; idx < 8; idx++) {
+    /* Insert TEST_KEY_SO_COUNT keys in sorted order */
+    for (idx = 0; idx < TEST_KEY_SO_COUNT; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%03d", idx);
 
@@ -249,7 +249,7 @@ START_TEST(test_leaf_split_key_distribution)
         ck_assert_int_eq(status, APR_SUCCESS);
     }
 
-    ck_assert_int_eq(left_page->num_keys, 8);
+    ck_assert_int_eq(left_page->num_keys, TEST_KEY_SO_COUNT);
 
     /* Perform the split */
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
