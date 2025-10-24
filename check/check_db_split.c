@@ -265,44 +265,36 @@ START_TEST(test_leaf_split_key_distribution)
 END_TEST
 /* *INDENT-ON* */
 
-/*
- * Test: Stress test insertions to force tree growth
- *
- * This test verifies that the tree correctly handles:
- * 1. Multiple leaf splits
- * 2. Branch splits when parents become full
- * 3. Root splits that increase tree height
- * 4. All data remains accessible after complex splits
- */
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-START_TEST(test_stress_insertions)
+static void setup_stress_test_env(apr_pool_t **pool, napr_db_env_t **env)
 {
-    apr_pool_t *pool = NULL;
-    napr_db_env_t *env = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    apr_initialize();
+    apr_pool_create(pool, NULL);
+
+    /* Remove existing test database */
+    unlink(TEST_DB_PATH);
+
+    /* Create new database with larger mapsize for stress test */
+    status = napr_db_env_create(env, *pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(*env, TEST_20MB_SIZE * ONE_MB);    /* 20MB for 100k keys */
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_open(*env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void insert_test_keys(napr_db_env_t *env)
+{
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
     char key_buf[TEST_KEY_BUF_SIZE];
     char data_buf[TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t data;
-    napr_db_val_t retrieved_data = { 0 };
     int idx = 0;
-
-    apr_initialize();
-    apr_pool_create(&pool, NULL);
-
-    /* Remove existing test database */
-    unlink(TEST_DB_PATH);
-
-    /* Create new database with larger mapsize for stress test */
-    status = napr_db_env_create(&env, pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_env_set_mapsize(env, TEST_20MB_SIZE * ONE_MB);     /* 20MB for 100k keys */
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
-    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert many keys to force splits */
     status = napr_db_txn_begin(env, 0, &txn);
@@ -324,6 +316,17 @@ START_TEST(test_stress_insertions)
     /* Commit the transaction */
     status = napr_db_txn_commit(txn);
     ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void verify_test_keys(napr_db_env_t *env)
+{
+    napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    char key_buf[TEST_KEY_BUF_SIZE];
+    char data_buf[TEST_DATA_BUF_SIZE];
+    napr_db_val_t key;
+    napr_db_val_t retrieved_data = { 0 };
+    int idx = 0;
 
     /* Verify all keys are retrievable */
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
@@ -344,6 +347,26 @@ START_TEST(test_stress_insertions)
 
     status = napr_db_txn_abort(txn);
     ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+/*
+ * Test: Stress test insertions to force tree growth
+ *
+ * This test verifies that the tree correctly handles:
+ * 1. Multiple leaf splits
+ * 2. Branch splits when parents become full
+ * 3. Root splits that increase tree height
+ * 4. All data remains accessible after complex splits
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_stress_insertions)
+{
+    apr_pool_t *pool = NULL;
+    napr_db_env_t *env = NULL;
+
+    setup_stress_test_env(&pool, &env);
+    insert_test_keys(env);
+    verify_test_keys(env);
 
     napr_db_env_close(env);
     apr_pool_destroy(pool);
