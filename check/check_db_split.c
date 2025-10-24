@@ -113,7 +113,8 @@ static void db_split_teardown(db_split_fixture *fixture)
 
 static void populate_leaf_page(DB_PageHeader *page, int num_keys)
 {
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     char key_buf[TEST_KEY_BUF_SIZE];
     char data_buf[TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
