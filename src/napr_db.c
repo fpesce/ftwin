@@ -87,7 +87,7 @@ apr_status_t napr_db_env_set_mapsize(napr_db_env_t *env, apr_size_t size)
  * @param meta Pointer to meta page in memory
  * @param txnid Transaction ID for this meta page
  */
-static void init_meta_page(DB_MetaPage * meta, txnid_t txnid)
+static void init_meta_page(DB_MetaPage *meta, txnid_t txnid)
 {
     memset(meta, 0, sizeof(DB_MetaPage));
     meta->magic = DB_MAGIC;
@@ -105,7 +105,7 @@ static void init_meta_page(DB_MetaPage * meta, txnid_t txnid)
  * @param meta Pointer to meta page
  * @return APR_SUCCESS if valid, APR_EINVAL otherwise
  */
-static apr_status_t validate_meta_page(const DB_MetaPage * meta)
+static apr_status_t validate_meta_page(const DB_MetaPage *meta)
 {
     if (meta->magic != DB_MAGIC) {
         return APR_EINVAL;
@@ -643,7 +643,8 @@ static apr_status_t extend_database_file(napr_db_txn_t *txn)
  */
 static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
 {
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     apr_hash_index_t *h_index = NULL;
 
     for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
@@ -657,7 +658,7 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
         dirty_page = (DB_PageHeader *) val;
         new_pgno = dirty_page->pgno;
 
-        offset = (apr_off_t) new_pgno * PAGE_SIZE;
+        offset = (apr_off_t) new_pgno *PAGE_SIZE;
 
         status = apr_file_seek(txn->env->file, APR_SET, &offset);
         if (status != APR_SUCCESS) {

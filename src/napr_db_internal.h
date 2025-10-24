@@ -131,14 +131,18 @@ typedef uint64_t txnid_t;
  * | ...              |
  * +------------------+
  */
-typedef struct __attribute__((packed)) DB_PageHeader {
-    pgno_t pgno;        /**< Page number (8 bytes) */
-    uint16_t flags;     /**< Page type flags (2 bytes) */
-    uint16_t num_keys;  /**< Number of keys/entries in page (2 bytes) */
-    uint16_t lower;     /**< Offset to end of slot array (2 bytes) */
-    uint16_t upper;     /**< Offset to start of node data (2 bytes) */
-    uint16_t padding;   /**< Padding for alignment (2 bytes) */
-} DB_PageHeader;
+typedef struct __attribute__((packed))
+     DB_PageHeader
+     {
+         pgno_t pgno;   /**< Page number (8 bytes) */
+         uint16_t flags;/**< Page type flags (2 bytes) */
+         uint16_t num_keys;
+                        /**< Number of keys/entries in page (2 bytes) */
+         uint16_t lower;/**< Offset to end of slot array (2 bytes) */
+         uint16_t upper;/**< Offset to start of node data (2 bytes) */
+         uint16_t padding;
+                        /**< Padding for alignment (2 bytes) */
+     } DB_PageHeader;
 
 /**
  * @brief Meta page structure for pages 0 and 1.
@@ -149,14 +153,19 @@ typedef struct __attribute__((packed)) DB_PageHeader {
  *
  * Total size must be exactly PAGE_SIZE (4096 bytes).
  */
-typedef struct __attribute__((packed)) DB_MetaPage {
-    uint32_t magic;     /**< Magic number: DB_MAGIC (4 bytes) */
-    uint32_t version;   /**< Format version: DB_VERSION (4 bytes) */
-    txnid_t txnid;      /**< Transaction ID (8 bytes) */
-    pgno_t root;        /**< Root page of B+ tree (8 bytes) */
-    pgno_t last_pgno;   /**< Last allocated page number (8 bytes) */
-    uint8_t reserved[DB_METAPAGE_RESERVED_SIZE];  /**< Reserved/padding to PAGE_SIZE */
-} DB_MetaPage;
+     typedef struct __attribute__((packed))
+     DB_MetaPage
+     {
+         uint32_t magic;/**< Magic number: DB_MAGIC (4 bytes) */
+         uint32_t version;
+                        /**< Format version: DB_VERSION (4 bytes) */
+         txnid_t txnid; /**< Transaction ID (8 bytes) */
+         pgno_t root;   /**< Root page of B+ tree (8 bytes) */
+         pgno_t last_pgno;
+                        /**< Last allocated page number (8 bytes) */
+         uint8_t reserved[DB_METAPAGE_RESERVED_SIZE];
+                                                  /**< Reserved/padding to PAGE_SIZE */
+     } DB_MetaPage;
 
 /**
  * @brief Branch (interior) node entry.
@@ -172,7 +181,8 @@ typedef struct __attribute__((packed)) DB_MetaPage {
  * Note: The key_data is a flexible array member. In practice, entries
  * are stored in the slotted page's data area.
  */
-typedef struct __attribute__((packed)) DB_BranchNode {
+     typedef struct __attribute__((packed)) DB_BranchNode
+{
     pgno_t pgno;        /**< Child page pointer (8 bytes) */
     uint16_t key_size;  /**< Key size in bytes (2 bytes) */
     uint8_t key_data[];  /**< Key data (variable length) */
@@ -271,7 +281,7 @@ struct napr_db_txn_t
  * @param page Pointer to the page header
  * @return Pointer to the first slot (uint16_t offset)
  */
-static inline uint16_t *db_page_slots(DB_PageHeader * page)
+static inline uint16_t *db_page_slots(DB_PageHeader *page)
 {
     return (uint16_t *) ((char *) page + sizeof(DB_PageHeader));
 }
@@ -283,7 +293,7 @@ static inline uint16_t *db_page_slots(DB_PageHeader * page)
  * @param index Index of the node (0-based)
  * @return Offset from page start to the node data
  */
-static inline uint16_t db_page_slot_offset(DB_PageHeader * page, uint16_t index)
+static inline uint16_t db_page_slot_offset(DB_PageHeader *page, uint16_t index)
 {
     uint16_t *slots = db_page_slots(page);
     return slots[index];
@@ -296,7 +306,7 @@ static inline uint16_t db_page_slot_offset(DB_PageHeader * page, uint16_t index)
  * @param index Index of the node (0-based)
  * @return Pointer to the DB_BranchNode
  */
-static inline DB_BranchNode *db_page_branch_node(DB_PageHeader * page, uint16_t index)
+static inline DB_BranchNode *db_page_branch_node(DB_PageHeader *page, uint16_t index)
 {
     uint16_t offset = db_page_slot_offset(page, index);
     return (DB_BranchNode *) ((char *) page + offset);
@@ -309,7 +319,7 @@ static inline DB_BranchNode *db_page_branch_node(DB_PageHeader * page, uint16_t 
  * @param index Index of the node (0-based)
  * @return Pointer to the DB_LeafNode
  */
-static inline DB_LeafNode *db_page_leaf_node(DB_PageHeader * page, uint16_t index)
+static inline DB_LeafNode *db_page_leaf_node(DB_PageHeader *page, uint16_t index)
 {
     uint16_t offset = db_page_slot_offset(page, index);
     return (DB_LeafNode *) ((char *) page + offset);
@@ -362,7 +372,7 @@ static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out);
+apr_status_t db_page_search(DB_PageHeader *page, const napr_db_val_t *key, uint16_t *index_out);
 
 /**
  * @brief Find the leaf page that should contain a given key.
@@ -374,7 +384,7 @@ apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out);
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out);
 
 /**
  * @brief Allocate new pages in a write transaction.
@@ -401,7 +411,7 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
  * @param dirty_copy_out Output: pointer to the writable dirty copy
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out);
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_page, DB_PageHeader **dirty_copy_out);
 
 /**
  * @brief Find the leaf page for a key and record the path from root to leaf.
@@ -413,7 +423,7 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_p
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader ** leaf_page_out);
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out);
 
 /**
  * @brief Insert a key/value or key/child pair into a page.
@@ -425,6 +435,21 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
  * @param child_pgno Child page number (for branch nodes, 0 for leaf nodes)
  * @return APR_SUCCESS on success, APR_ENOSPC if not enough space, error code otherwise
  */
-apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
+apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
+
+/**
+ * @brief Split a leaf page when it becomes full.
+ *
+ * Splits a full leaf page into two pages, moving approximately half the
+ * entries to a new right sibling page. The divider key (first key of the
+ * right page) is returned for insertion into the parent.
+ *
+ * @param txn Write transaction handle
+ * @param left_page The original full page (will be modified in-place)
+ * @param right_page_out Output: pointer to the newly allocated right sibling page
+ * @param divider_key_out Output: the divider key to insert into parent
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
 
 #endif /* NAPR_DB_INTERNAL_H */
