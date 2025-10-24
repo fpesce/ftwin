@@ -1017,8 +1017,8 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     }
 
     /* Determine which page the original key belongs to */
-    status = db_page_search(left_page, &current_key, &index);
-    if (status == APR_NOTFOUND && index >= left_page->num_keys) {
+    apr_status_t search_status = db_page_search(left_page, &current_key, &index);
+    if (search_status == APR_NOTFOUND && index >= left_page->num_keys) {
         /* Key goes to right page */
         (void) db_page_search(right_page, &current_key, &index);
         status = db_page_insert(right_page, index, &current_key, &current_data, 0);
@@ -1048,7 +1048,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         }
 
         /* Find insertion point in parent */
-        status = db_page_search(parent_page, &current_key, &index);
+        (void) db_page_search(parent_page, &current_key, &index);
 
         /* Try to insert divider key and right child pointer into parent */
         status = db_page_insert(parent_page, index, &current_key, NULL, right_child_pgno);
@@ -1069,8 +1069,8 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         }
 
         /* Determine which page the divider key belongs to */
-        (void) db_page_search(parent_page, &current_key, &index);
-        if (status == APR_NOTFOUND && index >= parent_page->num_keys) {
+        search_status = db_page_search(parent_page, &current_key, &index);
+        if (search_status == APR_NOTFOUND && index >= parent_page->num_keys) {
             /* Key goes to right page */
             (void) db_page_search(right_page, &current_key, &index);
             status = db_page_insert(right_page, index, &current_key, NULL, right_child_pgno);
