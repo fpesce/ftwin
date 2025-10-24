@@ -200,7 +200,7 @@ static void verify_left_page_keys(db_split_fixture *fixture)
 
     for (int idx = 0; idx < fixture->left_page->num_keys; idx++) {
         DB_LeafNode *node = db_page_leaf_node(fixture->left_page, idx);
-        (void)snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
         ck_assert_int_eq(node->key_size, strlen(key_buf));
         ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
     }
@@ -212,7 +212,7 @@ static void verify_right_page_keys(DB_PageHeader *right_page)
 
     for (int idx = 0; idx < right_page->num_keys; idx++) {
         DB_LeafNode *node = db_page_leaf_node(right_page, idx);
-        (void)snprintf(key_buf, sizeof(key_buf), "key_%03d", idx + 4);
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx + 4);
         ck_assert_int_eq(node->key_size, strlen(key_buf));
         ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
     }
