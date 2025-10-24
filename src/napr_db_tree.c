@@ -63,7 +63,7 @@ static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const ui
  * @param index_out Output: index of match or insertion point
  * @return APR_SUCCESS if exact match found, APR_NOTFOUND otherwise
  */
-apr_status_t db_page_search(DB_PageHeader * page, const napr_db_val_t *key, uint16_t *index_out)
+apr_status_t db_page_search(DB_PageHeader *page, const napr_db_val_t *key, uint16_t *index_out)
 {
     uint16_t left = 0;
     uint16_t right = 0;
@@ -167,7 +167,7 @@ static inline DB_PageHeader *db_get_page(napr_db_txn_t *txn, pgno_t pgno)
  * @param leaf_page_out Output: pointer to the leaf page in the memory map
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader ** leaf_page_out)
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -286,7 +286,7 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
  * @param dirty_copy_out Output: pointer to the writable dirty copy
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_page, DB_PageHeader ** dirty_copy_out)
+apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_page, DB_PageHeader **dirty_copy_out)
 {
     DB_PageHeader *dirty_copy = NULL;
     pgno_t pgno = 0;
@@ -356,7 +356,7 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader * original_p
  * @param child_pgno Child page number (for branch nodes, 0 for leaf nodes)
  * @return APR_SUCCESS on success, APR_ENOSPC if not enough space, error code otherwise
  */
-apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno)
+apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno)
 {
     uint16_t *slots = NULL;
     uint16_t node_size = 0;
@@ -443,7 +443,7 @@ apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_
  * @param divider_key_out Output: divider key for parent insertion
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader * left_page, DB_PageHeader ** right_page_out, napr_db_val_t *divider_key_out)
+apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out)
 {
     apr_status_t status = APR_SUCCESS;
     DB_PageHeader *right_page = NULL;
@@ -557,7 +557,7 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader * left_page, DB_Pag
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader ** leaf_page_out)
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;

@@ -1,4 +1,6 @@
 -l 200 -i4 -npsl -di0 -br -nce -d0 -cli0 -npcs -nfc1 -nut
+-T DB_MetaPage
+-T DB_PageHeader
 -T Suite
 -T XXH3_state_t
 -T apr_dir_t
@@ -19,6 +21,7 @@
 -T apr_uint32_t
 -T bench_file_params_t
 -T check_heap_numbers_t
+-T db_split_fixture
 -T filling_t
 -T ft_chksum_t
 -T ft_conf_t

@@ -87,7 +87,7 @@ apr_status_t napr_db_env_set_mapsize(napr_db_env_t *env, apr_size_t size)
  * @param meta Pointer to meta page in memory
  * @param txnid Transaction ID for this meta page
  */
-static void init_meta_page(DB_MetaPage * meta, txnid_t txnid)
+static void init_meta_page(DB_MetaPage *meta, txnid_t txnid)
 {
     memset(meta, 0, sizeof(DB_MetaPage));
     meta->magic = DB_MAGIC;
@@ -105,7 +105,7 @@ static void init_meta_page(DB_MetaPage * meta, txnid_t txnid)
  * @param meta Pointer to meta page
  * @return APR_SUCCESS if valid, APR_EINVAL otherwise
  */
-static apr_status_t validate_meta_page(const DB_MetaPage * meta)
+static apr_status_t validate_meta_page(const DB_MetaPage *meta)
 {
     if (meta->magic != DB_MAGIC) {
         return APR_EINVAL;
