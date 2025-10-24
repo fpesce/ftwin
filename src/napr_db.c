@@ -510,23 +510,269 @@ apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_t
  * @param txn Transaction handle
  * @return APR_SUCCESS or error code
  */
+/**
+ * @brief Build a mapping from old to new page numbers for all dirty pages.
+ * @param txn The transaction.
+ * @param pgno_map_ptr Pointer to receive the new pgno map.
+ * @return APR_SUCCESS or an error code.
+ */
+static apr_status_t build_pgno_map(napr_db_txn_t *txn, apr_hash_t **pgno_map_ptr)
+{
+    apr_hash_index_t *h_index = NULL;
+    apr_hash_t *pgno_map = apr_hash_make(txn->pool);
+    if (!pgno_map) {
+        return APR_ENOMEM;
+    }
+
+    for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
+        const void *key = NULL;
+        void *val = NULL;
+        pgno_t old_pgno = 0;
+        pgno_t new_pgno = 0;
+        pgno_t *old_pgno_ptr = NULL;
+        pgno_t *new_pgno_ptr = NULL;
+        DB_PageHeader *dirty_page = NULL;
+
+        apr_hash_this(h_index, &key, NULL, &val);
+        old_pgno = *(const pgno_t *) key;
+
+        dirty_page = (DB_PageHeader *) val;
+        new_pgno = dirty_page->pgno;
+
+        old_pgno_ptr = apr_palloc(txn->pool, sizeof(pgno_t));
+        new_pgno_ptr = apr_palloc(txn->pool, sizeof(pgno_t));
+
+        if (!old_pgno_ptr || !new_pgno_ptr) {
+            return APR_ENOMEM;
+        }
+
+        *old_pgno_ptr = old_pgno;
+        *new_pgno_ptr = new_pgno;
+        apr_hash_set(pgno_map, old_pgno_ptr, sizeof(pgno_t), new_pgno_ptr);
+    }
+
+    *pgno_map_ptr = pgno_map;
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Update pointers in dirty pages to point to new page locations.
+ * @param txn The transaction.
+ * @param pgno_map The mapping from old to new page numbers.
+ * @param new_root_pgno_ptr Pointer to store the new root page number.
+ */
+static void update_dirty_page_pointers(napr_db_txn_t *txn, apr_hash_t *pgno_map, pgno_t *new_root_pgno_ptr)
+{
+    apr_hash_index_t *h_index = NULL;
+    pgno_t *mapped_root = apr_hash_get(pgno_map, &txn->root_pgno, sizeof(pgno_t));
+    if (mapped_root) {
+        *new_root_pgno_ptr = *mapped_root;
+    }
+    else {
+        *new_root_pgno_ptr = txn->root_pgno;
+    }
+
+    for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
+        void *val = NULL;
+        DB_PageHeader *dirty_page = NULL;
+        uint16_t idx = 0;
+
+        apr_hash_this(h_index, NULL, NULL, &val);
+        dirty_page = (DB_PageHeader *) val;
+
+        if (!(dirty_page->flags & P_BRANCH)) {
+            continue;
+        }
+
+        for (idx = 0; idx < dirty_page->num_keys; idx++) {
+            DB_BranchNode *branch_node = db_page_branch_node(dirty_page, idx);
+            pgno_t old_child_pgno = branch_node->pgno;
+            pgno_t *new_child_pgno = apr_hash_get(pgno_map, &old_child_pgno, sizeof(pgno_t));
+
+            if (new_child_pgno) {
+                branch_node->pgno = *new_child_pgno;
+            }
+        }
+    }
+}
+
+/**
+ * @brief Extend the database file if necessary.
+ * @param txn The transaction.
+ * @return APR_SUCCESS or an error code.
+ */
+static apr_status_t extend_database_file(napr_db_txn_t *txn)
+{
+    apr_status_t status = APR_SUCCESS;
+
+    if (txn->new_last_pgno > txn->env->live_meta->last_pgno) {
+        apr_off_t new_file_size = (apr_off_t) (txn->new_last_pgno + 1) * PAGE_SIZE;
+        apr_off_t current_pos = 0;
+
+        status = apr_file_seek(txn->env->file, APR_END, &current_pos);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        if (current_pos < new_file_size) {
+            apr_off_t seek_pos = new_file_size - 1;
+            apr_size_t bytes_written = 1;
+            char zero_byte = 0;
+
+            status = apr_file_seek(txn->env->file, APR_SET, &seek_pos);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+
+            status = apr_file_write(txn->env->file, &zero_byte, &bytes_written);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+
+            status = apr_file_sync(txn->env->file);
+        }
+    }
+
+    return status;
+}
+
+/**
+ * @brief Write all dirty pages to disk.
+ * @param txn The transaction.
+ * @return APR_SUCCESS or an error code.
+ */
+static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
+{
+    apr_status_t status = APR_SUCCESS;
+    apr_hash_index_t *h_index = NULL;
+
+    for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
+        void *val = NULL;
+        DB_PageHeader *dirty_page = NULL;
+        pgno_t new_pgno = 0;
+        apr_off_t offset = 0;
+        apr_size_t bytes_to_write = PAGE_SIZE;
+
+        apr_hash_this(h_index, NULL, NULL, &val);
+        dirty_page = (DB_PageHeader *) val;
+        new_pgno = dirty_page->pgno;
+
+        offset = (apr_off_t) new_pgno * PAGE_SIZE;
+
+        status = apr_file_seek(txn->env->file, APR_SET, &offset);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        status = apr_file_write_full(txn->env->file, dirty_page, bytes_to_write, NULL);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+    }
+
+    return apr_file_sync(txn->env->file);
+}
+
+/**
+ * @brief Atomically update the meta page to commit the transaction.
+ * @param txn The transaction.
+ * @param new_root_pgno The new root page number.
+ * @return APR_SUCCESS or an error code.
+ */
+static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno)
+{
+    apr_status_t status = APR_SUCCESS;
+    DB_MetaPage updated_meta;
+    DB_MetaPage *stale_meta = NULL;
+    pgno_t meta_pgno = 0;
+    apr_off_t meta_offset = 0;
+    apr_size_t meta_bytes = PAGE_SIZE;
+
+    if (txn->env->live_meta == txn->env->meta0) {
+        stale_meta = txn->env->meta1;
+        meta_pgno = 1;
+    }
+    else {
+        stale_meta = txn->env->meta0;
+        meta_pgno = 0;
+    }
+
+    memset(&updated_meta, 0, sizeof(DB_MetaPage));
+    updated_meta.magic = DB_MAGIC;
+    updated_meta.version = DB_VERSION;
+    updated_meta.txnid = txn->txnid;
+    updated_meta.root = new_root_pgno;
+    updated_meta.last_pgno = txn->new_last_pgno;
+
+    meta_offset = (apr_off_t) meta_pgno *PAGE_SIZE;
+
+    status = apr_file_seek(txn->env->file, APR_SET, &meta_offset);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    status = apr_file_write_full(txn->env->file, &updated_meta, meta_bytes, NULL);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    status = apr_file_sync(txn->env->file);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    memcpy(stale_meta, &updated_meta, sizeof(DB_MetaPage));
+    txn->env->live_meta = stale_meta;
+
+    return APR_SUCCESS;
+}
+
 apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
-    int is_write = !(txn->flags & NAPR_DB_RDONLY);
+    int is_write = 0;
+    apr_hash_t *pgno_map = NULL;
+    pgno_t new_root_pgno = 0;
 
     if (!txn) {
         return APR_EINVAL;
     }
 
-    /* If write transaction, release writer lock */
-    if (is_write) {
-        status = db_writer_unlock(txn->env);
+    is_write = !(txn->flags & NAPR_DB_RDONLY);
+
+    if (!is_write || !txn->dirty_pages || apr_hash_count(txn->dirty_pages) == 0) {
+        if (is_write) {
+            db_writer_unlock(txn->env);
+        }
+        apr_pool_destroy(txn->pool);
+        return APR_SUCCESS;
     }
 
-    /* Destroy transaction pool (frees all transaction allocations) */
-    apr_pool_destroy(txn->pool);
+    status = build_pgno_map(txn, &pgno_map);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
 
+    update_dirty_page_pointers(txn, pgno_map, &new_root_pgno);
+
+    status = extend_database_file(txn);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = write_dirty_pages_to_disk(txn);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = commit_meta_page(txn, new_root_pgno);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+  cleanup:
+    db_writer_unlock(txn->env);
+    apr_pool_destroy(txn->pool);
     return status;
 }
 

@@ -91,12 +91,14 @@ This checklist follows the detailed project blueprint, organized by phases and i
         - [x] Traverse tree to find insertion point, recording path.
         - [x] CoW path propagation (copy all pages from leaf to root).
         - [x] Insert key/value into dirty leaf page.
-    - [ ] Implement full `napr_db_txn_commit` logic (deferred to next iteration):
-        - [ ] Allocate new physical pages for all dirty pages.
-        - [ ] Write dirty pages to their new locations in the file.
-        - [ ] Durability Step 1: Flush data pages (via `msync` or equivalent).
-        - [ ] Update the stale Meta Page (new root, TXNID, `last_pgno`).
-        - [ ] Atomic Commit Point (Durability Step 2): Flush the Meta Page (`fsync`/`apr_file_sync`).
+    - [x] Implement full `napr_db_txn_commit` logic:
+        - [x] Allocate new physical pages for all dirty pages (pgno mapping).
+        - [x] Update pointers in dirty branch pages to new physical locations.
+        - [x] Extend file if necessary to accommodate new pages.
+        - [x] Write dirty pages to their new locations in the file.
+        - [x] Durability Step 1: Flush data pages (`apr_file_sync`).
+        - [x] Update the stale Meta Page (new root, TXNID, `last_pgno`).
+        - [x] Atomic Commit Point (Durability Step 2): Flush the Meta Page (`apr_file_sync`).
 - [x] **Testing (`check/check_db_cow.c`)** - CoW Foundation Tests
     - [x] Test `db_page_alloc` increments `last_pgno` correctly (single, multiple, sequential).
     - [x] Test `db_page_alloc` rejects read-only transactions.
@@ -111,7 +113,8 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Test atomicity (Verify changes are discarded on abort).
     - [x] Test duplicate key rejection.
     - [x] Test read-only transaction rejects writes.
-    - [ ] Test persistence (Close DB, re-open, verify data) - deferred (requires commit implementation).
+    - [x] Test persistence (Close DB, re-open, verify data).
+    - [x] Test MVCC snapshot isolation (R1 doesn't see W1's committed changes, R2 does).
 
 ### Iteration 5: B+ Tree Scaling (Splitting)
 
