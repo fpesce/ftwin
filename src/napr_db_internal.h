@@ -427,4 +427,19 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
  */
 apr_status_t db_page_insert(DB_PageHeader * page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
 
+/**
+ * @brief Split a leaf page when it becomes full.
+ *
+ * Splits a full leaf page into two pages, moving approximately half the
+ * entries to a new right sibling page. The divider key (first key of the
+ * right page) is returned for insertion into the parent.
+ *
+ * @param txn Write transaction handle
+ * @param left_page The original full page (will be modified in-place)
+ * @param right_page_out Output: pointer to the newly allocated right sibling page
+ * @param divider_key_out Output: the divider key to insert into parent
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader * left_page, DB_PageHeader ** right_page_out, napr_db_val_t *divider_key_out);
+
 #endif /* NAPR_DB_INTERNAL_H */

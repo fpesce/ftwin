@@ -643,7 +643,8 @@ static apr_status_t extend_database_file(napr_db_txn_t *txn)
  */
 static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
 {
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     apr_hash_index_t *h_index = NULL;
 
     for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
@@ -657,7 +658,7 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
         dirty_page = (DB_PageHeader *) val;
         new_pgno = dirty_page->pgno;
 
-        offset = (apr_off_t) new_pgno * PAGE_SIZE;
+        offset = (apr_off_t) new_pgno *PAGE_SIZE;
 
         status = apr_file_seek(txn->env->file, APR_SET, &offset);
         if (status != APR_SUCCESS) {
