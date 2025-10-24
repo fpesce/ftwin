@@ -544,6 +544,127 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Page
 }
 
 /**
+ * @brief Split a branch page when it becomes full.
+ *
+ * This function implements the B+ tree branch split operation:
+ * 1. Allocate a new page for the right sibling
+ * 2. Find the split point (median)
+ * 3. Move upper half of entries to the new page
+ * 4. CRITICAL: The divider key is "pushed up" to the parent, NOT copied to right page
+ * 5. Update both page headers
+ *
+ * @param txn Write transaction handle
+ * @param left_page The original full page (modified in-place)
+ * @param right_page_out Output: newly allocated right sibling page
+ * @param divider_key_out Output: divider key for parent insertion (pushed up)
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out)
+{
+    apr_status_t status = APR_SUCCESS;
+    DB_PageHeader *right_page = NULL;
+    pgno_t right_pgno = 0;
+    pgno_t *pgno_key = NULL;
+    uint16_t split_point = 0;
+    uint16_t idx = 0;
+    uint16_t *right_slots = NULL;
+    DB_BranchNode *divider_node = NULL;
+
+    if (!txn || !left_page || !right_page_out || !divider_key_out) {
+        return APR_EINVAL;
+    }
+
+    /* Verify this is a branch page */
+    if (!(left_page->flags & P_BRANCH)) {
+        return APR_EINVAL;
+    }
+
+    /* Verify this is a write transaction */
+    if (txn->flags & NAPR_DB_RDONLY) {
+        return APR_EINVAL;
+    }
+
+    /* Allocate a new page for the right sibling */
+    status = db_page_alloc(txn, 1, &right_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Allocate memory for the right page */
+    right_page = apr_pcalloc(txn->pool, PAGE_SIZE);
+    if (!right_page) {
+        return APR_ENOMEM;
+    }
+
+    /* Initialize the right page header */
+    right_page->pgno = right_pgno;
+    right_page->flags = P_BRANCH;
+    right_page->num_keys = 0;
+    right_page->lower = sizeof(DB_PageHeader);
+    right_page->upper = PAGE_SIZE;
+    right_page->padding = 0;
+
+    /* Determine split point (median) */
+    split_point = left_page->num_keys / 2;
+
+    /* Get the divider node (this will be pushed up to parent) */
+    divider_node = db_page_branch_node(left_page, split_point);
+
+    /* Set divider key (will be pushed up to parent) */
+    divider_key_out->data = db_branch_node_key(divider_node);
+    divider_key_out->size = divider_node->key_size;
+
+    /* Get right page slot array */
+    right_slots = db_page_slots(right_page);
+
+    /* Move entries AFTER split_point to the right page
+     * CRITICAL: The divider key at split_point is NOT copied to right page,
+     * it's pushed up to the parent. Only entries after it move to right page.
+     */
+    for (idx = split_point + 1; idx < left_page->num_keys; idx++) {
+        DB_BranchNode *src_node = db_page_branch_node(left_page, idx);
+        uint16_t node_size = sizeof(DB_BranchNode) + src_node->key_size;
+        uint16_t new_offset = 0;
+        DB_BranchNode *dest_node = NULL;
+        uint16_t right_idx = idx - (split_point + 1);
+
+        /* Allocate space in right page (grows downward from upper) */
+        new_offset = right_page->upper - node_size;
+        dest_node = (DB_BranchNode *) ((char *) right_page + new_offset);
+
+        /* Copy the node */
+        memcpy(dest_node, src_node, node_size);
+
+        /* Update right page slot array */
+        right_slots[right_idx] = new_offset;
+
+        /* Update right page header */
+        right_page->num_keys++;
+        right_page->lower += sizeof(uint16_t);
+        right_page->upper = new_offset;
+    }
+
+    /* Update left page header to reflect the reduced number of keys
+     * Left page keeps entries [0..split_point-1]
+     */
+    left_page->num_keys = split_point;
+    left_page->lower = sizeof(DB_PageHeader) + (split_point * sizeof(uint16_t));
+
+    /* Store the right page in dirty pages hash */
+    pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+    if (!pgno_key) {
+        return APR_ENOMEM;
+    }
+    *pgno_key = right_pgno;
+    apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), right_page);
+
+    /* Return the right page */
+    *right_page_out = right_page;
+
+    return APR_SUCCESS;
+}
+
+/**
  * @brief Find the leaf page for a key and record the path (for CoW).
  *
  * This is similar to db_find_leaf_page, but it records the path from

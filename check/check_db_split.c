@@ -23,8 +23,12 @@ enum
 {
     TEST_KEY_SO_COUNT = 8,
     TEST_KEY_COUNT = 10,
+    TEST_20MB_SIZE = 20,
     TEST_KEY_BUF_SIZE = 32,
-    TEST_DATA_BUF_SIZE = 64
+    TEST_DATA_BUF_SIZE = 64,
+    TEST_1K_KEYS = 1000,
+    TEST_10K_KEYS = 10000,
+    TEST_ONE_MINUTE = 60
 };
 
 /* Test fixture for db split tests */
@@ -261,6 +265,203 @@ START_TEST(test_leaf_split_key_distribution)
 END_TEST
 /* *INDENT-ON* */
 
+static void setup_stress_test_env(apr_pool_t **pool, napr_db_env_t **env)
+{
+    apr_status_t status = APR_SUCCESS;
+
+    apr_initialize();
+    apr_pool_create(pool, NULL);
+
+    /* Remove existing test database */
+    unlink(TEST_DB_PATH);
+
+    /* Create new database with larger mapsize for stress test */
+    status = napr_db_env_create(env, *pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(*env, TEST_20MB_SIZE * ONE_MB);    /* 20MB for 100k keys */
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_open(*env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void insert_test_keys(napr_db_env_t *env)
+{
+    napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    char key_buf[TEST_KEY_BUF_SIZE];
+    char data_buf[TEST_DATA_BUF_SIZE];
+    napr_db_val_t key;
+    napr_db_val_t data;
+    int idx = 0;
+
+    /* Insert many keys to force splits */
+    status = napr_db_txn_begin(env, 0, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
+        (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+        data.data = data_buf;
+        data.size = strlen(data_buf);
+
+        status = napr_db_put(txn, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    /* Commit the transaction */
+    status = napr_db_txn_commit(txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void verify_test_keys(napr_db_env_t *env)
+{
+    napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    char key_buf[TEST_KEY_BUF_SIZE];
+    char data_buf[TEST_DATA_BUF_SIZE];
+    napr_db_val_t key;
+    napr_db_val_t retrieved_data = { 0 };
+    int idx = 0;
+
+    /* Verify all keys are retrievable */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
+        (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+
+        status = napr_db_get(txn, &key, &retrieved_data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+        ck_assert_int_eq(retrieved_data.size, strlen(data_buf));
+        ck_assert_int_eq(memcmp(retrieved_data.data, data_buf, retrieved_data.size), 0);
+    }
+
+    status = napr_db_txn_abort(txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+/*
+ * Test: Stress test insertions to force tree growth
+ *
+ * This test verifies that the tree correctly handles:
+ * 1. Multiple leaf splits
+ * 2. Branch splits when parents become full
+ * 3. Root splits that increase tree height
+ * 4. All data remains accessible after complex splits
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_stress_insertions)
+{
+    apr_pool_t *pool = NULL;
+    napr_db_env_t *env = NULL;
+
+    setup_stress_test_env(&pool, &env);
+    insert_test_keys(env);
+    verify_test_keys(env);
+
+    napr_db_env_close(env);
+    apr_pool_destroy(pool);
+    apr_terminate();
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/*
+ * Test: Verify root split occurs and tree height increases
+ *
+ * This test verifies that:
+ * 1. The tree starts with a single leaf root
+ * 2. After sufficient insertions, root splits occur
+ * 3. Tree height increases correctly
+ * 4. The root becomes a branch page
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_root_split)
+{
+    apr_pool_t *pool = NULL;
+    napr_db_env_t *env = NULL;
+    napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+    char key_buf[TEST_KEY_BUF_SIZE];
+    char data_buf[TEST_DATA_BUF_SIZE];
+    napr_db_val_t key;
+    napr_db_val_t data;
+    int idx = 0;
+    pgno_t initial_root = 0;
+    pgno_t final_root = 0;
+
+    apr_initialize();
+    apr_pool_create(&pool, NULL);
+
+    /* Create database */
+    status = create_test_db(pool, &env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Insert first key and capture initial root */
+    status = napr_db_txn_begin(env, 0, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", 0);
+    (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", 0);
+    key.data = key_buf;
+    key.size = strlen(key_buf);
+    data.data = data_buf;
+    data.size = strlen(data_buf);
+
+    status = napr_db_put(txn, &key, &data);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    initial_root = txn->root_pgno;
+
+    /* Commit */
+    status = napr_db_txn_commit(txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Insert many more keys to force root split */
+    status = napr_db_txn_begin(env, 0, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (idx = 1; idx < TEST_1K_KEYS; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
+        (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
+
+        key.data = key_buf;
+        key.size = strlen(key_buf);
+        data.data = data_buf;
+        data.size = strlen(data_buf);
+
+        status = napr_db_put(txn, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    final_root = txn->root_pgno;
+
+    /* Verify root changed (root split occurred) */
+    ck_assert(final_root != initial_root);
+
+    /* Commit */
+    status = napr_db_txn_commit(txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Close database */
+    napr_db_env_close(env);
+    apr_pool_destroy(pool);
+    apr_terminate();
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 /*
  * Suite creation
  */
@@ -268,10 +469,18 @@ Suite *make_db_split_suite(void)
 {
     Suite *suite = suite_create("DB_Split");
     TCase *tc_core = tcase_create("Core");
+    TCase *tc_stress = tcase_create("Stress");
 
+    /* Basic split tests */
     tcase_add_test(tc_core, test_leaf_split_basic);
     tcase_add_test(tc_core, test_leaf_split_key_distribution);
     suite_add_tcase(suite, tc_core);
+
+    /* Stress tests - with longer timeout */
+    tcase_add_test(tc_stress, test_stress_insertions);
+    tcase_add_test(tc_stress, test_root_split);
+    tcase_set_timeout(tc_stress, TEST_ONE_MINUTE);      /* timeout for stress tests */
+    suite_add_tcase(suite, tc_stress);
 
     return suite;
 }

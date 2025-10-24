@@ -451,5 +451,6 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
  * @return APR_SUCCESS on success, error code on failure
  */
 apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
+apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
 
 #endif /* NAPR_DB_INTERNAL_H */
