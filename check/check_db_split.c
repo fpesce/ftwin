@@ -18,6 +18,8 @@
 /* Test database path in /tmp */
 #define TEST_DB_PATH "/tmp/test_split.db"
 
+static int NB_KEY_TEST = 10;
+
 /* Test buffer sizes */
 enum
 {
@@ -75,7 +77,7 @@ START_TEST(test_leaf_split_basic)
     napr_db_val_t divider_key = { 0 };
     pgno_t left_pgno = 0;
     pgno_t *pgno_key = NULL;
-    int i = 0;
+    int idx = 0;
     char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
@@ -117,21 +119,21 @@ START_TEST(test_leaf_split_basic)
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), left_page);
 
     /* Insert several keys into the page (not enough to fill it completely for now) */
-    for (i = 0; i < 10; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "data_value_%03d", i);
+    for (idx = 0; idx < NB_KEY_TEST; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        (void) snprintf(data_buf, sizeof(data_buf), "data_value_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
         data.data = data_buf;
         data.size = strlen(data_buf);
 
-        status = db_page_insert(left_page, i, &key, &data, 0);
+        status = db_page_insert(left_page, idx, &key, &data, 0);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
 
     original_num_keys = left_page->num_keys;
-    ck_assert_int_eq(original_num_keys, 10);
+    ck_assert_int_eq(original_num_keys, NB_KEY_TEST);
 
     /* Perform the split */
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
@@ -153,14 +155,14 @@ START_TEST(test_leaf_split_basic)
     ck_assert_int_gt(divider_key.size, 0);
 
     /* Verify we can read back keys from both pages */
-    for (i = 0; i < left_page->num_keys; i++) {
-        DB_LeafNode *node = db_page_leaf_node(left_page, i);
+    for (idx = 0; idx < left_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(left_page, idx);
         ck_assert_ptr_nonnull(node);
         ck_assert_int_gt(node->key_size, 0);
     }
 
-    for (i = 0; i < right_page->num_keys; i++) {
-        DB_LeafNode *node = db_page_leaf_node(right_page, i);
+    for (idx = 0; idx < right_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(right_page, idx);
         ck_assert_ptr_nonnull(node);
         ck_assert_int_gt(node->key_size, 0);
     }
@@ -195,7 +197,7 @@ START_TEST(test_leaf_split_key_distribution)
     napr_db_val_t divider_key = { 0 };
     pgno_t left_pgno = 0;
     pgno_t *pgno_key = NULL;
-    int i = 0;
+    int idx = 0;
     char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
     char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
@@ -234,16 +236,16 @@ START_TEST(test_leaf_split_key_distribution)
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), left_page);
 
     /* Insert 8 keys in sorted order */
-    for (i = 0; i < 8; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i);
-        snprintf(data_buf, sizeof(data_buf), "data_%03d", i);
+    for (idx = 0; idx < 8; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
+        (void) snprintf(data_buf, sizeof(data_buf), "data_%03d", idx);
 
         key.data = key_buf;
         key.size = strlen(key_buf);
         data.data = data_buf;
         data.size = strlen(data_buf);
 
-        status = db_page_insert(left_page, i, &key, &data, 0);
+        status = db_page_insert(left_page, idx, &key, &data, 0);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
 
@@ -263,17 +265,17 @@ START_TEST(test_leaf_split_key_distribution)
     ck_assert_int_eq(memcmp(divider_key.data, db_leaf_node_key(first_right_node), divider_key.size), 0);
 
     /* Verify keys in left page are key_000 through key_003 */
-    for (i = 0; i < left_page->num_keys; i++) {
-        DB_LeafNode *node = db_page_leaf_node(left_page, i);
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i);
+    for (idx = 0; idx < left_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(left_page, idx);
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
         ck_assert_int_eq(node->key_size, strlen(key_buf));
         ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
     }
 
     /* Verify keys in right page are key_004 through key_007 */
-    for (i = 0; i < right_page->num_keys; i++) {
-        DB_LeafNode *node = db_page_leaf_node(right_page, i);
-        snprintf(key_buf, sizeof(key_buf), "key_%03d", i + 4);
+    for (idx = 0; idx < right_page->num_keys; idx++) {
+        DB_LeafNode *node = db_page_leaf_node(right_page, idx);
+        (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx + 4);
         ck_assert_int_eq(node->key_size, strlen(key_buf));
         ck_assert_int_eq(memcmp(db_leaf_node_key(node), key_buf, node->key_size), 0);
     }
