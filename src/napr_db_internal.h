@@ -264,6 +264,29 @@ struct napr_db_txn_t
     pgno_t new_last_pgno;       /**< Last page number for this transaction (for allocation) */
 };
 
+/**
+ * @brief Cursor handle (concrete definition).
+ *
+ * A cursor maintains a path from the root to a leaf page, allowing
+ * for traversal of the B+ tree. The stack stores the parent pages
+ * and the index of the child followed at each level.
+ */
+struct napr_db_cursor_t
+{
+    napr_db_txn_t *txn;         /**< Transaction this cursor belongs to */
+    apr_pool_t *pool;           /**< APR pool for cursor allocations */
+
+    /* Traversal stack */
+    struct
+    {
+        DB_PageHeader *page;    /**< Page at this level */
+        uint16_t index;         /**< Index of child/key on page */
+    } stack[MAX_TREE_DEPTH];
+
+    uint16_t top;               /**< Index of the top of the stack */
+    int eof;                    /**< Flag: 1 if cursor is at End-of-File */
+};
+
 /*
  * Page accessor helpers for navigating slotted pages
  *

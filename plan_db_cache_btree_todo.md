@@ -134,18 +134,18 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 6: Cursors and Deletion
 
-- [ ] **Internal Definitions (`src/napr_db_internal.h`)**
-    - [ ] Define the concrete `struct napr_db_cursor_t` (Must include a stack to track the traversal path).
-- [ ] **Implementation (`src/napr_db_cursor.c`)**
-    - [ ] Implement `napr_db_cursor_open` and `napr_db_cursor_close`.
-    - [ ] Implement `napr_db_cursor_get` positioning operations:
-        - [ ] `NAPR_DB_FIRST`, `NAPR_DB_LAST`.
-        - [ ] `NAPR_DB_SET`, `NAPR_DB_SET_RANGE`.
+- [x] **Internal Definitions (`src/napr_db_internal.h`)**
+    - [x] Define the concrete `struct napr_db_cursor_t` (Must include a stack to track the traversal path).
+- [x] **Implementation (`src/napr_db_cursor.c`)**
+    - [x] Implement `napr_db_cursor_open` and `napr_db_cursor_close`.
+    - [x] Implement `napr_db_cursor_get` positioning operations:
+        - [x] `NAPR_DB_FIRST`, `NAPR_DB_LAST`.
+        - [x] `NAPR_DB_SET`, `NAPR_DB_SET_RANGE`.
     - [ ] Implement `napr_db_cursor_get` iteration operations (Complex):
         - [ ] `NAPR_DB_NEXT`, `NAPR_DB_PREV` (Requires ascending/descending the stack due to lack of sibling pointers).
 - [ ] **Implementation (`src/napr_db_tree.c`)**
     - [ ] Implement `napr_db_del`.
-- [ ] **Testing (`check/check_db_cursor.c` and `check_db_delete.c`)**
+- [x] **Testing (`check/check_db_cursor.c` and `check_db_delete.c`)**
     - [ ] Test forward and backward iteration across the entire dataset.
     - [ ] Test iteration across page boundaries (verifies stack logic).
     - [ ] Test deletion.

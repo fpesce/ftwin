@@ -257,7 +257,7 @@ extern "C"
  * @param operation Cursor operation (NAPR_DB_FIRST, NAPR_DB_NEXT, etc.)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_val_t *data, int operation);
+    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int operation);
 
 #ifdef __cplusplus
 }

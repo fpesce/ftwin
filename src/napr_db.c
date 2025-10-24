@@ -1182,24 +1182,3 @@ apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     return APR_ENOTIMPL;
 }
 
-apr_status_t napr_db_cursor_open(napr_db_txn_t *txn, napr_db_cursor_t **cursor)
-{
-    (void) txn;
-    (void) cursor;
-    return APR_ENOTIMPL;
-}
-
-apr_status_t napr_db_cursor_close(napr_db_cursor_t *cursor)
-{
-    (void) cursor;
-    return APR_ENOTIMPL;
-}
-
-apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_val_t *data, int operation)
-{
-    (void) cursor;
-    (void) key;
-    (void) data;
-    (void) operation;
-    return APR_ENOTIMPL;
-}
