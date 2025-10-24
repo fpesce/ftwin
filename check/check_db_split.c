@@ -23,8 +23,12 @@ enum
 {
     TEST_KEY_SO_COUNT = 8,
     TEST_KEY_COUNT = 10,
+    TEST_20MB_SIZE = 20,
     TEST_KEY_BUF_SIZE = 32,
-    TEST_DATA_BUF_SIZE = 64
+    TEST_DATA_BUF_SIZE = 64,
+    TEST_1K_KEYS = 1000,
+    TEST_10K_KEYS = 10000,
+    TEST_ONE_MINUTE = 60
 };
 
 /* Test fixture for db split tests */
@@ -282,7 +286,6 @@ START_TEST(test_stress_insertions)
     napr_db_val_t key;
     napr_db_val_t data;
     napr_db_val_t retrieved_data = { 0 };
-    int num_keys = 10000;       /* Reduced to avoid edge cases in initial implementation */
     int idx = 0;
 
     apr_initialize();
@@ -295,7 +298,7 @@ START_TEST(test_stress_insertions)
     status = napr_db_env_create(&env, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 20 * ONE_MB); /* 20MB for 100k keys */
+    status = napr_db_env_set_mapsize(env, TEST_20MB_SIZE * ONE_MB);     /* 20MB for 100k keys */
     ck_assert_int_eq(status, APR_SUCCESS);
 
     status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
@@ -305,7 +308,7 @@ START_TEST(test_stress_insertions)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < num_keys; idx++) {
+    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -326,7 +329,7 @@ START_TEST(test_stress_insertions)
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < num_keys; idx++) {
+    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -370,7 +373,6 @@ START_TEST(test_root_split)
     char data_buf[TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t data;
-    int num_keys = 1000;
     int idx = 0;
     pgno_t initial_root = 0;
     pgno_t final_root = 0;
@@ -406,7 +408,7 @@ START_TEST(test_root_split)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 1; idx < num_keys; idx++) {
+    for (idx = 1; idx < TEST_1K_KEYS; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -454,7 +456,7 @@ Suite *make_db_split_suite(void)
     /* Stress tests - with longer timeout */
     tcase_add_test(tc_stress, test_stress_insertions);
     tcase_add_test(tc_stress, test_root_split);
-    tcase_set_timeout(tc_stress, 60);   /* 60 second timeout for stress tests */
+    tcase_set_timeout(tc_stress, TEST_ONE_MINUTE);      /* timeout for stress tests */
     suite_add_tcase(suite, tc_stress);
 
     return suite;
