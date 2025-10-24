@@ -120,17 +120,17 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 - [x] **Implementation (`src/napr_db_tree.c`)** - Leaf Split Foundation
     - [x] Implement Leaf Page splitting logic (`db_split_leaf`).
-    - [ ] Implement Branch Page splitting logic.
-    - [ ] Integrate splitting into `napr_db_put`:
-        - [ ] Detect full pages and initiate split.
-        - [ ] Propagate the new divider key and page pointer up to the parent.
-        - [ ] Handle recursive splitting.
-    - [ ] Handle Root splitting (increases tree height).
+    - [x] Implement Branch Page splitting logic (`db_split_branch`).
+    - [x] Integrate splitting into `napr_db_put`:
+        - [x] Detect full pages and initiate split.
+        - [x] Propagate the new divider key and page pointer up to the parent.
+        - [x] Handle recursive splitting.
+    - [x] Handle Root splitting (increases tree height).
 - [x] **Testing (`check/check_db_split.c`)** - Basic Leaf Split Tests
     - [x] Test basic leaf split functionality (split point, distribution).
     - [x] Test key distribution after split (verify ordering).
-    - [ ] Stress test insertions to force leaf, branch, and root splits.
-    - [ ] Verify data integrity and tree structure after complex splits.
+    - [x] Stress test insertions to force leaf, branch, and root splits (10K keys).
+    - [x] Verify data integrity and tree structure after complex splits.
 
 ### Iteration 6: Cursors and Deletion
 

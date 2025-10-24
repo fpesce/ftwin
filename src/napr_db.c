@@ -864,6 +864,21 @@ apr_status_t napr_db_get(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     return APR_SUCCESS;
 }
 
+/**
+ * @brief Insert a key/value pair into the B+ tree with split handling.
+ *
+ * This implements recursive insertion with support for page splits:
+ * 1. Find the leaf page for insertion
+ * 2. CoW the path from root to leaf
+ * 3. Insert into leaf, splitting if necessary
+ * 4. Propagate splits up the tree recursively
+ * 5. Handle root split (increases tree height)
+ *
+ * @param txn Write transaction handle
+ * @param key Key to insert
+ * @param data Value to insert
+ * @return APR_SUCCESS on success, APR_EEXIST if key exists, error code on failure
+ */
 apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
     pgno_t path[MAX_TREE_DEPTH] = { 0 };
@@ -873,6 +888,11 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     uint16_t index = 0;
     apr_status_t status = APR_SUCCESS;
     int idx = 0;
+
+    /* Key/data to insert at each level (may be updated during split propagation) */
+    napr_db_val_t current_key = *key;
+    napr_db_val_t current_data = *data;
+    pgno_t right_child_pgno = 0;
 
     /* Validate inputs */
     if (!txn || !key || !data) {
@@ -895,7 +915,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
             return status;
         }
 
-        /* Allocate dirty page in memory (cannot write to mmap beyond file size) */
+        /* Allocate dirty page in memory */
         new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
         if (!new_root) {
             return APR_ENOMEM;
@@ -909,12 +929,12 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         new_root->upper = PAGE_SIZE;
 
         /* Insert the first key */
-        status = db_page_insert(new_root, 0, key, data, 0);
+        status = db_page_insert(new_root, 0, &current_key, &current_data, 0);
         if (status != APR_SUCCESS) {
             return status;
         }
 
-        /* Store in dirty pages hash (will be written on commit) */
+        /* Store in dirty pages hash */
         pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
         if (!pgno_key) {
             return APR_ENOMEM;
@@ -929,37 +949,32 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     }
 
     /* Normal case: Tree exists, find the leaf page and record path */
-    status = db_find_leaf_page_with_path(txn, key, path, &path_len, &leaf_page);
+    status = db_find_leaf_page_with_path(txn, &current_key, path, &path_len, &leaf_page);
     if (status != APR_SUCCESS) {
         return status;
     }
 
     /* Search within the leaf page to find insertion point */
-    status = db_page_search(leaf_page, key, &index);
+    status = db_page_search(leaf_page, &current_key, &index);
 
-    /* If key already exists, this is an update (for now, treat as error) */
+    /* If key already exists, reject (updates not yet supported) */
     if (status == APR_SUCCESS) {
-        return APR_EEXIST;      /* Key already exists - updates not yet supported */
+        return APR_EEXIST;
     }
 
-    /* CRITICAL: Copy-on-Write path propagation
-     * Iterate through the path from leaf to root, calling db_page_get_writable
-     * for each page. This ensures the entire path is copied and the transaction
-     * operates on its own version of the tree structure.
-     */
+    /* CoW path propagation: Copy all pages from leaf to root */
     for (idx = (int) path_len - 1; idx >= 0; idx--) {
         pgno_t current_pgno = path[idx];
         DB_PageHeader *page_to_cow = NULL;
 
-        /* Check if page is already dirty (newly allocated or previously modified) */
+        /* Check if page is already dirty */
         page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
 
         if (page_to_cow) {
-            /* Page is already dirty - no need to CoW, just use it */
             dirty_page = page_to_cow;
         }
         else {
-            /* Page is in mmap - need to CoW it */
+            /* Page is in mmap - CoW it */
             DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
 
             status = db_page_get_writable(txn, original_page, &dirty_page);
@@ -968,17 +983,184 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
             }
         }
 
-        /* Update leaf_page pointer if this is the leaf (last element in path) */
+        /* Update leaf_page pointer if this is the leaf */
         if (idx == (int) path_len - 1) {
             leaf_page = dirty_page;
         }
     }
 
-    /* Insert the new key/value into the dirty leaf page */
-    status = db_page_insert(leaf_page, index, key, data, 0);
+    /* Try to insert into the dirty leaf page */
+    status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
+
+    /* If insertion succeeded, we're done */
+    if (status == APR_SUCCESS) {
+        return APR_SUCCESS;
+    }
+
+    /* If insertion failed due to insufficient space, handle split */
+    if (status != APR_ENOSPC) {
+        return status;          /* Other error */
+    }
+
+    /* Split required - start at leaf level and propagate up */
+    DB_PageHeader *left_page = leaf_page;
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+
+    /* Split the leaf page */
+    status = db_split_leaf(txn, left_page, &right_page, &divider_key);
     if (status != APR_SUCCESS) {
         return status;
     }
+
+    /* Determine which page the original key belongs to */
+    status = db_page_search(left_page, &current_key, &index);
+    if (status == APR_NOTFOUND && index >= left_page->num_keys) {
+        /* Key goes to right page */
+        status = db_page_search(right_page, &current_key, &index);
+        status = db_page_insert(right_page, index, &current_key, &current_data, 0);
+    }
+    else {
+        /* Key goes to left page */
+        status = db_page_insert(left_page, index, &current_key, &current_data, 0);
+    }
+
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Now propagate the split up the tree */
+    right_child_pgno = right_page->pgno;
+    current_key = divider_key;
+
+    /* Iterate up the path, inserting divider keys and handling splits */
+    for (idx = (int) path_len - 2; idx >= 0; idx--) {
+        pgno_t parent_pgno = path[idx];
+        DB_PageHeader *parent_page = NULL;
+
+        /* Get the dirty parent page */
+        parent_page = apr_hash_get(txn->dirty_pages, &parent_pgno, sizeof(pgno_t));
+        if (!parent_page) {
+            return APR_EGENERAL;        /* Should have been CoW'd earlier */
+        }
+
+        /* Find insertion point in parent */
+        status = db_page_search(parent_page, &current_key, &index);
+
+        /* Try to insert divider key and right child pointer into parent */
+        status = db_page_insert(parent_page, index, &current_key, NULL, right_child_pgno);
+
+        if (status == APR_SUCCESS) {
+            /* Insertion succeeded - done propagating */
+            return APR_SUCCESS;
+        }
+
+        if (status != APR_ENOSPC) {
+            return status;      /* Other error */
+        }
+
+        /* Parent is also full - split it */
+        status = db_split_branch(txn, parent_page, &right_page, &divider_key);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Determine which page the divider key belongs to */
+        status = db_page_search(parent_page, &current_key, &index);
+        if (status == APR_NOTFOUND && index >= parent_page->num_keys) {
+            /* Key goes to right page */
+            status = db_page_search(right_page, &current_key, &index);
+            status = db_page_insert(right_page, index, &current_key, NULL, right_child_pgno);
+        }
+        else {
+            /* Key goes to left (original parent) page */
+            status = db_page_insert(parent_page, index, &current_key, NULL, right_child_pgno);
+        }
+
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Continue propagating the parent split */
+        right_child_pgno = right_page->pgno;
+        current_key = divider_key;
+    }
+
+    /* If we've reached here, the root split - need to create a new root */
+    pgno_t new_root_pgno = 0;
+    DB_PageHeader *new_root = NULL;
+    DB_PageHeader *old_root_page = NULL;
+    DB_PageHeader *right_split_page = NULL;
+    napr_db_val_t left_min_key = { 0 };
+    DB_BranchNode *left_first_node = NULL;
+    DB_LeafNode *left_first_leaf = NULL;
+
+    /* Allocate new root page */
+    status = db_page_alloc(txn, 1, &new_root_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Allocate dirty page in memory */
+    new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
+    if (!new_root) {
+        return APR_ENOMEM;
+    }
+
+    /* Initialize the new root as a branch page */
+    new_root->pgno = new_root_pgno;
+    new_root->flags = P_BRANCH;
+    new_root->num_keys = 0;
+    new_root->lower = sizeof(DB_PageHeader);
+    new_root->upper = PAGE_SIZE;
+
+    /* Get the old root (left child after split) - should be in dirty pages */
+    old_root_page = apr_hash_get(txn->dirty_pages, &path[0], sizeof(pgno_t));
+    if (!old_root_page) {
+        return APR_EGENERAL;
+    }
+
+    /* Get the right split page (right child after split) */
+    right_split_page = apr_hash_get(txn->dirty_pages, &right_child_pgno, sizeof(pgno_t));
+    if (!right_split_page) {
+        return APR_EGENERAL;
+    }
+
+    /* Get the minimum key from the left child (old root) */
+    if (old_root_page->flags & P_BRANCH) {
+        left_first_node = db_page_branch_node(old_root_page, 0);
+        left_min_key.data = db_branch_node_key(left_first_node);
+        left_min_key.size = left_first_node->key_size;
+    }
+    else {
+        /* Leaf page */
+        left_first_leaf = db_page_leaf_node(old_root_page, 0);
+        left_min_key.data = db_leaf_node_key(left_first_leaf);
+        left_min_key.size = left_first_leaf->key_size;
+    }
+
+    /* Insert left child with its minimum key at index 0 */
+    status = db_page_insert(new_root, 0, &left_min_key, NULL, path[0]);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Insert right child with divider key at index 1 */
+    status = db_page_insert(new_root, 1, &current_key, NULL, right_child_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Store new root in dirty pages hash */
+    pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+    if (!pgno_key) {
+        return APR_ENOMEM;
+    }
+    *pgno_key = new_root_pgno;
+    apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+
+    /* Update transaction's root pointer */
+    txn->root_pgno = new_root_pgno;
 
     return APR_SUCCESS;
 }
