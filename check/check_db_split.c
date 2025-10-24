@@ -68,7 +68,7 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
 
 static void db_split_setup(db_split_fixture *fixture)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     apr_initialize();
     apr_pool_create(&fixture->pool, NULL);
@@ -113,11 +113,12 @@ static void db_split_teardown(db_split_fixture *fixture)
 
 static void populate_leaf_page(DB_PageHeader *page, int num_keys)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     char key_buf[TEST_KEY_BUF_SIZE];
     char data_buf[TEST_DATA_BUF_SIZE];
-    napr_db_val_t key, data;
-    int idx;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    int idx = 0;
 
     for (idx = 0; idx < num_keys; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%03d", idx);
@@ -137,10 +138,11 @@ static void verify_leaf_split_basic(db_split_fixture *fixture)
 {
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
-    uint16_t original_num_keys;
-    uint16_t expected_left_keys, expected_right_keys;
-    apr_status_t status;
-    int idx;
+    uint16_t original_num_keys = 0;
+    uint16_t expected_left_keys = 0;
+    uint16_t expected_right_keys = 0;
+    apr_status_t status = APR_SUCCESS;
+    int idx = 0;
 
     populate_leaf_page(fixture->left_page, TEST_KEY_COUNT);
     original_num_keys = fixture->left_page->num_keys;
@@ -196,8 +198,8 @@ static void verify_leaf_split_key_distribution(db_split_fixture *fixture)
 {
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
-    apr_status_t status;
-    int idx;
+    apr_status_t status = APR_SUCCESS;
+    int idx = 0;
     char key_buf[TEST_KEY_BUF_SIZE];
 
     populate_leaf_page(fixture->left_page, TEST_KEY_SO_COUNT);
