@@ -263,7 +263,7 @@ static void setup_stress_test_env(apr_pool_t **pool, napr_db_env_t **env)
     status = napr_db_env_create(env, *pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(*env, DB_TEST_MAPSIZE_20MB);    /* 20MB for 100k keys */
+    status = napr_db_env_set_mapsize(*env, DB_TEST_MAPSIZE_20MB);       /* 20MB for 100k keys */
     ck_assert_int_eq(status, APR_SUCCESS);
 
     status = napr_db_env_open(*env, DB_TEST_PATH_SPLIT, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
@@ -463,7 +463,7 @@ Suite *make_db_split_suite(void)
     /* Stress tests - with longer timeout */
     tcase_add_test(tc_stress, test_stress_insertions);
     tcase_add_test(tc_stress, test_root_split);
-    tcase_set_timeout(tc_stress, DB_TEST_TIMEOUT_ONE_MINUTE);      /* timeout for stress tests */
+    tcase_set_timeout(tc_stress, DB_TEST_TIMEOUT_ONE_MINUTE);   /* timeout for stress tests */
     suite_add_tcase(suite, tc_stress);
 
     return suite;

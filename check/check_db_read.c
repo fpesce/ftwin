@@ -168,7 +168,7 @@ START_TEST(test_get_single_leaf)
      * We need to extend the file manually because the database
      * is initially created with only 2 meta pages.
      */
-    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;        /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;  /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -277,7 +277,7 @@ START_TEST(test_get_two_level_tree)
     /*
      * Extend the file to accommodate our test pages.
      */
-    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;        /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;  /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 

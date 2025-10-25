@@ -924,11 +924,7 @@ static apr_status_t handle_empty_tree_put(napr_db_txn_t *txn, const napr_db_val_
     return APR_SUCCESS;
 }
 
-static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn,
-                                            const pgno_t *path,
-                                            uint16_t path_len,
-                                            napr_db_val_t *current_key,
-                                            pgno_t *right_child_pgno);
+static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno);
 static apr_status_t handle_root_split(napr_db_txn_t *txn, pgno_t old_root_pgno, pgno_t right_child_pgno, const napr_db_val_t *divider_key);
 
 apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
@@ -1058,11 +1054,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     return handle_root_split(txn, path[0], right_child_pgno, &current_key);
 }
 
-static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn,
-                                            const pgno_t *path,
-                                            uint16_t path_len,
-                                            napr_db_val_t *current_key,
-                                            pgno_t *right_child_pgno)
+static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno)
 {
     apr_status_t status = APR_SUCCESS;
     DB_PageHeader *right_page = NULL;
@@ -1181,4 +1173,3 @@ apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     (void) data;
     return APR_ENOTIMPL;
 }
-

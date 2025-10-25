@@ -9,7 +9,7 @@
 #include <string.h>
 
 /* Forward declarations for internal helpers */
-static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int op);
+static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int operation);
 
 /**
  * @brief Get a page, checking dirty pages first for write transactions.
@@ -88,7 +88,7 @@ static inline void cursor_push(napr_db_cursor_t *cursor, DB_PageHeader *page, ui
 /**
  * @brief Traverse the tree to position the cursor.
  */
-static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int op)
+static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int operation)
 {
     pgno_t current_pgno = cursor->txn->root_pgno;
     DB_PageHeader *page = NULL;
@@ -101,7 +101,7 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
 
     if (current_pgno == 0) {
         cursor->eof = 1;
-        return APR_NOTFOUND; /* Empty tree */
+        return APR_NOTFOUND;    /* Empty tree */
     }
 
     while (1) {
@@ -111,7 +111,7 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
         }
 
         if (page->flags & P_LEAF) {
-            cursor_push(cursor, page, 0); /* Push leaf page */
+            cursor_push(cursor, page, 0);       /* Push leaf page */
             break;
         }
 
@@ -120,26 +120,26 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
         }
 
         /* Branch page: find child to follow */
-        switch (op) {
-            case NAPR_DB_FIRST:
-                index = 0;
-                break;
-            case NAPR_DB_LAST:
-                index = page->num_keys - 1;
-                break;
-            case NAPR_DB_SET:
-            case NAPR_DB_SET_RANGE:
-                status = db_page_search(page, key, &index);
-                if (status == APR_NOTFOUND && index > 0) {
-                    index--;
-                }
+        switch (operation) {
+        case NAPR_DB_FIRST:
+            index = 0;
+            break;
+        case NAPR_DB_LAST:
+            index = page->num_keys - 1;
+            break;
+        case NAPR_DB_SET:
+        case NAPR_DB_SET_RANGE:
+            status = db_page_search(page, key, &index);
+            if (status == APR_NOTFOUND && index > 0) {
+                index--;
+            }
 
-                if (index >= page->num_keys) {
-                    index = page->num_keys - 1;
-                }
-                break;
-            default:
-                return APR_EINVAL;
+            if (index >= page->num_keys) {
+                index = page->num_keys - 1;
+            }
+            break;
+        default:
+            return APR_EINVAL;
         }
 
         cursor_push(cursor, page, index);
@@ -148,25 +148,27 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
 
     /* Now at the leaf page, position index within the page */
     page = cursor->stack[cursor->top - 1].page;
-    switch (op) {
-        case NAPR_DB_FIRST:
-            index = 0;
-            break;
-        case NAPR_DB_LAST:
-            index = page->num_keys > 0 ? page->num_keys - 1 : 0;
-            break;
-        case NAPR_DB_SET:
-            status = db_page_search(page, key, &index);
-            if (status != APR_SUCCESS) return status;
-            break;
-        case NAPR_DB_SET_RANGE:
-            status = db_page_search(page, key, &index);
-            /* If exact match or insertion point is found, it's valid */
-            if (index >= page->num_keys) {
-                /* TODO: Handle NEXT logic to find next page */
-                return APR_NOTFOUND;
-            }
-            break;
+    switch (operation) {
+    case NAPR_DB_FIRST:
+        index = 0;
+        break;
+    case NAPR_DB_LAST:
+        index = page->num_keys > 0 ? page->num_keys - 1 : 0;
+        break;
+    case NAPR_DB_SET:
+        status = db_page_search(page, key, &index);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+        break;
+    case NAPR_DB_SET_RANGE:
+        status = db_page_search(page, key, &index);
+        /* If exact match or insertion point is found, it's valid */
+        if (index >= page->num_keys) {
+            /* TODO: Handle NEXT logic to find next page */
+            return APR_NOTFOUND;
+        }
+        break;
     }
 
     if (page->num_keys == 0) {
@@ -181,29 +183,29 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
 /**
  * @brief Retrieve key-value pairs using cursor.
  */
-apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int op)
+apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int operation)
 {
     apr_status_t status = APR_SUCCESS;
 
-    switch (op) {
-        case NAPR_DB_FIRST:
-        case NAPR_DB_LAST:
-        case NAPR_DB_SET:
-        case NAPR_DB_SET_RANGE:
-            status = db_cursor_seek(cursor, (const napr_db_val_t *) key, op);
-            if (status != APR_SUCCESS) {
-                return status;
-            }
-            break;
+    switch (operation) {
+    case NAPR_DB_FIRST:
+    case NAPR_DB_LAST:
+    case NAPR_DB_SET:
+    case NAPR_DB_SET_RANGE:
+        status = db_cursor_seek(cursor, (const napr_db_val_t *) key, operation);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+        break;
 
         /* TODO: Implement NEXT, PREV, GET_CURRENT in subsequent iterations */
-        case NAPR_DB_GET_CURRENT:
-        case NAPR_DB_NEXT:
-        case NAPR_DB_PREV:
-             return APR_ENOTIMPL;
+    case NAPR_DB_GET_CURRENT:
+    case NAPR_DB_NEXT:
+    case NAPR_DB_PREV:
+        return APR_ENOTIMPL;
 
-        default:
-            return APR_EINVAL;
+    default:
+        return APR_EINVAL;
     }
 
     if (cursor->eof || cursor->top == 0) {
