@@ -607,19 +607,13 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
     /* Determine split point (median) */
     split_point = left_page->num_keys / 2;
 
-    /* Get the divider node (this will be pushed up to parent) */
-    divider_node = db_page_branch_node(left_page, split_point);
-
-    /* Set divider key (will be pushed up to parent) */
-    divider_key_out->data = db_branch_node_key(divider_node);
-    divider_key_out->size = divider_node->key_size;
-
     /* Get right page slot array */
     right_slots = db_page_slots(right_page);
 
     /* Move entries AFTER split_point to the right page
-     * CRITICAL: The divider key at split_point is NOT copied to right page,
-     * it's pushed up to the parent. Only entries after it move to right page.
+     * CRITICAL: In a B+ tree, the entry at split_point is NOT included in
+     * either page - it serves only as a separator and is pushed to the parent.
+     * Only entries at indices > split_point move to the right page.
      */
     for (idx = split_point + 1; idx < left_page->num_keys; idx++) {
         DB_BranchNode *src_node = db_page_branch_node(left_page, idx);
@@ -645,10 +639,25 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
     }
 
     /* Update left page header to reflect the reduced number of keys
-     * Left page keeps entries [0..split_point-1]
+     * CRITICAL: Left page keeps entries [0..split_point], INCLUDING split_point!
+     * The key at split_point is also used as the divider (pushed to parent),
+     * but the entry (with its child pointer) remains in the left page.
      */
-    left_page->num_keys = split_point;
-    left_page->lower = sizeof(DB_PageHeader) + (split_point * sizeof(uint16_t));
+    left_page->num_keys = split_point + 1;
+    left_page->lower = sizeof(DB_PageHeader) + ((split_point + 1) * sizeof(uint16_t));
+
+    /* Set divider key = minimum key of right page (right[0].key)
+     * This will be pushed up to the parent to guide searches.
+     */
+    if (right_page->num_keys > 0) {
+        divider_node = db_page_branch_node(right_page, 0);
+        divider_key_out->data = db_branch_node_key(divider_node);
+        divider_key_out->size = divider_node->key_size;
+    }
+    else {
+        /* This shouldn't happen in a proper split, but handle it */
+        return APR_EGENERAL;
+    }
 
     /* Store the right page in dirty pages hash */
     pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
