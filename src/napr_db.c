@@ -1071,6 +1071,17 @@ static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *pa
 
         (void) db_page_search(parent_page, current_key, &index);
 
+        if (getenv("CURSOR_DEBUG")) {
+            fprintf(stderr, "SPLIT: Parent has %u keys, inserting at index=%u, key=%.*s, right_child=%lu\n",
+                    parent_page->num_keys, index, (int) current_key->size, (char *) current_key->data, *right_child_pgno);
+            if (parent_page->num_keys > 0 && parent_page->num_keys < 10) {
+                for (uint16_t i = 0; i < parent_page->num_keys; i++) {
+                    DB_BranchNode *node = db_page_branch_node(parent_page, i);
+                    fprintf(stderr, "  Parent[%u]: key=%.*s\n", i, (int) node->key_size, db_branch_node_key(node));
+                }
+            }
+        }
+
         status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
         if (status == APR_SUCCESS) {
             return APR_SUCCESS;
