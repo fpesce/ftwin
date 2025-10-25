@@ -1174,10 +1174,86 @@ static apr_status_t handle_root_split(napr_db_txn_t *txn, pgno_t old_root_pgno, 
     return APR_SUCCESS;
 }
 
+/**
+ * @brief Delete a key-value pair from the database.
+ *
+ * This function removes a key from the B+ tree using CoW semantics:
+ * 1. Traverse the tree to find the key, recording the path
+ * 2. Make dirty copies of all pages in the path (CoW)
+ * 3. Delete the entry from the dirty leaf page
+ * 4. Update will be written on transaction commit
+ *
+ * Note: This implementation performs simple deletion without B+ tree rebalancing
+ * (node merging/redistribution), which is acceptable for this use case.
+ *
+ * @param txn Write transaction handle
+ * @param key Key to delete
+ * @param data Currently unused (reserved for conditional delete)
+ * @return APR_SUCCESS on success, APR_NOTFOUND if key doesn't exist, error otherwise
+ */
 apr_status_t napr_db_del(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
-    (void) txn;
-    (void) key;
-    (void) data;
-    return APR_ENOTIMPL;
+    pgno_t path[MAX_TREE_DEPTH] = { 0 };
+    uint16_t path_len = 0;
+    DB_PageHeader *leaf_page = NULL;
+    uint16_t index = 0;
+    apr_status_t status = APR_SUCCESS;
+
+    (void) data;                /* Reserved for future use (conditional delete) */
+
+    if (!txn || !key || (txn->flags & NAPR_DB_RDONLY)) {
+        return APR_EINVAL;
+    }
+
+    /* Empty tree - nothing to delete */
+    if (txn->root_pgno == 0) {
+        return APR_NOTFOUND;
+    }
+
+    /* Find the leaf page containing the key, recording path for CoW */
+    status = db_find_leaf_page_with_path(txn, key, path, &path_len, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Search for the key in the leaf page */
+    status = db_page_search(leaf_page, key, &index);
+    if (status != APR_SUCCESS) {
+        return APR_NOTFOUND;
+    }
+
+    /* CoW: Make dirty copies of all pages in the path */
+    for (int idx = (int)path_len - 1; idx >= 0; idx--) {
+        pgno_t current_pgno = path[idx];
+        DB_PageHeader *page_to_cow = NULL;
+        DB_PageHeader *dirty_page = NULL;
+
+        /* Check if page is already dirty */
+        page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
+
+        if (!page_to_cow) {
+            /* Page is in mmap - CoW it */
+            DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+
+            status = db_page_get_writable(txn, original_page, &dirty_page);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+        }
+    }
+
+    /* Get the dirty copy of the leaf page */
+    pgno_t leaf_pgno = path[path_len - 1];
+    leaf_page = apr_hash_get(txn->dirty_pages, &leaf_pgno, sizeof(pgno_t));
+    if (!leaf_page) {
+        return APR_EGENERAL;
+    }
+
+    /* Delete the entry from the dirty leaf page */
+    status = db_page_delete(leaf_page, index);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return APR_SUCCESS;
 }

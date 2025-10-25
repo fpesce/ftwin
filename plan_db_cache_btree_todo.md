@@ -141,14 +141,18 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Implement `napr_db_cursor_get` positioning operations:
         - [x] `NAPR_DB_FIRST`, `NAPR_DB_LAST`.
         - [x] `NAPR_DB_SET`, `NAPR_DB_SET_RANGE`.
-    - [ ] Implement `napr_db_cursor_get` iteration operations (Complex):
-        - [ ] `NAPR_DB_NEXT`, `NAPR_DB_PREV` (Requires ascending/descending the stack due to lack of sibling pointers).
-- [ ] **Implementation (`src/napr_db_tree.c`)**
-    - [ ] Implement `napr_db_del`.
-- [x] **Testing (`check/check_db_cursor.c` and `check_db_delete.c`)**
-    - [ ] Test forward and backward iteration across the entire dataset.
-    - [ ] Test iteration across page boundaries (verifies stack logic).
-    - [ ] Test deletion.
+    - [x] Implement `napr_db_cursor_get` iteration operations (Complex):
+        - [x] `NAPR_DB_NEXT`, `NAPR_DB_PREV` (Requires ascending/descending the stack due to lack of sibling pointers).
+- [x] **Implementation (`src/napr_db.c` and `src/napr_db_tree.c`)**
+    - [x] Implement `db_page_delete` helper (slotted page deletion with compaction).
+    - [x] Implement `napr_db_del` (simple deletion without rebalancing).
+- [x] **Testing (`check/check_db_cursor.c` and `check/check_db_delete.c`)**
+    - [x] Test forward and backward iteration across the entire dataset.
+    - [x] Test iteration across page boundaries (verifies stack logic).
+    - [x] Test basic deletion (insert A,B,C / delete B / verify A,C exist, B gone).
+    - [x] Test deleting first and last keys (boundary conditions).
+    - [x] Test deleting non-existent key (returns APR_NOTFOUND).
+    - [x] Test deletion rejects read-only transactions.
 
 ### Iteration 7: MVCC and Free Space Management
 

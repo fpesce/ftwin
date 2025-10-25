@@ -429,6 +429,74 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
 }
 
 /**
+ * @brief Delete a node from a page by index.
+ *
+ * This function removes a node from a slotted page by:
+ * 1. Removing the slot entry (shifts remaining slots)
+ * 2. Compacting the data area if needed (shifts data to reclaim space)
+ * 3. Updating page header (num_keys, upper pointer)
+ *
+ * @param page Page containing the node to delete (must be writable/dirty)
+ * @param index Index of the node to delete
+ * @return APR_SUCCESS on success, APR_EINVAL if index out of bounds
+ */
+apr_status_t db_page_delete(DB_PageHeader *page, uint16_t index)
+{
+    uint16_t *slots = NULL;
+    uint16_t delete_offset = 0;
+    uint16_t delete_size = 0;
+    uint16_t idx = 0;
+
+    if (!page || index >= page->num_keys) {
+        return APR_EINVAL;
+    }
+
+    slots = db_page_slots(page);
+    delete_offset = slots[index];
+
+    /* Calculate size of node being deleted */
+    if (page->flags & P_LEAF) {
+        DB_LeafNode *node = (DB_LeafNode *) ((char *) page + delete_offset);
+        delete_size = (uint16_t) (sizeof(DB_LeafNode) + node->key_size + node->data_size);
+    }
+    else if (page->flags & P_BRANCH) {
+        DB_BranchNode *node = (DB_BranchNode *) ((char *) page + delete_offset);
+        delete_size = (uint16_t) (sizeof(DB_BranchNode) + node->key_size);
+    }
+    else {
+        return APR_EINVAL;
+    }
+
+    /* Remove slot by shifting remaining slots left */
+    for (idx = index; idx < page->num_keys - 1; idx++) {
+        slots[idx] = slots[idx + 1];
+    }
+
+    /* Compact data area: shift all data after deleted node upward */
+    if (delete_offset > page->upper) {
+        /* Data to move is from upper to delete_offset */
+        uint16_t move_size = delete_offset - page->upper;
+        if (move_size > 0) {
+            memmove((char *) page + page->upper + delete_size, (char *) page + page->upper, move_size);
+        }
+
+        /* Update all slot offsets that pointed above the deleted node */
+        for (idx = 0; idx < page->num_keys - 1; idx++) {
+            if (slots[idx] < delete_offset) {
+                slots[idx] += delete_size;
+            }
+        }
+    }
+
+    /* Update page header */
+    page->num_keys--;
+    page->lower -= sizeof(uint16_t);
+    page->upper += delete_size;
+
+    return APR_SUCCESS;
+}
+
+/**
  * @brief Split a leaf page when it becomes full.
  *
  * This function implements the B+ tree leaf split operation:
