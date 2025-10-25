@@ -9,7 +9,7 @@
 #include <string.h>
 
 /* Forward declarations for internal helpers */
-static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int operation);
+static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_cursor_op_t operation);
 
 /**
  * @brief Get a page, checking dirty pages first for write transactions.
@@ -88,7 +88,7 @@ static inline void cursor_push(napr_db_cursor_t *cursor, DB_PageHeader *page, ui
 /**
  * @brief Traverse the tree to position the cursor.
  */
-static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, int operation)
+static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t *key, napr_db_cursor_op_t operation)
 {
     pgno_t current_pgno = cursor->txn->root_pgno;
     DB_PageHeader *page = NULL;
@@ -138,6 +138,9 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
                 index = page->num_keys - 1;
             }
             break;
+        case NAPR_DB_NEXT:
+        case NAPR_DB_PREV:
+        case NAPR_DB_GET_CURRENT:
         default:
             return APR_EINVAL;
         }
@@ -169,6 +172,11 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
             return APR_NOTFOUND;
         }
         break;
+    case NAPR_DB_NEXT:
+    case NAPR_DB_PREV:
+    case NAPR_DB_GET_CURRENT:
+    default:
+        return APR_EINVAL;
     }
 
     if (page->num_keys == 0) {
@@ -183,7 +191,7 @@ static apr_status_t db_cursor_seek(napr_db_cursor_t *cursor, const napr_db_val_t
 /**
  * @brief Retrieve key-value pairs using cursor.
  */
-apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int operation)
+apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, napr_db_cursor_op_t operation)
 {
     apr_status_t status = APR_SUCCESS;
 
