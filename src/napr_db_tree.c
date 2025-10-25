@@ -388,9 +388,6 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
     /* Check if there's enough free space */
     free_space = page->upper - page->lower;
     if (free_space < (node_size + sizeof(uint16_t))) {
-        if (getenv("CURSOR_DEBUG")) {
-            fprintf(stderr, "INSERT: Page full! free=%d, need=%u, upper=%u, lower=%u\n", (int) free_space, node_size + (uint16_t) sizeof(uint16_t), page->upper, page->lower);
-        }
         return APR_ENOSPC;
     }
 
@@ -684,10 +681,6 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
             }
         }
         left_page->upper = min_offset;
-        if (getenv("CURSOR_DEBUG")) {
-            fprintf(stderr, "BRANCH_SPLIT: Left now has %u keys, upper was %d, now %d, free=%u\n",
-                    left_page->num_keys, (int) PAGE_SIZE, (int) min_offset, (unsigned int) (left_page->upper - left_page->lower));
-        }
     }
     else {
         /* Edge case: all entries moved to right */

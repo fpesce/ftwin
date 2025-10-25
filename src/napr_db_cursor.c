@@ -215,8 +215,6 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
     DB_PageHeader *page = NULL;
     uint16_t index = 0;
     pgno_t child_pgno = 0;
-    DB_LeafNode *leaf_node = NULL;
-    char debug_key[32] = { 0 };
 
     if (!cursor || cursor->top == 0 || cursor->eof) {
         return APR_NOTFOUND;
@@ -225,15 +223,6 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
     /* Get current position (leaf page is at top of stack) */
     page = cursor->stack[cursor->top - 1].page;
     index = cursor->stack[cursor->top - 1].index;
-
-    /* Debug: print current key */
-    if (page->flags & P_LEAF && index < page->num_keys) {
-        leaf_node = db_page_leaf_node(page, index);
-        if (leaf_node->key_size < sizeof(debug_key)) {
-            memcpy(debug_key, db_leaf_node_key(leaf_node), leaf_node->key_size);
-            debug_key[leaf_node->key_size] = '\0';
-        }
-    }
 
     /* Try incrementing index on current leaf */
     index++;
@@ -244,12 +233,6 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
     }
 
     /* Went off the end of leaf - need to ascend to find next sibling */
-    /* Debug logging for boundary crossing */
-    if (getenv("CURSOR_DEBUG") && page->num_keys > 0) {
-        DB_LeafNode *last_node = db_page_leaf_node(page, page->num_keys - 1);
-        fprintf(stderr, "CURSOR: Leaving leaf page, last key was: %.*s\n", (int) last_node->key_size, db_leaf_node_key(last_node));
-    }
-
     cursor->top--;              /* Pop the leaf */
 
     /* If stack is now empty, we were at root (which was a leaf) */
@@ -263,21 +246,11 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
         page = cursor->stack[cursor->top - 1].page;
         index = cursor->stack[cursor->top - 1].index;
 
-        if (getenv("CURSOR_DEBUG")) {
-            DB_BranchNode *branch_node = db_page_branch_node(page, index);
-            fprintf(stderr, "CURSOR: At branch, current index=%u, key=%.*s\n", index, (int) branch_node->key_size, db_branch_node_key(branch_node));
-        }
-
         /* Try to move to next child in this parent */
         index++;
         if (index < page->num_keys) {
             /* Found next sibling - update parent's index */
             cursor->stack[cursor->top - 1].index = index;
-
-            if (getenv("CURSOR_DEBUG")) {
-                DB_BranchNode *next_branch = db_page_branch_node(page, index);
-                fprintf(stderr, "CURSOR: Moving to next sibling, index=%u, key=%.*s\n", index, (int) next_branch->key_size, db_branch_node_key(next_branch));
-            }
 
             /* Descend down the leftmost path of this sibling subtree */
             child_pgno = db_page_branch_node(page, index)->pgno;
