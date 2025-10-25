@@ -244,7 +244,7 @@ extern "C"
  * @param cursor Pointer to receive cursor handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_db_cursor_open(napr_db_txn_t *txn, napr_db_cursor_t **cursor);
+    apr_status_t napr_db_cursor_open(napr_db_txn_t *txn, napr_db_cursor_t **cursor_out);
 
 /**
  * @brief Close a cursor.

@@ -8,6 +8,7 @@
 
 #include "napr_db_internal.h"
 #include <string.h>
+#include <stdlib.h>
 #include <apr_hash.h>
 
 /**
@@ -204,20 +205,20 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
         status = db_page_search(page, key, &index);
 
         /*
-         * For branch pages in a B+ tree:
-         * - Each entry (key[i], child[i]) means: child[i] contains keys >= key[i]
-         * - If the search finds an exact match at index i, follow child[i]
-         * - If not found, index is the insertion point:
-         *   - If index == 0: key < all keys, but there's no "left" child in our design,
-         *     so we follow child[0] (which should contain the smallest keys)
-         *   - If 0 < index < num_keys: key is between key[index-1] and key[index],
-         *     follow child[index-1]
-         *   - If index == num_keys: key > all keys, follow child[num_keys-1]
+         * For branch pages in a B+ tree with "minimum key" semantics:
+         * - Each entry (key[i], child[i]) means: key[i] is the MINIMUM key in child[i]'s subtree
+         * - Binary search returns the index where search_key would be inserted
+         * - This is the FIRST entry with key >= search_key
+         * - Special cases:
+         *   - If index == 0: search_key < all keys, follow child[0]
+         *   - If index == num_keys: search_key > all keys, follow child[num_keys-1]
+         *   - Otherwise: follow child[index-1] (last child whose min_key <= search_key)
          *
-         * Simplification: If search returns APR_NOTFOUND and index > 0, decrement index
+         * Exception: If exact match, follow that child
          */
 
         if (status == APR_NOTFOUND && index > 0) {
+            /* No exact match - follow the child with largest min_key <= search_key */
             index--;
         }
 
@@ -521,8 +522,23 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Page
     /* Update left page header to reflect the reduced number of keys */
     left_page->num_keys = split_point;
     left_page->lower = sizeof(DB_PageHeader) + (split_point * sizeof(uint16_t));
-    /* Note: We don't update left_page->upper because the data is still there,
-     * just no longer referenced by slots. This is acceptable waste for simplicity. */
+
+    /* CRITICAL BUG FIX: Recalculate upper pointer to reflect only remaining entries
+     * After moving entries [split_point..end] to right page, their data is still
+     * in left page's data area. We need to find the minimum offset among entries
+     * [0..split_point-1] to reclaim that space.
+     */
+    {
+        uint16_t *left_slots = db_page_slots(left_page);
+        uint16_t min_offset = PAGE_SIZE;
+        for (uint16_t i = 0; i < split_point; i++) {
+            uint16_t offset = left_slots[i];
+            if (offset < min_offset) {
+                min_offset = offset;
+            }
+        }
+        left_page->upper = min_offset;
+    }
 
     /* Store the right page in dirty pages hash */
     pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
@@ -607,26 +623,20 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
     /* Determine split point (median) */
     split_point = left_page->num_keys / 2;
 
-    /* Get the divider node (this will be pushed up to parent) */
-    divider_node = db_page_branch_node(left_page, split_point);
-
-    /* Set divider key (will be pushed up to parent) */
-    divider_key_out->data = db_branch_node_key(divider_node);
-    divider_key_out->size = divider_node->key_size;
-
     /* Get right page slot array */
     right_slots = db_page_slots(right_page);
 
-    /* Move entries AFTER split_point to the right page
-     * CRITICAL: The divider key at split_point is NOT copied to right page,
-     * it's pushed up to the parent. Only entries after it move to right page.
+    /* Move entries from split_point onwards to the right page
+     * CRITICAL: In a B+ tree with "minimum key" semantics, we must preserve
+     * all child pointers. The entry at split_point is included in the RIGHT page.
+     * Its key will also be used as the divider pushed to the parent.
      */
-    for (idx = split_point + 1; idx < left_page->num_keys; idx++) {
+    for (idx = split_point; idx < left_page->num_keys; idx++) {
         DB_BranchNode *src_node = db_page_branch_node(left_page, idx);
         uint16_t node_size = sizeof(DB_BranchNode) + src_node->key_size;
         uint16_t new_offset = 0;
         DB_BranchNode *dest_node = NULL;
-        uint16_t right_idx = idx - (split_point + 1);
+        uint16_t right_idx = idx - split_point;
 
         /* Allocate space in right page (grows downward from upper) */
         new_offset = right_page->upper - node_size;
@@ -645,10 +655,50 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
     }
 
     /* Update left page header to reflect the reduced number of keys
-     * Left page keeps entries [0..split_point-1]
+     * CRITICAL: For B+tree branches with "minimum key" semantics:
+     * - Left page gets entries [0..split_point-1]
+     * - Right page gets entries [split_point+1..end]
+     * - Entry at split_point is NOT in either page - its key becomes the divider,
+     *   and its child pointer is LOST (which is the bug!)
+     *
+     * TODO: Fix this properly by including split_point in one of the pages
      */
     left_page->num_keys = split_point;
     left_page->lower = sizeof(DB_PageHeader) + (split_point * sizeof(uint16_t));
+
+    /* CRITICAL BUG FIX: Recalculate upper pointer to reflect only remaining entries
+     * After moving entries [split_point..end] to right page, their data is still
+     * in left page's data area. We need to find the minimum offset among entries
+     * [0..split_point-1] to reclaim that space.
+     */
+    if (split_point > 0) {
+        uint16_t *left_slots = db_page_slots(left_page);
+        uint16_t min_offset = PAGE_SIZE;
+        for (uint16_t i = 0; i < split_point; i++) {
+            uint16_t offset = left_slots[i];
+            if (offset < min_offset) {
+                min_offset = offset;
+            }
+        }
+        left_page->upper = min_offset;
+    }
+    else {
+        /* Edge case: all entries moved to right */
+        left_page->upper = PAGE_SIZE;
+    }
+
+    /* Set divider key = minimum key of right page (right[0].key)
+     * This will be pushed up to the parent to guide searches.
+     */
+    if (right_page->num_keys > 0) {
+        divider_node = db_page_branch_node(right_page, 0);
+        divider_key_out->data = db_branch_node_key(divider_node);
+        divider_key_out->size = divider_node->key_size;
+    }
+    else {
+        /* This shouldn't happen in a proper split, but handle it */
+        return APR_EGENERAL;
+    }
 
     /* Store the right page in dirty pages hash */
     pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));

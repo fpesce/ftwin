@@ -9,6 +9,7 @@
 #include <check.h>
 #include <apr_file_io.h>
 #include <stdio.h>
+#include <string.h>
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static napr_db_env_t *env;
@@ -189,6 +190,238 @@ START_TEST(test_cursor_set_range)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_cursor_forward_iteration)
+{
+    napr_db_txn_t *txn = NULL;
+    napr_db_cursor_t *cursor = NULL;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    apr_status_t status = APR_SUCCESS;
+    int count = 0;
+    char prev_key[DB_TEST_KEY_BUF_SIZE];
+
+    /* Test full forward iteration using FIRST + NEXT */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_cursor_open(txn, &cursor);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Position at first key */
+    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_FIRST);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    count = 1;
+    memcpy(prev_key, key.data, key.size);
+    prev_key[key.size] = '\0';
+
+    /* Iterate through all remaining keys */
+    while ((status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT)) == APR_SUCCESS) {
+        char current_key[DB_TEST_KEY_BUF_SIZE];
+        memcpy(current_key, key.data, key.size);
+        current_key[key.size] = '\0';
+
+        /* Debug: print first failure */
+        if (strcmp(prev_key, current_key) >= 0 && count < DB_TEST_KEY_COUNT_10) {
+            (void) fprintf(stderr, "DEBUG: count=%d, prev=%s, current=%s\n", count, prev_key, current_key);
+        }
+
+        /* Verify lexicographical ordering */
+        ck_assert_msg(strcmp(prev_key, current_key) < 0, "Keys not in order: %s >= %s", prev_key, current_key);
+
+        memcpy(prev_key, key.data, key.size);
+        prev_key[key.size] = '\0';
+        count++;
+    }
+
+    /* Should have iterated through all keys */
+    ck_assert_int_eq(count, DB_TEST_NUM_KEYS_1000);
+    ck_assert_int_eq(status, APR_NOTFOUND);     /* End of iteration */
+
+    napr_db_cursor_close(cursor);
+    napr_db_txn_abort(txn);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_cursor_backward_iteration)
+{
+    napr_db_txn_t *txn = NULL;
+    napr_db_cursor_t *cursor = NULL;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    apr_status_t status = APR_SUCCESS;
+    int count = 0;
+    char prev_key[DB_TEST_KEY_BUF_SIZE];
+
+    /* Test full backward iteration using LAST + PREV */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_cursor_open(txn, &cursor);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Position at last key */
+    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_LAST);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    count = 1;
+    memcpy(prev_key, key.data, key.size);
+    prev_key[key.size] = '\0';
+
+    /* Iterate backward through all remaining keys */
+    while ((status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_PREV)) == APR_SUCCESS) {
+        char current_key[DB_TEST_KEY_BUF_SIZE];
+        memcpy(current_key, key.data, key.size);
+        current_key[key.size] = '\0';
+
+        /* Verify reverse lexicographical ordering */
+        ck_assert_msg(strcmp(prev_key, current_key) > 0, "Keys not in reverse order: %s <= %s", prev_key, current_key);
+
+        memcpy(prev_key, key.data, key.size);
+        prev_key[key.size] = '\0';
+        count++;
+    }
+
+    /* Should have iterated through all keys */
+    ck_assert_int_eq(count, DB_TEST_NUM_KEYS_1000);
+    ck_assert_int_eq(status, APR_NOTFOUND);     /* Beginning of iteration */
+
+    napr_db_cursor_close(cursor);
+    napr_db_txn_abort(txn);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/**
+ * @brief Verifies the cursor's current position against an expected key-value pair.
+ */
+static void verify_cursor_position(napr_db_val_t *key, napr_db_val_t *data, int idx)
+{
+    char expected_key[DB_TEST_KEY_BUF_SIZE];
+    char expected_val[DB_TEST_DATA_BUF_SIZE];
+
+    (void) snprintf(expected_key, sizeof(expected_key), "key%04d", idx);
+    (void) snprintf(expected_val, sizeof(expected_val), "val%04d", idx);
+
+    ck_assert_int_eq(key->size, strlen(expected_key));
+    ck_assert_mem_eq(key->data, expected_key, key->size);
+    ck_assert_int_eq(data->size, strlen(expected_val));
+    ck_assert_mem_eq(data->data, expected_val, data->size);
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_cursor_page_boundary)
+{
+    napr_db_txn_t *txn = NULL;
+    napr_db_cursor_t *cursor = NULL;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    apr_status_t status = APR_SUCCESS;
+    int idx = 0;
+
+    /*
+     * Test iteration across page boundaries.
+     * With 1000 keys, we should have multiple pages and therefore
+     * multiple page boundary crossings during iteration.
+     * This verifies the stack ascent/descent logic works correctly.
+     */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_cursor_open(txn, &cursor);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Forward iteration - verify all keys are present */
+    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_FIRST);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (idx = 0; idx < DB_TEST_NUM_KEYS_1000; idx++) {
+        verify_cursor_position(&key, &data, idx);
+
+        /* Move to next (will cross page boundaries during this loop) */
+        if (idx < DB_TEST_NUM_KEYS_1000 - 1) {
+            status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
+            ck_assert_int_eq(status, APR_SUCCESS);
+        }
+    }
+
+    /* Verify we're at the end */
+    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+
+    napr_db_cursor_close(cursor);
+    napr_db_txn_abort(txn);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/**
+ * @brief Moves the cursor forward a specified number of steps.
+ */
+static void move_cursor_forward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    for (int i = 0; i < steps; i++) {
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+/**
+ * @brief Moves the cursor backward a specified number of steps.
+ */
+static void move_cursor_backward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    for (int i = 0; i < steps; i++) {
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_PREV);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_cursor_bidirectional)
+{
+    napr_db_txn_t *txn = NULL;
+    napr_db_cursor_t *cursor = NULL;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    apr_status_t status = APR_SUCCESS;
+
+    /* Test mixing NEXT and PREV operations */
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_cursor_open(txn, &cursor);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Start from key0500 */
+    key.data = "key0500";
+    key.size = strlen("key0500");
+    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_SET);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Move forward and verify */
+    move_cursor_forward(cursor, &key, &data, DB_TEST_KEY_COUNT_10);
+    ck_assert_int_eq(key.size, strlen("key0510"));
+    ck_assert_mem_eq(key.data, "key0510", key.size);
+
+    /* Move backward and verify */
+    move_cursor_backward(cursor, &key, &data, DB_TEST_KEY_COUNT_5);
+    ck_assert_int_eq(key.size, strlen("key0505"));
+    ck_assert_mem_eq(key.data, "key0505", key.size);
+
+    napr_db_cursor_close(cursor);
+    napr_db_txn_abort(txn);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
 Suite *db_cursor_suite(void)
 {
     Suite *suite = suite_create("DBCursor");
@@ -198,6 +431,10 @@ Suite *db_cursor_suite(void)
     tcase_add_test(tc_core, test_cursor_first_last);
     tcase_add_test(tc_core, test_cursor_set);
     tcase_add_test(tc_core, test_cursor_set_range);
+    tcase_add_test(tc_core, test_cursor_forward_iteration);
+    tcase_add_test(tc_core, test_cursor_backward_iteration);
+    tcase_add_test(tc_core, test_cursor_page_boundary);
+    tcase_add_test(tc_core, test_cursor_bidirectional);
 
     suite_add_tcase(suite, tc_core);
     return suite;

@@ -35,4 +35,5 @@ unreadVariable:check/check_ftwin.c
 unreadVariable:check/check_napr_hash.c
 
 # Suppress work in progress
+unreadVariable:src/napr_db_cursor.c
 unusedFunction:src/napr_db.c
