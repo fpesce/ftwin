@@ -498,6 +498,15 @@ Suite *make_ft_report_suite(void);
 Suite *make_ft_report_json_suite(void);
 Suite *make_key_hash_suite(void);
 Suite *make_ft_process_suite(void);
+Suite *make_db_layout_suite(void);
+Suite *make_db_env_suite(void);
+Suite *make_db_txn_suite(void);
+Suite *make_db_page_suite(void);
+Suite *make_db_read_suite(void);
+Suite *make_db_cow_suite(void);
+Suite *make_db_write_suite(void);
+Suite *make_db_split_suite(void);
+Suite *db_cursor_suite(void);
 
 enum test_suite
 {
@@ -513,7 +522,14 @@ enum test_suite
     FT_ARCHIVE_SUITE,
     FT_IMAGE_SUITE,
     FT_CONFIG_SUITE,
-    KEY_HASH_SUITE
+    KEY_HASH_SUITE,
+    DB_LAYOUT_SUITE,
+    DB_ENV_SUITE,
+    DB_TXN_SUITE,
+    DB_PAGE_SUITE,
+    DB_READ_SUITE,
+    DB_COW_SUITE,
+    DB_WRITE_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -533,6 +549,15 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_report_json_suite());
     srunner_add_suite(suite_runner, make_key_hash_suite());
     srunner_add_suite(suite_runner, make_ft_process_suite());
+    srunner_add_suite(suite_runner, make_db_layout_suite());
+    srunner_add_suite(suite_runner, make_db_env_suite());
+    srunner_add_suite(suite_runner, make_db_txn_suite());
+    srunner_add_suite(suite_runner, make_db_page_suite());
+    srunner_add_suite(suite_runner, make_db_read_suite());
+    srunner_add_suite(suite_runner, make_db_cow_suite());
+    srunner_add_suite(suite_runner, make_db_write_suite());
+    srunner_add_suite(suite_runner, make_db_split_suite());
+    srunner_add_suite(suite_runner, db_cursor_suite());
 }
 
 int main(int argc, char **argv)
@@ -615,6 +640,27 @@ int main(int argc, char **argv)
             break;
         case KEY_HASH_SUITE:
             srunner_add_suite(suite_runner, make_key_hash_suite());
+            break;
+        case DB_LAYOUT_SUITE:
+            srunner_add_suite(suite_runner, make_db_layout_suite());
+            break;
+        case DB_ENV_SUITE:
+            srunner_add_suite(suite_runner, make_db_env_suite());
+            break;
+        case DB_TXN_SUITE:
+            srunner_add_suite(suite_runner, make_db_txn_suite());
+            break;
+        case DB_PAGE_SUITE:
+            srunner_add_suite(suite_runner, make_db_page_suite());
+            break;
+        case DB_READ_SUITE:
+            srunner_add_suite(suite_runner, make_db_read_suite());
+            break;
+        case DB_COW_SUITE:
+            srunner_add_suite(suite_runner, make_db_cow_suite());
+            break;
+        case DB_WRITE_SUITE:
+            srunner_add_suite(suite_runner, make_db_write_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */
