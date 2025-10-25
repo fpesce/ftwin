@@ -15,12 +15,6 @@
 #include "../src/napr_db_internal.h"
 #include "check_db_constants.h"
 
-/* Test database path in /tmp */
-#define TEST_DB_PATH "/tmp/test_cow.db"
-
-static const uint32_t DEADBEEF = 0xDEADBEEF;
-static const uint32_t PAGE_COUNT_TEST = 5;
-
 /* Helper to create and open a test database */
 static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
 {
@@ -28,7 +22,7 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
     napr_db_env_t *env = NULL;
 
     /* Remove existing test database */
-    unlink(TEST_DB_PATH);
+    unlink(DB_TEST_PATH_COW);
 
     /* Create new database */
     status = napr_db_env_create(&env, pool);
@@ -36,12 +30,12 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
         return status;
     }
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     if (status != APR_SUCCESS) {
         return status;
     }
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_COW, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     if (status != APR_SUCCESS) {
         return status;
     }
@@ -125,15 +119,15 @@ START_TEST(test_page_alloc_multiple)
     /* Record initial state */
     initial_last_pgno = txn->new_last_pgno;
 
-    /* Allocate PAGE_COUNT_TEST contiguous pages */
-    status = db_page_alloc(txn, PAGE_COUNT_TEST, &allocated_pgno);
+    /* Allocate DB_TEST_PAGE_COUNT_5 contiguous pages */
+    status = db_page_alloc(txn, DB_TEST_PAGE_COUNT_5, &allocated_pgno);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify allocated page number is correct */
     ck_assert_int_eq(allocated_pgno, initial_last_pgno + 1);
 
-    /* Verify new_last_pgno was incremented by PAGE_COUNT_TEST */
-    ck_assert_int_eq(txn->new_last_pgno, initial_last_pgno + PAGE_COUNT_TEST);
+    /* Verify new_last_pgno was incremented by DB_TEST_PAGE_COUNT_5 */
+    ck_assert_int_eq(txn->new_last_pgno, initial_last_pgno + DB_TEST_PAGE_COUNT_5);
 
     /* Cleanup */
     napr_db_txn_abort(txn);
@@ -375,13 +369,13 @@ START_TEST(test_cow_isolation)
 
     /* Modify the dirty copy */
     DB_MetaPage *dirty_meta = (DB_MetaPage *) dirty_copy;
-    dirty_meta->magic = DEADBEEF;
+    dirty_meta->magic = DB_TEST_MAGIC_DEADBEEF;
 
     /* Verify original is unchanged */
     ck_assert_int_eq(original_meta->magic, original_magic);
 
     /* Verify dirty copy has the new value */
-    ck_assert_int_eq(dirty_meta->magic, DEADBEEF);
+    ck_assert_int_eq(dirty_meta->magic, DB_TEST_MAGIC_DEADBEEF);
 
     /* Cleanup */
     napr_db_txn_abort(txn);

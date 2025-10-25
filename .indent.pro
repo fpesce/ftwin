@@ -37,6 +37,7 @@
 -T key_cmp_callback_fn_t
 -T key_params_t
 -T napr_cell_t
+-T napr_db_cursor_op_t
 -T napr_db_cursor_t
 -T napr_db_env_t
 -T napr_db_txn_t

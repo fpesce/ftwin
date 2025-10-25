@@ -19,7 +19,6 @@
  */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
-static const char *const test_db_path = "/tmp/test_napr_db.db";
 
 static void setup(void)
 {
@@ -27,14 +26,14 @@ static void setup(void)
     apr_pool_create(&test_pool, NULL);
 
     /* Remove any existing test database */
-    apr_file_remove(test_db_path, test_pool);
+    apr_file_remove(DB_TEST_PATH_ENV, test_pool);
 }
 
 static void teardown(void)
 {
     /* Clean up test database */
     if (test_pool) {
-        apr_file_remove(test_db_path, test_pool);
+        apr_file_remove(DB_TEST_PATH_ENV, test_pool);
         apr_pool_destroy(test_pool);
         test_pool = NULL;
     }
@@ -60,7 +59,7 @@ START_TEST(test_env_create_setmapsize_close)
     ck_assert_ptr_null(env->map_addr);
 
     /* Set mapsize */
-    apr_size_t mapsize = TEN_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_10MB;
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_uint_eq(env->mapsize, mapsize);
@@ -86,7 +85,7 @@ START_TEST(test_env_open_new_db)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);
@@ -96,7 +95,7 @@ START_TEST(test_env_open_new_db)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Open new database with CREATE flag */
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_ENV, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify file handle and mmap are established */
@@ -153,7 +152,7 @@ START_TEST(test_env_open_existing_db)
     napr_db_env_t *env1 = NULL;
     napr_db_env_t *env2 = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* First, create a new database */
     status = napr_db_env_create(&env1, test_pool);
@@ -162,7 +161,7 @@ START_TEST(test_env_open_existing_db)
     status = napr_db_env_set_mapsize(env1, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env1, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env1, DB_TEST_PATH_ENV, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify initial state: live_meta should be meta1 (TXNID 1) */
@@ -181,7 +180,7 @@ START_TEST(test_env_open_existing_db)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Open without CREATE flag (existing DB) */
-    status = napr_db_env_open(env2, test_db_path, 0);
+    status = napr_db_env_open(env2, DB_TEST_PATH_ENV, 0);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify mmap is established */
@@ -221,7 +220,7 @@ START_TEST(test_env_open_intraprocess_lock)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);
@@ -231,7 +230,7 @@ START_TEST(test_env_open_intraprocess_lock)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Open with INTRAPROCESS_LOCK flag */
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_ENV, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify thread mutex is initialized */
@@ -259,7 +258,7 @@ START_TEST(test_env_open_interprocess_lock)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and configure environment */
     status = napr_db_env_create(&env, test_pool);
@@ -269,7 +268,7 @@ START_TEST(test_env_open_interprocess_lock)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Open without INTRAPROCESS_LOCK flag (default inter-process) */
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_ENV, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify proc mutex is initialized */

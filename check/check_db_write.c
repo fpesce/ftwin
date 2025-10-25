@@ -16,16 +16,6 @@
 #include "../src/napr_db_internal.h"
 #include "check_db_constants.h"
 
-/* Test database path in /tmp */
-#define TEST_DB_PATH "/tmp/test_write.db"
-
-/* Test buffer sizes */
-enum
-{
-    TEST_KEY_BUF_SIZE = 32,
-    TEST_DATA_BUF_SIZE = 64
-};
-
 /* Helper to create and open a test database */
 
 /* Struct to hold key/value generation parameters */
@@ -47,8 +37,8 @@ static void format_buffer(char *buffer, const size_t size, const char *prefix, c
 /* Helper to insert a range of keys into the database */
 static void helper_insert_data_forward(napr_db_txn_t *txn, const key_params_t *params)
 {
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[DB_TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
@@ -70,8 +60,8 @@ static void helper_insert_data_forward(napr_db_txn_t *txn, const key_params_t *p
 
 static void helper_insert_data_reverse(napr_db_txn_t *txn, const key_params_t *params)
 {
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[DB_TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
@@ -94,8 +84,8 @@ static void helper_insert_data_reverse(napr_db_txn_t *txn, const key_params_t *p
 /* Helper to verify a range of keys from the database */
 static void helper_verify_data(napr_db_txn_t *txn, const key_params_t *params)
 {
-    char key_buf[TEST_KEY_BUF_SIZE] = { 0 };
-    char data_buf[TEST_DATA_BUF_SIZE] = { 0 };
+    char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[DB_TEST_DATA_BUF_SIZE] = { 0 };
     napr_db_val_t key = { 0 };
     napr_db_val_t retrieved = { 0 };
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
@@ -121,7 +111,7 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
     napr_db_env_t *env = NULL;
 
     /* Remove existing test database */
-    unlink(TEST_DB_PATH);
+    unlink(DB_TEST_PATH_WRITE);
 
     /* Create new database */
     status = napr_db_env_create(&env, pool);
@@ -129,12 +119,12 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
         return status;
     }
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     if (status != APR_SUCCESS) {
         return status;
     }
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_WRITE, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     if (status != APR_SUCCESS) {
         return status;
     }
@@ -519,10 +509,10 @@ START_TEST(test_commit_persistence)
     status = napr_db_env_create(&env, pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_WRITE, NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin read transaction */

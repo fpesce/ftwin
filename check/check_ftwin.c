@@ -506,6 +506,7 @@ Suite *make_db_read_suite(void);
 Suite *make_db_cow_suite(void);
 Suite *make_db_write_suite(void);
 Suite *make_db_split_suite(void);
+Suite *db_cursor_suite(void);
 
 enum test_suite
 {
@@ -556,6 +557,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_db_cow_suite());
     srunner_add_suite(suite_runner, make_db_write_suite());
     srunner_add_suite(suite_runner, make_db_split_suite());
+    srunner_add_suite(suite_runner, db_cursor_suite());
 }
 
 int main(int argc, char **argv)

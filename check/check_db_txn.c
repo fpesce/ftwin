@@ -21,7 +21,6 @@
  */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
-static const char *const test_db_path = "/tmp/test_napr_db_txn.db";
 
 static void setup(void)
 {
@@ -29,14 +28,14 @@ static void setup(void)
     apr_pool_create(&test_pool, NULL);
 
     /* Remove any existing test database */
-    apr_file_remove(test_db_path, test_pool);
+    apr_file_remove(DB_TEST_PATH_TXN, test_pool);
 }
 
 static void teardown(void)
 {
     /* Clean up test database */
     if (test_pool) {
-        apr_file_remove(test_db_path, test_pool);
+        apr_file_remove(DB_TEST_PATH_TXN, test_pool);
         apr_pool_destroy(test_pool);
         test_pool = NULL;
     }
@@ -51,7 +50,7 @@ START_TEST(test_txn_read_lifecycle)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -60,7 +59,7 @@ START_TEST(test_txn_read_lifecycle)
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_TXN, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin read transaction */
@@ -96,7 +95,7 @@ START_TEST(test_txn_write_lifecycle)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -105,7 +104,7 @@ START_TEST(test_txn_write_lifecycle)
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_TXN, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin write transaction */
@@ -141,7 +140,7 @@ START_TEST(test_txn_write_abort)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -150,7 +149,7 @@ START_TEST(test_txn_write_abort)
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_TXN, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin write transaction */
@@ -220,7 +219,7 @@ START_TEST(test_swmr_intraprocess)
 {
     napr_db_env_t *env = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and open environment with INTRAPROCESS_LOCK */
     status = napr_db_env_create(&env, test_pool);
@@ -229,7 +228,7 @@ START_TEST(test_swmr_intraprocess)
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_TXN, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create thread data */
@@ -289,7 +288,7 @@ START_TEST(test_concurrent_readers)
     napr_db_txn_t *txn2 = NULL;
     napr_db_txn_t *txn3 = NULL;
     apr_status_t status = 0;
-    apr_size_t mapsize = ONE_MB;
+    apr_size_t mapsize = DB_TEST_MAPSIZE_1MB;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -298,7 +297,7 @@ START_TEST(test_concurrent_readers)
     status = napr_db_env_set_mapsize(env, mapsize);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_TXN, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin multiple read transactions simultaneously */
