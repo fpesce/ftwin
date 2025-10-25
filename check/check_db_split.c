@@ -15,22 +15,6 @@
 #include "../src/napr_db_internal.h"
 #include "check_db_constants.h"
 
-/* Test database path in /tmp */
-#define TEST_DB_PATH "/tmp/test_split.db"
-
-/* Test buffer sizes */
-enum
-{
-    TEST_KEY_SO_COUNT = 8,
-    TEST_KEY_COUNT = 10,
-    TEST_20MB_SIZE = 20,
-    TEST_KEY_BUF_SIZE = 32,
-    TEST_DATA_BUF_SIZE = 64,
-    TEST_1K_KEYS = 1000,
-    TEST_10K_KEYS = 10000,
-    TEST_ONE_MINUTE = 60
-};
-
 /* Test fixture for db split tests */
 typedef struct
 {
@@ -48,7 +32,7 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
     napr_db_env_t *env = NULL;
 
     /* Remove existing test database */
-    unlink(TEST_DB_PATH);
+    unlink(DB_TEST_PATH_SPLIT);
 
     /* Create new database */
     status = napr_db_env_create(&env, pool);
@@ -56,12 +40,12 @@ static apr_status_t create_test_db(apr_pool_t *pool, napr_db_env_t **env_out)
         return status;
     }
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     if (status != APR_SUCCESS) {
         return status;
     }
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_SPLIT, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     if (status != APR_SUCCESS) {
         return status;
     }
@@ -119,8 +103,8 @@ static void populate_leaf_page(DB_PageHeader *page, int num_keys)
 {
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
-    char key_buf[TEST_KEY_BUF_SIZE];
-    char data_buf[TEST_DATA_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
+    char data_buf[DB_TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t data;
     int idx = 0;
@@ -157,9 +141,9 @@ static void verify_leaf_split_basic(db_split_fixture *fixture)
     uint16_t expected_right_keys = 0;
     apr_status_t status = APR_SUCCESS;
 
-    populate_leaf_page(fixture->left_page, TEST_KEY_COUNT);
+    populate_leaf_page(fixture->left_page, DB_TEST_KEY_COUNT_10);
     original_num_keys = fixture->left_page->num_keys;
-    ck_assert_int_eq(original_num_keys, TEST_KEY_COUNT);
+    ck_assert_int_eq(original_num_keys, DB_TEST_KEY_COUNT_10);
 
     status = db_split_leaf(fixture->txn, fixture->left_page, &right_page, &divider_key);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -200,7 +184,7 @@ END_TEST
 
 static void verify_left_page_keys(db_split_fixture *fixture)
 {
-    char key_buf[TEST_KEY_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
 
     for (int idx = 0; idx < fixture->left_page->num_keys; idx++) {
         DB_LeafNode *node = db_page_leaf_node(fixture->left_page, idx);
@@ -212,7 +196,7 @@ static void verify_left_page_keys(db_split_fixture *fixture)
 
 static void verify_right_page_keys(DB_PageHeader *right_page)
 {
-    char key_buf[TEST_KEY_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
 
     for (int idx = 0; idx < right_page->num_keys; idx++) {
         DB_LeafNode *node = db_page_leaf_node(right_page, idx);
@@ -228,8 +212,8 @@ static void verify_leaf_split_key_distribution(db_split_fixture *fixture)
     napr_db_val_t divider_key = { 0 };
     apr_status_t status = APR_SUCCESS;
 
-    populate_leaf_page(fixture->left_page, TEST_KEY_SO_COUNT);
-    ck_assert_int_eq(fixture->left_page->num_keys, TEST_KEY_SO_COUNT);
+    populate_leaf_page(fixture->left_page, DB_TEST_KEY_COUNT_8);
+    ck_assert_int_eq(fixture->left_page->num_keys, DB_TEST_KEY_COUNT_8);
 
     status = db_split_leaf(fixture->txn, fixture->left_page, &right_page, &divider_key);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -273,16 +257,16 @@ static void setup_stress_test_env(apr_pool_t **pool, napr_db_env_t **env)
     apr_pool_create(pool, NULL);
 
     /* Remove existing test database */
-    unlink(TEST_DB_PATH);
+    unlink(DB_TEST_PATH_SPLIT);
 
     /* Create new database with larger mapsize for stress test */
     status = napr_db_env_create(env, *pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(*env, TEST_20MB_SIZE * ONE_MB);    /* 20MB for 100k keys */
+    status = napr_db_env_set_mapsize(*env, DB_TEST_MAPSIZE_20MB);    /* 20MB for 100k keys */
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(*env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(*env, DB_TEST_PATH_SPLIT, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
 
@@ -290,8 +274,8 @@ static void insert_test_keys(napr_db_env_t *env)
 {
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    char key_buf[TEST_KEY_BUF_SIZE];
-    char data_buf[TEST_DATA_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
+    char data_buf[DB_TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t data;
     int idx = 0;
@@ -300,7 +284,7 @@ static void insert_test_keys(napr_db_env_t *env)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
+    for (idx = 0; idx < DB_TEST_NUM_KEYS_10K; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -322,8 +306,8 @@ static void verify_test_keys(napr_db_env_t *env)
 {
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    char key_buf[TEST_KEY_BUF_SIZE];
-    char data_buf[TEST_DATA_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
+    char data_buf[DB_TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t retrieved_data = { 0 };
     int idx = 0;
@@ -332,7 +316,7 @@ static void verify_test_keys(napr_db_env_t *env)
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < TEST_10K_KEYS; idx++) {
+    for (idx = 0; idx < DB_TEST_NUM_KEYS_10K; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -392,8 +376,8 @@ START_TEST(test_root_split)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    char key_buf[TEST_KEY_BUF_SIZE];
-    char data_buf[TEST_DATA_BUF_SIZE];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
+    char data_buf[DB_TEST_DATA_BUF_SIZE];
     napr_db_val_t key;
     napr_db_val_t data;
     int idx = 0;
@@ -431,7 +415,7 @@ START_TEST(test_root_split)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 1; idx < TEST_1K_KEYS; idx++) {
+    for (idx = 1; idx < DB_TEST_NUM_KEYS_1000; idx++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key_%08d", idx);
         (void) snprintf(data_buf, sizeof(data_buf), "data_%08d", idx);
 
@@ -479,7 +463,7 @@ Suite *make_db_split_suite(void)
     /* Stress tests - with longer timeout */
     tcase_add_test(tc_stress, test_stress_insertions);
     tcase_add_test(tc_stress, test_root_split);
-    tcase_set_timeout(tc_stress, TEST_ONE_MINUTE);      /* timeout for stress tests */
+    tcase_set_timeout(tc_stress, DB_TEST_TIMEOUT_ONE_MINUTE);      /* timeout for stress tests */
     suite_add_tcase(suite, tc_stress);
 
     return suite;

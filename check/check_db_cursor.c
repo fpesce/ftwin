@@ -5,12 +5,10 @@
 
 #include "napr_db.h"
 #include "napr_db_internal.h"
+#include "check_db_constants.h"
 #include <check.h>
 #include <apr_file_io.h>
 #include <stdio.h>
-
-#define TEST_DB_PATH "/tmp/test_cursor.db"
-#define NUM_KEYS 1000 // Enough to cause splits
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static napr_db_env_t *env;
@@ -25,13 +23,13 @@ static void populate_db(void)
     napr_db_txn_t *txn = NULL;
     apr_status_t status;
     int i;
-    char key_buf[16];
-    char val_buf[16];
+    char key_buf[DB_TEST_KEY_BUF_SIZE];
+    char val_buf[DB_TEST_DATA_BUF_SIZE];
 
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (i = 0; i < NUM_KEYS; i++) {
+    for (i = 0; i < DB_TEST_NUM_KEYS_1000; i++) {
         napr_db_val_t key, data;
 
         snprintf(key_buf, sizeof(key_buf), "key%04d", i);
@@ -56,11 +54,11 @@ static void populate_db(void)
 static void setup(void)
 {
     apr_pool_create(&pool, NULL);
-    (void)apr_file_remove(TEST_DB_PATH, pool);
+    (void)apr_file_remove(DB_TEST_PATH_CURSOR, pool);
 
     ck_assert_int_eq(napr_db_env_create(&env, pool), APR_SUCCESS);
-    ck_assert_int_eq(napr_db_env_set_mapsize(env, 10 * 1024 * 1024), APR_SUCCESS);
-    ck_assert_int_eq(napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE), APR_SUCCESS);
+    ck_assert_int_eq(napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB), APR_SUCCESS);
+    ck_assert_int_eq(napr_db_env_open(env, DB_TEST_PATH_CURSOR, NAPR_DB_CREATE), APR_SUCCESS);
 
     populate_db();
 }
@@ -109,8 +107,8 @@ START_TEST(test_cursor_first_last)
     status = napr_db_cursor_open(txn, &cursor);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    char last_key[16];
-    snprintf(last_key, sizeof(last_key), "key%04d", NUM_KEYS - 1);
+    char last_key[DB_TEST_KEY_BUF_SIZE];
+    snprintf(last_key, sizeof(last_key), "key%04d", DB_TEST_NUM_KEYS_1000 - 1);
 
     status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_LAST);
     ck_assert_int_eq(status, APR_SUCCESS);

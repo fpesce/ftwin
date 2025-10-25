@@ -13,14 +13,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-enum
-{
-    DECIMAL_BASE = 10,
-    NUM_TEST_PAGES = 5
-};
-
-/* Test database path */
-static const char *const test_db_path = "/tmp/test_db_read.db";
 /*
  * Managed in setup/teardown.
  */
@@ -33,7 +25,7 @@ static apr_pool_t *test_pool = NULL;
 static void setup(void)
 {
     apr_pool_create(&test_pool, NULL);
-    apr_file_remove(test_db_path, test_pool);
+    apr_file_remove(DB_TEST_PATH_READ, test_pool);
 }
 
 /**
@@ -42,7 +34,7 @@ static void setup(void)
 static void teardown(void)
 {
     if (test_pool) {
-        apr_file_remove(test_db_path, test_pool);
+        apr_file_remove(DB_TEST_PATH_READ, test_pool);
         apr_pool_destroy(test_pool);
         test_pool = NULL;
     }
@@ -123,7 +115,7 @@ static void construct_branch_page(uint8_t *page_buffer, pgno_t pgno, const char 
 
     /* Add entries from the end of the page, working backwards */
     for (int i = num_entries - 1; i >= 0; i--) {
-        pgno_t child_pgno = (pgno_t) strtol(entries[(size_t) i * 2], NULL, DECIMAL_BASE);
+        pgno_t child_pgno = (pgno_t) strtol(entries[(size_t) i * 2], NULL, DB_TEST_DECIMAL_BASE);
         const char *key = entries[(size_t) i * 2 + 1];
         uint16_t key_size = strlen(key);
 
@@ -165,10 +157,10 @@ START_TEST(test_get_single_leaf)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_READ, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /*
@@ -176,7 +168,7 @@ START_TEST(test_get_single_leaf)
      * We need to extend the file manually because the database
      * is initially created with only 2 meta pages.
      */
-    apr_off_t new_size = (apr_off_t) NUM_TEST_PAGES * PAGE_SIZE;        /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;        /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -276,16 +268,16 @@ START_TEST(test_get_two_level_tree)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, ONE_MB);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_1MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, test_db_path, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_READ, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /*
      * Extend the file to accommodate our test pages.
      */
-    apr_off_t new_size = (apr_off_t) NUM_TEST_PAGES * PAGE_SIZE;        /* Pages 0-4 */
+    apr_off_t new_size = (apr_off_t) DB_TEST_PAGE_COUNT_5 * PAGE_SIZE;        /* Pages 0-4 */
     status = apr_file_trunc(env->file, new_size);
     ck_assert_int_eq(status, APR_SUCCESS);
 
