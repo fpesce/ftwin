@@ -79,26 +79,32 @@ extern "C"
  * Cursor operations
  */
 
-/** Position cursor at first key */
-#define NAPR_DB_FIRST              0
+/**
+ * @brief Cursor operation types for napr_db_cursor_get()
+ */
+    typedef enum napr_db_cursor_op_t
+    {
+    /** Position cursor at first key */
+        NAPR_DB_FIRST = 0,
 
-/** Position cursor at last key */
-#define NAPR_DB_LAST               1
+    /** Position cursor at last key */
+        NAPR_DB_LAST = 1,
 
-/** Move cursor to next key */
-#define NAPR_DB_NEXT               2
+    /** Move cursor to next key */
+        NAPR_DB_NEXT = 2,
 
-/** Move cursor to previous key */
-#define NAPR_DB_PREV               3
+    /** Move cursor to previous key */
+        NAPR_DB_PREV = 3,
 
-/** Position cursor at specified key (exact match) */
-#define NAPR_DB_SET                4
+    /** Position cursor at specified key (exact match) */
+        NAPR_DB_SET = 4,
 
-/** Position cursor at key >= specified key */
-#define NAPR_DB_SET_RANGE          5
+    /** Position cursor at key >= specified key */
+        NAPR_DB_SET_RANGE = 5,
 
-/** Return key/data at current cursor position */
-#define NAPR_DB_GET_CURRENT        6
+    /** Return key/data at current cursor position */
+        NAPR_DB_GET_CURRENT = 6
+    } napr_db_cursor_op_t;
 
 /*
  * Environment management
@@ -257,7 +263,7 @@ extern "C"
  * @param operation Cursor operation (NAPR_DB_FIRST, NAPR_DB_NEXT, etc.)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int operation);
+    apr_status_t napr_db_cursor_get(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, napr_db_cursor_op_t operation);
 
 #ifdef __cplusplus
 }
