@@ -1046,11 +1046,16 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     current_key = divider_key;
 
     status = propagate_split_up_tree(txn, path, path_len, &current_key, &right_child_pgno);
+    if (status == APR_INCOMPLETE) {
+        /* Split was absorbed by an intermediate parent - no root split needed */
+        return APR_SUCCESS;
+    }
     if (status != APR_SUCCESS) {
+        /* Other error */
         return status;
     }
 
-    /* If propagation reached the root, we need a new root */
+    /* status == APR_SUCCESS means propagation reached the root, create new root */
     return handle_root_split(txn, path[0], right_child_pgno, &current_key);
 }
 
@@ -1084,7 +1089,8 @@ static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *pa
 
         status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
         if (status == APR_SUCCESS) {
-            return APR_SUCCESS;
+            /* Successfully inserted into this parent - split absorbed, no root split needed */
+            return APR_INCOMPLETE;
         }
         if (status != APR_ENOSPC) {
             return status;
@@ -1112,6 +1118,7 @@ static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *pa
         *current_key = divider_key;
     }
 
+    /* Exited loop - split propagated all the way to root, need new root */
     return APR_SUCCESS;
 }
 

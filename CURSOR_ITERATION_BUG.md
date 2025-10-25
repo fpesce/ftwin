@@ -3,15 +3,35 @@
 ## Problem
 Cursor NEXT/PREV iteration jumps backwards when crossing page boundaries in a multi-level B+tree. Test failure: iteration goes from key0302 back to key0202.
 
-## Root Cause
-The issue is in the branch page split logic (`db_split_branch` in `src/napr_db_tree.c`). When a branch page splits:
+## Root Cause - FOUND!
 
-Current logic:
-- Left page keeps entries [0..split_point-1]
-- Entry at split_point is "pushed up" as divider
-- Right page gets entries [split_point+1..end]
+**Location**: `src/napr_db.c` lines 1048-1054 in `napr_db_put()`
 
-**Problem**: The entry at split_point contains BOTH a key AND a child pointer. When we "push up" only the key, the child pointer is lost, creating gaps in the tree coverage.
+**The Bug**: `handle_root_split()` is called **unconditionally** after every split propagation:
+
+```c
+status = propagate_split_up_tree(txn, path, path_len, &current_key, &right_child_pgno);
+if (status != APR_SUCCESS) {
+    return status;
+}
+
+/* If propagation reached the root, we need a new root */
+return handle_root_split(txn, path[0], right_child_pgno, &current_key);  // ← ALWAYS called!
+```
+
+**What happens**:
+1. Leaf page splits
+2. Split propagates up, successfully inserts divider into existing parent (which has room)
+3. `propagate_split_up_tree` returns APR_SUCCESS
+4. We STILL call `handle_root_split()` which creates a brand new 2-entry root
+5. The parent we just inserted into is abandoned
+6. Result: Every split creates a new root, tree never grows properly, parents always have 2 keys
+
+This explains ALL the symptoms:
+- Parents always have exactly 2 keys before every split insertion
+- `db_split_branch()` is never called (no branch ever fills up - we keep making new roots)
+- Tree structure is corrupted with overlapping key ranges
+- Iteration jumps backwards when crossing boundaries
 
 ## Debug Evidence
 ```
@@ -23,26 +43,32 @@ CURSOR: Moving to next sibling, index=1, key=key0202 <- Goes BACKWARDS!
 
 This shows a 3-level tree where Root[1] points to a subtree starting at key0202, even though Root[0]'s subtree extends to key0302.
 
-## Attempted Fixes
-1. ✗ Using right[0].key as divider instead of left[split_point].key - didn't fix
-2. ✗ Including split_point in left page ([0..split_point]) - didn't fix
-3. ✗ Excluding split_point from both pages ([0..split_point-1] and [split_point+1..end]) - didn't fix
-4. ✗ Including split_point in right page ([split_point..end]) - didn't fix
-5. ✓ Fixed `upper` pointer bug (recalculate after split) - necessary but not sufficient
+## Investigation Path
 
-## Current Status
-All variations of split point distribution have been tried without success. The problem may not be in the split logic itself, but in:
-- How the divider key is inserted into the parent during propagation
-- Search logic interaction with the tree structure
-- Some other aspect of the B+tree semantics
+### Dead Ends (split logic was actually correct):
+1. ✗ Using right[0].key as divider - this was actually correct
+2. ✗ Including split_point in left/right page - tried all variations, all correct
+3. ✗ Search/traversal logic - also correct with "minimum key" semantics
 
-## Next Steps
-Need to clarify B+tree branch split semantics:
-- Should entry at split_point be included in left page?
-- How should the divider key relate to actual tree coverage?
-- Review LMDB or other B+tree implementations for reference
+### Breakthrough:
+4. ✓ Fixed `upper` pointer bug (recalculate after split) - necessary but not sufficient
+   - After split, left page's `upper` wasn't reset, making page appear full
+   - This bug exists but wasn't the root cause of iteration failures
+
+5. ✓ **FOUND THE REAL BUG**: Unconditional `handle_root_split()` call
+   - Debug showed parent ALWAYS has 2 keys before every split
+   - Added fprintf to `db_split_branch()` - NEVER fires!
+   - Realized: branches never split because new roots created every time
+   - Traced to unconditional root split at end of `napr_db_put()`
+
+## The Fix
+
+Modify `propagate_split_up_tree()` to return a status indicating whether the split reached the root:
+- Return special code (e.g., APR_INCOMPLETE) when split absorbed by intermediate parent
+- Return APR_SUCCESS only when split reaches root and needs new root creation
+- Only call `handle_root_split()` when `propagate_split_up_tree()` returns APR_SUCCESS
 
 ## Files Involved
-- `src/napr_db_tree.c` - split logic (lines 562-671)
-- `src/napr_db.c` - split propagation (lines 1057-1166)
-- `src/napr_db_cursor.c` - iteration logic (lines 211-369)
+- `src/napr_db.c` - **PRIMARY BUG** split propagation logic (lines 1048-1054, 1057-1116)
+- `src/napr_db_tree.c` - split logic (correct, but has `upper` pointer bug at lines 534-543, 678-687)
+- `src/napr_db_cursor.c` - iteration logic (correct)

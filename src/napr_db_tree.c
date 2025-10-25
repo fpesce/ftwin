@@ -389,7 +389,7 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
     free_space = page->upper - page->lower;
     if (free_space < (node_size + sizeof(uint16_t))) {
         if (getenv("CURSOR_DEBUG")) {
-            fprintf(stderr, "INSERT: Page full! free=%u, need=%u, upper=%u, lower=%u\n", free_space, node_size + (uint16_t) sizeof(uint16_t), page->upper, page->lower);
+            fprintf(stderr, "INSERT: Page full! free=%d, need=%u, upper=%u, lower=%u\n", (int) free_space, node_size + (uint16_t) sizeof(uint16_t), page->upper, page->lower);
         }
         return APR_ENOSPC;
     }
@@ -674,7 +674,7 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
      * in left page's data area. We need to find the minimum offset among entries
      * [0..split_point-1] to reclaim that space.
      */
-    {
+    if (split_point > 0) {
         uint16_t *left_slots = db_page_slots(left_page);
         uint16_t min_offset = PAGE_SIZE;
         for (uint16_t i = 0; i < split_point; i++) {
@@ -684,6 +684,14 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
             }
         }
         left_page->upper = min_offset;
+        if (getenv("CURSOR_DEBUG")) {
+            fprintf(stderr, "BRANCH_SPLIT: Left now has %u keys, upper was %d, now %d, free=%u\n",
+                    left_page->num_keys, (int) PAGE_SIZE, (int) min_offset, (unsigned int) (left_page->upper - left_page->lower));
+        }
+    }
+    else {
+        /* Edge case: all entries moved to right */
+        left_page->upper = PAGE_SIZE;
     }
 
     /* Set divider key = minimum key of right page (right[0].key)
