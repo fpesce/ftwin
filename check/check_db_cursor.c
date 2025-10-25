@@ -363,7 +363,8 @@ END_TEST
  */
 static void move_cursor_forward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
 {
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     for (int i = 0; i < steps; i++) {
         status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
         ck_assert_int_eq(status, APR_SUCCESS);
@@ -375,7 +376,8 @@ static void move_cursor_forward(napr_db_cursor_t *cursor, napr_db_val_t *key, na
  */
 static void move_cursor_backward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
 {
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     for (int i = 0; i < steps; i++) {
         status = napr_db_cursor_get(cursor, key, data, NAPR_DB_PREV);
         ck_assert_int_eq(status, APR_SUCCESS);
