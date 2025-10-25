@@ -295,6 +295,23 @@ START_TEST(test_cursor_backward_iteration)
 END_TEST
 /* *INDENT-ON* */
 
+/**
+ * @brief Verifies the cursor's current position against an expected key-value pair.
+ */
+static void verify_cursor_position(napr_db_val_t *key, napr_db_val_t *data, int idx)
+{
+    char expected_key[DB_TEST_KEY_BUF_SIZE];
+    char expected_val[DB_TEST_DATA_BUF_SIZE];
+
+    (void) snprintf(expected_key, sizeof(expected_key), "key%04d", idx);
+    (void) snprintf(expected_val, sizeof(expected_val), "val%04d", idx);
+
+    ck_assert_int_eq(key->size, strlen(expected_key));
+    ck_assert_mem_eq(key->data, expected_key, key->size);
+    ck_assert_int_eq(data->size, strlen(expected_val));
+    ck_assert_mem_eq(data->data, expected_val, data->size);
+}
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cursor_page_boundary)
 {
@@ -321,17 +338,7 @@ START_TEST(test_cursor_page_boundary)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     for (idx = 0; idx < DB_TEST_NUM_KEYS_1000; idx++) {
-        char expected_key[DB_TEST_KEY_BUF_SIZE];
-        char expected_val[DB_TEST_DATA_BUF_SIZE];
-
-        (void) snprintf(expected_key, sizeof(expected_key), "key%04d", idx);
-        (void) snprintf(expected_val, sizeof(expected_val), "val%04d", idx);
-
-        /* Verify current key matches expected */
-        ck_assert_int_eq(key.size, strlen(expected_key));
-        ck_assert_mem_eq(key.data, expected_key, key.size);
-        ck_assert_int_eq(data.size, strlen(expected_val));
-        ck_assert_mem_eq(data.data, expected_val, data.size);
+        verify_cursor_position(&key, &data, idx);
 
         /* Move to next (will cross page boundaries during this loop) */
         if (idx < DB_TEST_NUM_KEYS_1000 - 1) {
@@ -350,6 +357,30 @@ START_TEST(test_cursor_page_boundary)
 /* *INDENT-OFF* */
 END_TEST
 /* *INDENT-ON* */
+
+/**
+ * @brief Moves the cursor forward a specified number of steps.
+ */
+static void move_cursor_forward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
+{
+    apr_status_t status = APR_SUCCESS;
+    for (int i = 0; i < steps; i++) {
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
+
+/**
+ * @brief Moves the cursor backward a specified number of steps.
+ */
+static void move_cursor_backward(napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data, int steps)
+{
+    apr_status_t status = APR_SUCCESS;
+    for (int i = 0; i < steps; i++) {
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_PREV);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+}
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cursor_bidirectional)
@@ -372,23 +403,13 @@ START_TEST(test_cursor_bidirectional)
     status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_SET);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Move forward DB_TEST_KEY_COUNT_10 times */
-    for (int i = 0; i < DB_TEST_KEY_COUNT_10; i++) {
-        status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
-        ck_assert_int_eq(status, APR_SUCCESS);
-    }
-
-    /* Should now be at key0510 */
+    /* Move forward and verify */
+    move_cursor_forward(cursor, &key, &data, DB_TEST_KEY_COUNT_10);
     ck_assert_int_eq(key.size, strlen("key0510"));
     ck_assert_mem_eq(key.data, "key0510", key.size);
 
-    /* Move backward DB_TEST_KEY_COUNT_5 times */
-    for (int i = 0; i < DB_TEST_KEY_COUNT_5; i++) {
-        status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_PREV);
-        ck_assert_int_eq(status, APR_SUCCESS);
-    }
-
-    /* Should now be at key0505 */
+    /* Move backward and verify */
+    move_cursor_backward(cursor, &key, &data, DB_TEST_KEY_COUNT_5);
     ck_assert_int_eq(key.size, strlen("key0505"));
     ck_assert_mem_eq(key.data, "key0505", key.size);
 
