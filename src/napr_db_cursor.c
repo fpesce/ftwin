@@ -214,7 +214,8 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
 {
     DB_PageHeader *page = NULL;
     uint16_t index = 0;
-    pgno_t child_pgno = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    pgno_t child_pgno;
 
     if (!cursor || cursor->top == 0 || cursor->eof) {
         return APR_NOTFOUND;
@@ -306,7 +307,8 @@ static apr_status_t db_cursor_prev(napr_db_cursor_t *cursor)
 {
     DB_PageHeader *page = NULL;
     uint16_t index = 0;
-    pgno_t child_pgno = 0;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    pgno_t child_pgno;
 
     if (!cursor || cursor->top == 0 || cursor->eof) {
         return APR_NOTFOUND;

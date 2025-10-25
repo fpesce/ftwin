@@ -222,8 +222,8 @@ START_TEST(test_cursor_forward_iteration)
         current_key[key.size] = '\0';
 
         /* Debug: print first failure */
-        if (strcmp(prev_key, current_key) >= 0 && count < 10) {
-            fprintf(stderr, "DEBUG: count=%d, prev=%s, current=%s\n", count, prev_key, current_key);
+        if (strcmp(prev_key, current_key) >= 0 && count < DB_TEST_KEY_COUNT_10) {
+            (void) fprintf(stderr, "DEBUG: count=%d, prev=%s, current=%s\n", count, prev_key, current_key);
         }
 
         /* Verify lexicographical ordering */
@@ -372,8 +372,8 @@ START_TEST(test_cursor_bidirectional)
     status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_SET);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Move forward 10 times */
-    for (int i = 0; i < 10; i++) {
+    /* Move forward DB_TEST_KEY_COUNT_10 times */
+    for (int i = 0; i < DB_TEST_KEY_COUNT_10; i++) {
         status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
@@ -382,8 +382,8 @@ START_TEST(test_cursor_bidirectional)
     ck_assert_int_eq(key.size, strlen("key0510"));
     ck_assert_mem_eq(key.data, "key0510", key.size);
 
-    /* Move backward 5 times */
-    for (int i = 0; i < 5; i++) {
+    /* Move backward DB_TEST_KEY_COUNT_5 times */
+    for (int i = 0; i < DB_TEST_KEY_COUNT_5; i++) {
         status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_PREV);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
