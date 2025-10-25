@@ -303,83 +303,75 @@ static apr_status_t db_cursor_next(napr_db_cursor_t *cursor)
  * @param cursor The cursor to move backward
  * @return APR_SUCCESS if moved to previous key, APR_NOTFOUND if at beginning
  */
+/**
+ * @brief Descend to the rightmost leaf of a subtree.
+ */
+static apr_status_t descend_rightmost(napr_db_cursor_t *cursor, pgno_t pgno)
+{
+    DB_PageHeader *page = NULL;
+
+    while (1) {
+        page = db_get_page(cursor->txn, pgno);
+        if (!page) {
+            cursor->eof = 1;
+            return APR_EGENERAL;
+        }
+
+        if (page->flags & P_LEAF) {
+            if (page->num_keys == 0) {
+                cursor->eof = 1;
+                return APR_NOTFOUND;
+            }
+            cursor_push(cursor, page, page->num_keys - 1);
+            return APR_SUCCESS;
+        }
+
+        if (page->num_keys == 0) {
+            cursor->eof = 1;
+            return APR_NOTFOUND;
+        }
+        cursor_push(cursor, page, page->num_keys - 1);
+        pgno = db_page_branch_node(page, page->num_keys - 1)->pgno;
+    }
+}
+
 static apr_status_t db_cursor_prev(napr_db_cursor_t *cursor)
 {
     DB_PageHeader *page = NULL;
     uint16_t index = 0;
-    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
-    pgno_t child_pgno;
 
     if (!cursor || cursor->top == 0 || cursor->eof) {
         return APR_NOTFOUND;
     }
 
-    /* Get current position (leaf page is at top of stack) */
     page = cursor->stack[cursor->top - 1].page;
     index = cursor->stack[cursor->top - 1].index;
 
-    /* Try decrementing index on current leaf */
     if (index > 0) {
-        /* Still within current leaf page */
         cursor->stack[cursor->top - 1].index = index - 1;
         return APR_SUCCESS;
     }
 
-    /* Went before the start of leaf - need to ascend to find previous sibling */
-    cursor->top--;              /* Pop the leaf */
+    cursor->top--;
 
-    /* If stack is now empty, we were at root (which was a leaf) */
     if (cursor->top == 0) {
         cursor->eof = 1;
         return APR_NOTFOUND;
     }
 
-    /* Ascend the tree until we find a parent with a previous sibling */
     while (cursor->top > 0) {
         page = cursor->stack[cursor->top - 1].page;
         index = cursor->stack[cursor->top - 1].index;
 
-        /* Try to move to previous child in this parent */
         if (index > 0) {
             index--;
-            /* Found previous sibling - update parent's index */
             cursor->stack[cursor->top - 1].index = index;
-
-            /* Descend down the rightmost path of this sibling subtree */
-            child_pgno = db_page_branch_node(page, index)->pgno;
-
-            while (1) {
-                page = db_get_page(cursor->txn, child_pgno);
-                if (!page) {
-                    cursor->eof = 1;
-                    return APR_EGENERAL;
-                }
-
-                if (page->flags & P_LEAF) {
-                    /* Reached leaf - push it with last index */
-                    if (page->num_keys == 0) {
-                        cursor->eof = 1;
-                        return APR_NOTFOUND;
-                    }
-                    cursor_push(cursor, page, page->num_keys - 1);
-                    return APR_SUCCESS;
-                }
-
-                /* Branch page - push and follow rightmost child */
-                if (page->num_keys == 0) {
-                    cursor->eof = 1;
-                    return APR_NOTFOUND;
-                }
-                cursor_push(cursor, page, page->num_keys - 1);
-                child_pgno = db_page_branch_node(page, page->num_keys - 1)->pgno;
-            }
+            return descend_rightmost(cursor, db_page_branch_node(page, index)->pgno);
         }
 
-        /* This parent also exhausted - ascend further */
         cursor->top--;
     }
 
-    /* Reached root and exhausted all entries (at beginning) */
     cursor->eof = 1;
     return APR_NOTFOUND;
 }
