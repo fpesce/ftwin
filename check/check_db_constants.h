@@ -27,8 +27,13 @@
  * =================================================================
  */
 
-#define DB_TEST_DELETE_KEY_SIZE 4
-#define DB_TEST_DELETE_DATA_SIZE 6
+/* String lengths for delete tests - WITHOUT null terminators */
+#define DB_TEST_DELETE_KEY_SIZE 4       /* strlen("keyA") = 4 */
+#define DB_TEST_DELETE_DATA_SIZE 6      /* strlen("valueA") = 6 */
+
+/* String lengths for MVCC tests - WITH null terminators */
+#define DB_TEST_MVCC_KEY_SIZE 5 /* sizeof("key1") = 5 */
+#define DB_TEST_MVCC_DATA_SIZE 7        /* sizeof("value1") = 7 */
 
 #define DB_TEST_KEY_BUF_SIZE 32
 #define DB_TEST_DATA_BUF_SIZE 64

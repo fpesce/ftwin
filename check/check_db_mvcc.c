@@ -21,6 +21,7 @@
 #include "check_db_constants.h"
 
 /* Global fixtures */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
 
 /**
@@ -94,7 +95,7 @@ START_TEST(test_reader_registration)
     napr_db_txn_t *txn1 = NULL;
     napr_db_txn_t *txn2 = NULL;
     int registered_count = 0;
-    int i = 0;
+    int idx = 0;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -107,8 +108,8 @@ START_TEST(test_reader_registration)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify reader table is initially empty */
-    for (i = 0; i < MAX_READERS; i++) {
-        ck_assert_int_eq(env->reader_table[i].txnid, 0);
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        ck_assert_int_eq(env->reader_table[idx].txnid, 0);
     }
 
     /* Begin read-only transaction 1 - should register */
@@ -117,10 +118,10 @@ START_TEST(test_reader_registration)
 
     /* Verify one reader is registered */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
-            ck_assert_int_eq(env->reader_table[i].txnid, txn1->txnid);
+            ck_assert_int_eq(env->reader_table[idx].txnid, txn1->txnid);
         }
     }
     ck_assert_int_eq(registered_count, 1);
@@ -131,8 +132,8 @@ START_TEST(test_reader_registration)
 
     /* Verify two readers are registered */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
         }
     }
@@ -144,10 +145,10 @@ START_TEST(test_reader_registration)
 
     /* Verify only one reader remains */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
-            ck_assert_int_eq(env->reader_table[i].txnid, txn2->txnid);
+            ck_assert_int_eq(env->reader_table[idx].txnid, txn2->txnid);
         }
     }
     ck_assert_int_eq(registered_count, 1);
@@ -158,8 +159,8 @@ START_TEST(test_reader_registration)
 
     /* Verify reader table is empty again */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
         }
     }
@@ -210,9 +211,9 @@ START_TEST(test_oldest_reader_txnid)
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
     key.data = "key1";
-    key.size = 5;
+    key.size = DB_TEST_MVCC_KEY_SIZE;
     data.data = "value1";
-    data.size = 7;
+    data.size = DB_TEST_MVCC_DATA_SIZE;
     status = napr_db_put(write_txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
     status = napr_db_txn_commit(write_txn);
@@ -231,7 +232,9 @@ START_TEST(test_oldest_reader_txnid)
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
     key.data = "key2";
+    key.size = DB_TEST_MVCC_KEY_SIZE;
     data.data = "value2";
+    data.size = DB_TEST_MVCC_DATA_SIZE;
     status = napr_db_put(write_txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
     status = napr_db_txn_commit(write_txn);
@@ -250,7 +253,9 @@ START_TEST(test_oldest_reader_txnid)
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
     key.data = "key3";
+    key.size = DB_TEST_MVCC_KEY_SIZE;
     data.data = "value3";
+    data.size = DB_TEST_MVCC_DATA_SIZE;
     status = napr_db_put(write_txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
     status = napr_db_txn_commit(write_txn);
@@ -307,7 +312,7 @@ START_TEST(test_write_txn_not_registered)
     napr_db_env_t *env = NULL;
     napr_db_txn_t *write_txn = NULL;
     int registered_count = 0;
-    int i = 0;
+    int idx = 0;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -325,8 +330,8 @@ START_TEST(test_write_txn_not_registered)
 
     /* Verify reader table is empty */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
         }
     }
@@ -338,8 +343,8 @@ START_TEST(test_write_txn_not_registered)
 
     /* Verify reader table is still empty */
     registered_count = 0;
-    for (i = 0; i < MAX_READERS; i++) {
-        if (env->reader_table[i].txnid != 0) {
+    for (idx = 0; idx < MAX_READERS; idx++) {
+        if (env->reader_table[idx].txnid != 0) {
             registered_count++;
         }
     }
