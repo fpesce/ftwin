@@ -103,6 +103,8 @@ typedef struct DB_ReaderSlot
 #define DB_LEAFNODE_DATA_SIZE_OFFSET 2
 #define DB_LEAFNODE_KV_DATA_OFFSET 4
 
+/* Freed Pages default array size  */
+#define DB_FREED_PAGES_DFLT_SIZE 16
 
 /*
  * Constants

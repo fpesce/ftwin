@@ -370,8 +370,8 @@ START_TEST(test_freed_pages_tracking)
     napr_db_txn_t *write_txn = NULL;
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    char key_buf[32] = { 0 };
-    char data_buf[64] = { 0 };
+    char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
+    char data_buf[DB_TEST_DATA_BUF_SIZE] = { 0 };
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -392,10 +392,10 @@ START_TEST(test_freed_pages_tracking)
     ck_assert_int_eq(write_txn->freed_pages->nelts, 0);
 
     /* Insert first key - creates root page (no CoW yet, it's a new page) */
-    snprintf(key_buf, sizeof(key_buf), "key1");
+    (void) snprintf(key_buf, sizeof(key_buf), "key1");
     key.data = key_buf;
     key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value1");
+    (void) snprintf(data_buf, sizeof(data_buf), "value1");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -415,10 +415,10 @@ START_TEST(test_freed_pages_tracking)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert second key - this will trigger CoW of the root page */
-    snprintf(key_buf, sizeof(key_buf), "key2");
+    (void) snprintf(key_buf, sizeof(key_buf), "key2");
     key.data = key_buf;
     key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value2");
+    (void) snprintf(data_buf, sizeof(data_buf), "value2");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -472,10 +472,10 @@ START_TEST(test_free_db_initialization)
     status = napr_db_txn_begin(env, 0, &txn1);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    snprintf(key_buf, sizeof(key_buf), "key1");
+    (void) snprintf(key_buf, sizeof(key_buf), "key1");
     key.data = key_buf;
     key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value1");
+    (void) snprintf(data_buf, sizeof(data_buf), "value1");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -493,7 +493,7 @@ START_TEST(test_free_db_initialization)
     status = napr_db_txn_begin(env, 0, &txn2);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    snprintf(data_buf, sizeof(data_buf), "value2");
+    (void) snprintf(data_buf, sizeof(data_buf), "value2");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -560,10 +560,10 @@ START_TEST(test_free_db_entry_storage)
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    snprintf(key_buf, sizeof(key_buf), "key1");
+    (void) snprintf(key_buf, sizeof(key_buf), "key1");
     key.data = key_buf;
     key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value1");
+    (void) snprintf(data_buf, sizeof(data_buf), "value1");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -578,7 +578,7 @@ START_TEST(test_free_db_entry_storage)
     ck_assert_int_eq(status, APR_SUCCESS);
     txn2_id = write_txn->txnid;
 
-    snprintf(data_buf, sizeof(data_buf), "value2");
+    (void) snprintf(data_buf, sizeof(data_buf), "value2");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -631,8 +631,7 @@ START_TEST(test_free_db_multiple_entries)
     char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
     pgno_t *freed_pages = NULL;
     size_t num_pages = 0;
-    txnid_t txnids[5] = { 0 };
-    int num_txns = 5;
+    txnid_t txnids[DB_TEST_TXNS_COUNT_5] = { 0 };
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -648,10 +647,10 @@ START_TEST(test_free_db_multiple_entries)
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    snprintf(key_buf, sizeof(key_buf), "key1");
+    (void) snprintf(key_buf, sizeof(key_buf), "key1");
     key.data = key_buf;
     key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value0");
+    (void) snprintf(data_buf, sizeof(data_buf), "value0");
     data.data = data_buf;
     data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -662,12 +661,12 @@ START_TEST(test_free_db_multiple_entries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create multiple transactions that trigger CoW and populate Free DB */
-    for (int i = 0; i < num_txns; i++) {
+    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
         status = napr_db_txn_begin(env, 0, &write_txn);
         ck_assert_int_eq(status, APR_SUCCESS);
         txnids[i] = write_txn->txnid;
 
-        snprintf(data_buf, sizeof(data_buf), "value%d", i + 1);
+        (void) snprintf(data_buf, sizeof(data_buf), "value%d", i + 1);
         data.data = data_buf;
         data.size = DB_TEST_MVCC_DATA_SIZE;
 
@@ -686,7 +685,7 @@ START_TEST(test_free_db_multiple_entries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify all entries can be retrieved */
-    for (int i = 0; i < num_txns; i++) {
+    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
         status = read_from_free_db(read_txn, txnids[i], &freed_pages, &num_pages);
         ck_assert_int_eq(status, APR_SUCCESS);
         ck_assert_int_gt(num_pages, 0);
@@ -694,7 +693,7 @@ START_TEST(test_free_db_multiple_entries)
     }
 
     /* Query for non-existent TXNID should return NOTFOUND */
-    status = read_from_free_db(read_txn, 999999, &freed_pages, &num_pages);
+    status = read_from_free_db(read_txn, DB_TEST_NON_EXISTENT_TXNID, &freed_pages, &num_pages);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     status = napr_db_txn_abort(read_txn);

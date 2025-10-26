@@ -555,7 +555,7 @@ apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_t
         }
 
         /* Create array for tracking freed pages */
-        txn_handle->freed_pages = apr_array_make(txn_pool, 16, sizeof(pgno_t));
+        txn_handle->freed_pages = apr_array_make(txn_pool, DB_FREED_PAGES_DFLT_SIZE, sizeof(pgno_t));
         if (!txn_handle->freed_pages) {
             db_writer_unlock(env);
             apr_pool_destroy(txn_pool);
@@ -817,7 +817,7 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
 
     /* Build the value: array of pgno_t values (raw bytes) */
     data.data = txn->freed_pages->elts;
-    data.size = (size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
+    data.size = (apr_size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
 
     /* Handle empty Free DB - allocate first root page */
   initialize_empty_free_db:    /* Label for goto from validation failures */

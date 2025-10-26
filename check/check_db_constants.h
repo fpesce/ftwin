@@ -51,6 +51,7 @@
 #define DB_TEST_KEY_COUNT_10 10
 #define DB_TEST_NUM_KEYS_1000 1000
 #define DB_TEST_NUM_KEYS_10K 10000
+#define DB_TEST_TXNS_COUNT_5 5
 
 /*
  * =================================================================
@@ -61,6 +62,7 @@
 #define DB_TEST_MAGIC_DEADBEEF 0xDEADBEEF
 #define DB_TEST_DECIMAL_BASE 10
 #define DB_TEST_TIMEOUT_ONE_MINUTE 60
+#define DB_TEST_NON_EXISTENT_TXNID 999999
 
 /*
  * =================================================================
