@@ -15,7 +15,9 @@
 #include <apr_thread_mutex.h>
 #include <apr_proc_mutex.h>
 #include <apr_global_mutex.h>
+#include <apr_portable.h>
 #include <string.h>
+#include <unistd.h>
 
 /**
  * @brief Create a database environment handle.
@@ -334,6 +336,19 @@ apr_status_t napr_db_env_open(napr_db_env_t *env, const char *path, unsigned int
         env->map_addr = NULL;
         apr_file_close(env->file);
         env->file = NULL;
+        return status;
+    }
+
+    /* Initialize reader tracking table for MVCC */
+    memset(env->reader_table, 0, sizeof(env->reader_table));
+    status = apr_thread_mutex_create(&env->reader_table_mutex, APR_THREAD_MUTEX_DEFAULT, env->pool);
+    if (status != APR_SUCCESS) {
+        apr_mmap_delete(env->mmap);
+        env->mmap = NULL;
+        env->map_addr = NULL;
+        apr_file_close(env->file);
+        env->file = NULL;
+        return status;
     }
 
     return status;
@@ -420,6 +435,48 @@ static apr_status_t db_writer_unlock(napr_db_env_t *env)
     return APR_EINVAL;
 }
 
+/**
+ * @brief Get the oldest active reader TXNID from the reader tracking table.
+ *
+ * Scans the reader table to find the minimum TXNID among all active readers.
+ * This is used to determine which pages can be safely reclaimed (pages freed
+ * by transactions older than the oldest reader are no longer visible).
+ *
+ * @param env Database environment
+ * @param oldest_txnid_out Output: oldest active reader TXNID (0 if no active readers)
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_get_oldest_reader_txnid(napr_db_env_t *env, txnid_t *oldest_txnid_out)
+{
+    apr_status_t status = APR_SUCCESS;
+    txnid_t oldest_txnid = 0;
+    int slot_idx = 0;
+
+    if (!env || !oldest_txnid_out) {
+        return APR_EINVAL;
+    }
+
+    status = apr_thread_mutex_lock(env->reader_table_mutex);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Scan all slots to find minimum active TXNID */
+    for (slot_idx = 0; slot_idx < MAX_READERS; slot_idx++) {
+        txnid_t slot_txnid = env->reader_table[slot_idx].txnid;
+        if (slot_txnid > 0) {
+            if (oldest_txnid == 0 || slot_txnid < oldest_txnid) {
+                oldest_txnid = slot_txnid;
+            }
+        }
+    }
+
+    apr_thread_mutex_unlock(env->reader_table_mutex);
+
+    *oldest_txnid_out = oldest_txnid;
+    return APR_SUCCESS;
+}
+
 /*
  * Transaction API implementation
  */
@@ -492,6 +549,37 @@ apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_t
             db_writer_unlock(env);
             apr_pool_destroy(txn_pool);
             return APR_ENOMEM;
+        }
+    }
+    else {
+        /* Read-only transaction: Register in reader tracking table */
+        apr_os_proc_t pid = getpid();
+        apr_os_thread_t tid = apr_os_thread_current();
+        int slot_idx = 0;
+        int found_slot = 0;
+
+        status = apr_thread_mutex_lock(env->reader_table_mutex);
+        if (status != APR_SUCCESS) {
+            apr_pool_destroy(txn_pool);
+            return status;
+        }
+
+        /* Find an empty slot (txnid == 0) */
+        for (slot_idx = 0; slot_idx < MAX_READERS; slot_idx++) {
+            if (env->reader_table[slot_idx].txnid == 0) {
+                env->reader_table[slot_idx].pid = pid;
+                env->reader_table[slot_idx].tid = tid;
+                env->reader_table[slot_idx].txnid = txn_handle->txnid;
+                found_slot = 1;
+                break;
+            }
+        }
+
+        apr_thread_mutex_unlock(env->reader_table_mutex);
+
+        if (!found_slot) {
+            apr_pool_destroy(txn_pool);
+            return APR_ENOMEM;  /* Too many concurrent readers */
         }
     }
 
@@ -741,6 +829,27 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
 
     is_write = !(txn->flags & NAPR_DB_RDONLY);
 
+    /* Unregister read-only transaction from reader table */
+    if (!is_write) {
+        apr_os_proc_t pid = getpid();
+        apr_os_thread_t tid = apr_os_thread_current();
+        int slot_idx = 0;
+
+        apr_thread_mutex_lock(txn->env->reader_table_mutex);
+
+        /* Find and clear our slot */
+        for (slot_idx = 0; slot_idx < MAX_READERS; slot_idx++) {
+            if (txn->env->reader_table[slot_idx].txnid == txn->txnid && txn->env->reader_table[slot_idx].pid == pid && txn->env->reader_table[slot_idx].tid == tid) {
+                txn->env->reader_table[slot_idx].txnid = 0;
+                txn->env->reader_table[slot_idx].pid = 0;
+                txn->env->reader_table[slot_idx].tid = 0;
+                break;
+            }
+        }
+
+        apr_thread_mutex_unlock(txn->env->reader_table_mutex);
+    }
+
     if (!is_write || !txn->dirty_pages || apr_hash_count(txn->dirty_pages) == 0) {
         if (is_write) {
             db_writer_unlock(txn->env);
@@ -794,6 +903,27 @@ apr_status_t napr_db_txn_abort(napr_db_txn_t *txn)
 
     if (!txn) {
         return APR_EINVAL;
+    }
+
+    /* Unregister read-only transaction from reader table */
+    if (!is_write) {
+        apr_os_proc_t pid = getpid();
+        apr_os_thread_t tid = apr_os_thread_current();
+        int slot_idx = 0;
+
+        apr_thread_mutex_lock(txn->env->reader_table_mutex);
+
+        /* Find and clear our slot */
+        for (slot_idx = 0; slot_idx < MAX_READERS; slot_idx++) {
+            if (txn->env->reader_table[slot_idx].txnid == txn->txnid && txn->env->reader_table[slot_idx].pid == pid && txn->env->reader_table[slot_idx].tid == tid) {
+                txn->env->reader_table[slot_idx].txnid = 0;
+                txn->env->reader_table[slot_idx].pid = 0;
+                txn->env->reader_table[slot_idx].tid = 0;
+                break;
+            }
+        }
+
+        apr_thread_mutex_unlock(txn->env->reader_table_mutex);
     }
 
     /* If write transaction, release writer lock */

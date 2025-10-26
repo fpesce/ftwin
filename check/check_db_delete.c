@@ -245,7 +245,8 @@ static void verify_middle_keys_exist(napr_db_txn_t *txn)
 {
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
-    apr_status_t status = APR_SUCCESS;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
     char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
     char val_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
 
@@ -260,6 +261,7 @@ static void verify_middle_keys_exist(napr_db_txn_t *txn)
         ck_assert_mem_eq(data.data, val_buf, data.size);
     }
 }
+
 /* *INDENT-ON* */
 
 /**
