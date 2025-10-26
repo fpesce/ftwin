@@ -45,6 +45,7 @@ typedef uint64_t txnid_t;
 /** CPU cache line size for alignment (prevents false sharing) */
 #define CACHE_LINE_SIZE 64
 
+#define PADDING_SIZE 44
 /**
  * @brief Reader slot for MVCC tracking.
  *
@@ -59,7 +60,7 @@ typedef struct DB_ReaderSlot
     apr_os_proc_t pid;      /**< Process ID (for inter-process tracking) */
     apr_os_thread_t tid;    /**< Thread ID (for intra-process tracking) */
     txnid_t txnid;          /**< Snapshot TXNID (0 = slot is free) */
-    uint8_t padding[44];    /**< Padding to 64 bytes (4 + 8 + 8 + 44 = 64) */
+    uint8_t padding[PADDING_SIZE];    /**< Padding to 64 bytes (4 + 8 + 8 + 44 = 64) */
 } __attribute__((packed)) DB_ReaderSlot;
 
 /*
