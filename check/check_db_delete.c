@@ -126,6 +126,8 @@ END_TEST
 static void setup_database_with_initial_data(napr_db_env_t **env, apr_pool_t *pool);
 static void delete_first_and_last_keys(napr_db_env_t *env);
 static void verify_deletions(napr_db_env_t *env);
+static void verify_key_not_found(napr_db_txn_t *txn, const char *key_to_check);
+static void verify_middle_keys_exist(napr_db_txn_t *txn);
 
 /**
  * @brief Test deleting first and last keys
@@ -215,24 +217,37 @@ static void delete_first_and_last_keys(napr_db_env_t *env)
 static void verify_deletions(napr_db_env_t *env)
 {
     napr_db_txn_t *txn = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    verify_key_not_found(txn, "key000");
+    verify_key_not_found(txn, "key009");
+    verify_middle_keys_exist(txn);
+
+    napr_db_txn_abort(txn);
+}
+
+static void verify_key_not_found(napr_db_txn_t *txn, const char *key_to_check)
+{
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    key.data = (void *) key_to_check;
+    key.size = DB_TEST_DELETE_DATA_SIZE;
+    status = napr_db_get(txn, &key, &data);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+}
+
+static void verify_middle_keys_exist(napr_db_txn_t *txn)
+{
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     apr_status_t status = APR_SUCCESS;
     char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
     char val_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
-
-    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    key.data = "key000";
-    key.size = DB_TEST_DELETE_DATA_SIZE;
-    status = napr_db_get(txn, &key, &data);
-    ck_assert_int_eq(status, APR_NOTFOUND);
-
-    key.data = "key009";
-    key.size = DB_TEST_DELETE_DATA_SIZE;
-    status = napr_db_get(txn, &key, &data);
-    ck_assert_int_eq(status, APR_NOTFOUND);
 
     for (int i = 1; i < DB_TEST_KEY_COUNT_9; i++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key%03d", i);
@@ -244,8 +259,6 @@ static void verify_deletions(napr_db_env_t *env)
         ck_assert_int_eq(data.size, strlen(val_buf));
         ck_assert_mem_eq(data.data, val_buf, data.size);
     }
-
-    napr_db_txn_abort(txn);
 }
 /* *INDENT-ON* */
 
