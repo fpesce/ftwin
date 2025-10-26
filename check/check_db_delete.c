@@ -153,7 +153,7 @@ START_TEST(test_delete_boundaries)
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (int i = 0; i < TEST_PAGE_NO_10; i++) {
+    for (int i = 0; i < DB_TEST_KEY_COUNT_10; i++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key%03d", i);
         (void) snprintf(val_buf, sizeof(val_buf), "value%03d", i);
         key.data = key_buf;
@@ -206,7 +206,7 @@ START_TEST(test_delete_boundaries)
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     /* Verify middle keys still exist */
-    for (int i = 1; i < 9; i++) {
+    for (int i = 1; i < DB_TEST_KEY_COUNT_9; i++) {
         (void) snprintf(key_buf, sizeof(key_buf), "key%03d", i);
         (void) snprintf(val_buf, sizeof(val_buf), "value%03d", i);
         key.data = key_buf;
