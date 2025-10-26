@@ -18,12 +18,16 @@
 #define DB_TEST_PATH_SPLIT "/tmp/test_split.db"
 #define DB_TEST_PATH_TXN "/tmp/test_napr_db_txn.db"
 #define DB_TEST_PATH_WRITE "/tmp/test_write.db"
+#define DB_TEST_PATH_DELETE "/tmp/test_db_delete.db"
 
 /*
  * =================================================================
  * Test data and buffer sizes
  * =================================================================
  */
+
+#define DB_TEST_DELETE_KEY_SIZE 4
+#define DB_TEST_DELETE_DATA_SIZE 6
 
 #define DB_TEST_KEY_BUF_SIZE 32
 #define DB_TEST_DATA_BUF_SIZE 64
@@ -36,6 +40,7 @@
 
 #define DB_TEST_PAGE_COUNT_5 5
 #define DB_TEST_KEY_COUNT_8 8
+#define DB_TEST_KEY_COUNT_9 9
 #define DB_TEST_KEY_COUNT_5 5
 #define DB_TEST_KEY_COUNT_10 10
 #define DB_TEST_NUM_KEYS_1000 1000

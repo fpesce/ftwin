@@ -82,7 +82,7 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      check/check_ft_config.c check/check_ft_report.c check/check_ft_report_json.c \
 		      check/check_db_layout.c check/check_db_env.c check/check_db_txn.c check/check_db_page.c \
 		      check/check_db_read.c check/check_db_cow.c check/check_db_write.c check/check_db_split.c \
-		      check/check_db_cursor.c \
+		      check/check_db_cursor.c check/check_db_delete.c \
 		      src/napr_db.c src/napr_db_tree.c src/napr_db_cursor.c
 
 # CFLAGS is for additional C compiler flags

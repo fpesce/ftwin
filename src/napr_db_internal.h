@@ -461,6 +461,18 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
 apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
 
 /**
+ * @brief Delete a node from a page by index.
+ *
+ * Removes the specified node from the page and compacts the data area
+ * to reclaim space. Updates page header accordingly.
+ *
+ * @param page Page containing the node to delete (must be writable/dirty)
+ * @param index Index of the node to delete (0-based)
+ * @return APR_SUCCESS on success, APR_EINVAL if index out of bounds
+ */
+apr_status_t db_page_delete(DB_PageHeader *page, uint16_t index);
+
+/**
  * @brief Split a leaf page when it becomes full.
  *
  * Splits a full leaf page into two pages, moving approximately half the

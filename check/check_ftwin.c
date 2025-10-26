@@ -507,6 +507,7 @@ Suite *make_db_cow_suite(void);
 Suite *make_db_write_suite(void);
 Suite *make_db_split_suite(void);
 Suite *db_cursor_suite(void);
+Suite *db_delete_suite(void);
 
 enum test_suite
 {
@@ -529,7 +530,10 @@ enum test_suite
     DB_PAGE_SUITE,
     DB_READ_SUITE,
     DB_COW_SUITE,
-    DB_WRITE_SUITE
+    DB_WRITE_SUITE,
+    DB_SPLIT_SUITE,
+    DB_CURSOR_SUITE,
+    DB_DELETE_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -558,6 +562,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_db_write_suite());
     srunner_add_suite(suite_runner, make_db_split_suite());
     srunner_add_suite(suite_runner, db_cursor_suite());
+    srunner_add_suite(suite_runner, db_delete_suite());
 }
 
 int main(int argc, char **argv)
@@ -661,6 +666,15 @@ int main(int argc, char **argv)
             break;
         case DB_WRITE_SUITE:
             srunner_add_suite(suite_runner, make_db_write_suite());
+            break;
+        case DB_SPLIT_SUITE:
+            srunner_add_suite(suite_runner, make_db_split_suite());
+            break;
+        case DB_CURSOR_SUITE:
+            srunner_add_suite(suite_runner, db_cursor_suite());
+            break;
+        case DB_DELETE_SUITE:
+            srunner_add_suite(suite_runner, db_delete_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */
