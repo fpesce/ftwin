@@ -167,14 +167,20 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Test reader registration with concurrent read transactions.
     - [x] Test `db_get_oldest_reader_txnid()` correctness.
     - [x] Test that write transactions do not register in reader table.
-- [ ] **Implementation (Free Space Management)** - Not yet implemented
-    - [ ] Implement the "Free DB" (A separate B+ Tree tracking `TXNID -> [pgno_t array]`).
-    - [ ] Update write transaction commit logic: Add newly freed pages (from CoW or deletion) to the Free DB under the current TXNID.
+- [x] **Implementation (Free Space Management)** - Foundation complete (stub for actual Free DB operations)
+    - [x] Add `free_db_root` field to `DB_MetaPage` structure.
+    - [x] Update `napr_db_txn_t` to track freed pages and capture Free DB root in snapshot.
+    - [x] Update CoW logic (`db_page_get_writable`) to record freed pages.
+    - [x] Implement `populate_free_db()` function (stub - returns existing root, does not yet insert into Free DB).
+    - [x] Update write transaction commit logic to call `populate_free_db()`.
+    - [ ] Complete B+ Tree operations that can operate on different roots (main_db_root or free_db_root).
+    - [ ] Implement actual Free DB insertion in `populate_free_db()`.
     - [ ] Refine Page Allocation:
         - [ ] Determine the oldest active reader TXNID from the Reader Table.
         - [ ] Query Free DB to reuse pages freed by transactions older than the oldest reader.
         - [ ] Fall back to extending the file if no reusable pages are found.
-- [ ] **Testing (Free Space Management)** - Not yet implemented
+- [x] **Testing (Free Space Management)** - Basic tracking test added
+    - [x] Test `test_freed_pages_tracking`: Verify freed pages array is populated during CoW operations.
     - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes.
     - [ ] Test Page Reclamation: Verify pages are correctly reused only when safe.
 

@@ -97,6 +97,7 @@ static void init_meta_page(DB_MetaPage *meta, txnid_t txnid)
     meta->txnid = txnid;
     meta->root = 0;             /* No root page yet (empty tree) */
     meta->last_pgno = 1;        /* Pages 0 and 1 are meta pages */
+    meta->free_db_root = 0;     /* No Free DB root page yet (empty tree) */
 }
 
 /**
@@ -534,10 +535,12 @@ apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_t
     /* Capture snapshot from current live meta page */
     txn_handle->txnid = env->live_meta->txnid;
     txn_handle->root_pgno = env->live_meta->root;
+    txn_handle->free_db_root_pgno = env->live_meta->free_db_root;
 
     /* Initialize dirty page tracking and allocation state */
     txn_handle->dirty_pages = NULL;
     txn_handle->new_last_pgno = env->live_meta->last_pgno;
+    txn_handle->freed_pages = NULL;
 
     /* If write transaction, increment TXNID and create dirty pages tracker */
     if (is_write) {
@@ -546,6 +549,14 @@ apr_status_t napr_db_txn_begin(napr_db_env_t *env, unsigned int flags, napr_db_t
         /* Create hash table for tracking dirty pages (CoW) */
         txn_handle->dirty_pages = apr_hash_make(txn_pool);
         if (!txn_handle->dirty_pages) {
+            db_writer_unlock(env);
+            apr_pool_destroy(txn_pool);
+            return APR_ENOMEM;
+        }
+
+        /* Create array for tracking freed pages */
+        txn_handle->freed_pages = apr_array_make(txn_pool, 16, sizeof(pgno_t));
+        if (!txn_handle->freed_pages) {
             db_writer_unlock(env);
             apr_pool_destroy(txn_pool);
             return APR_ENOMEM;
@@ -763,12 +774,67 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
 }
 
 /**
+ * @brief Populate the Free DB with freed pages from this transaction.
+ *
+ * This function inserts an entry into the Free DB mapping:
+ * Key = current TXNID, Value = array of freed pgno_t values.
+ *
+ * The Free DB is a separate B+ tree that tracks which pages were freed
+ * by which transaction. This enables safe page reclamation based on
+ * the oldest active reader.
+ *
+ * @param txn The write transaction
+ * @param new_free_db_root_out Output: the new Free DB root page number
+ * @return APR_SUCCESS or an error code
+ */
+static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_root_out)
+{
+    apr_status_t status = APR_SUCCESS;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    txnid_t txnid_key = 0;
+
+    if (!txn || !new_free_db_root_out) {
+        return APR_EINVAL;
+    }
+
+    /* Start with the current Free DB root */
+    *new_free_db_root_out = txn->free_db_root_pgno;
+
+    /* If no pages were freed, nothing to do */
+    if (!txn->freed_pages || txn->freed_pages->nelts == 0) {
+        return APR_SUCCESS;
+    }
+
+    /* Build the key: TXNID (8 bytes, little-endian) */
+    txnid_key = txn->txnid;
+    key.data = &txnid_key;
+    key.size = sizeof(txnid_t);
+
+    /* Build the value: array of pgno_t values (raw bytes) */
+    data.data = txn->freed_pages->elts;
+    data.size = (size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
+
+    /* TODO: For now, we skip the actual insertion into Free DB.
+     * This is a placeholder that will be implemented in the next iteration
+     * once we have proper B+ tree operations that can work on different roots.
+     * The current napr_db_put always operates on the main DB root.
+     */
+    (void) key;                 /* Suppress unused variable warning */
+    (void) data;                /* Suppress unused variable warning */
+    (void) status;              /* Suppress unused variable warning */
+
+    return APR_SUCCESS;
+}
+
+/**
  * @brief Atomically update the meta page to commit the transaction.
  * @param txn The transaction.
- * @param new_root_pgno The new root page number.
+ * @param new_root_pgno The new root page number for main DB.
+ * @param new_free_db_root_pgno The new root page number for Free DB.
  * @return APR_SUCCESS or an error code.
  */
-static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno)
+static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno, pgno_t new_free_db_root_pgno)
 {
     apr_status_t status = APR_SUCCESS;
     DB_MetaPage updated_meta;
@@ -792,6 +858,7 @@ static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno)
     updated_meta.txnid = txn->txnid;
     updated_meta.root = new_root_pgno;
     updated_meta.last_pgno = txn->new_last_pgno;
+    updated_meta.free_db_root = new_free_db_root_pgno;
 
     meta_offset = (apr_off_t) meta_pgno *PAGE_SIZE;
 
@@ -875,7 +942,14 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
         goto cleanup;
     }
 
-    status = commit_meta_page(txn, new_root_pgno);
+    /* Populate the Free DB with freed pages from this transaction */
+    pgno_t new_free_db_root = 0;
+    status = populate_free_db(txn, &new_free_db_root);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = commit_meta_page(txn, new_root_pgno, new_free_db_root);
     if (status != APR_SUCCESS) {
         goto cleanup;
     }

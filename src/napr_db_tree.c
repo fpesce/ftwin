@@ -333,6 +333,14 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_pa
     /* Store the dirty copy in the hash table */
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), dirty_copy);
 
+    /* Record the original page as freed (Copy-on-Write) */
+    if (txn->freed_pages) {
+        pgno_t *freed_pgno = (pgno_t *) apr_array_push(txn->freed_pages);
+        if (freed_pgno) {
+            *freed_pgno = pgno;
+        }
+    }
+
     *dirty_copy_out = dirty_copy;
     return APR_SUCCESS;
 }

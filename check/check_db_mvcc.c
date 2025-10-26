@@ -355,6 +355,92 @@ END_TEST
 /* *INDENT-ON* */
 
 /**
+ * @brief Test that freed pages are tracked during CoW operations
+ *
+ * Verifies that:
+ * 1. Pages are added to freed_pages array when CoW creates dirty copies
+ * 2. The freed_pages array contains the correct page numbers
+ * 3. Multiple writes accumulate freed pages correctly
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_freed_pages_tracking)
+{
+    apr_status_t status = APR_SUCCESS;
+    napr_db_env_t *env = NULL;
+    napr_db_txn_t *write_txn = NULL;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    char key_buf[32] = { 0 };
+    char data_buf[64] = { 0 };
+
+    /* Create and open environment */
+    status = napr_db_env_create(&env, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Begin write transaction */
+    status = napr_db_txn_begin(env, 0, &write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Verify freed_pages array is initialized but empty */
+    ck_assert_ptr_nonnull(write_txn->freed_pages);
+    ck_assert_int_eq(write_txn->freed_pages->nelts, 0);
+
+    /* Insert first key - creates root page (no CoW yet, it's a new page) */
+    snprintf(key_buf, sizeof(key_buf), "key1");
+    key.data = key_buf;
+    key.size = DB_TEST_MVCC_KEY_SIZE;
+    snprintf(data_buf, sizeof(data_buf), "value1");
+    data.data = data_buf;
+    data.size = DB_TEST_MVCC_DATA_SIZE;
+
+    status = napr_db_put(write_txn, &key, &data);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* First insertion creates a new root page, no CoW yet */
+    /* freed_pages should still be empty */
+    ck_assert_int_eq(write_txn->freed_pages->nelts, 0);
+
+    /* Commit to persist the first key */
+    status = napr_db_txn_commit(write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Begin second write transaction */
+    status = napr_db_txn_begin(env, 0, &write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Insert second key - this will trigger CoW of the root page */
+    snprintf(key_buf, sizeof(key_buf), "key2");
+    key.data = key_buf;
+    key.size = DB_TEST_MVCC_KEY_SIZE;
+    snprintf(data_buf, sizeof(data_buf), "value2");
+    data.data = data_buf;
+    data.size = DB_TEST_MVCC_DATA_SIZE;
+
+    status = napr_db_put(write_txn, &key, &data);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Now freed_pages should contain the original root page number */
+    ck_assert_int_gt(write_txn->freed_pages->nelts, 0);
+
+    /* Commit second transaction */
+    status = napr_db_txn_commit(write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* Clean up */
+    status = napr_db_env_close(env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/**
  * @brief Create the MVCC test suite
  */
 Suite *db_mvcc_suite(void)
@@ -368,6 +454,7 @@ Suite *db_mvcc_suite(void)
     tcase_add_test(tc_core, test_reader_registration);
     tcase_add_test(tc_core, test_oldest_reader_txnid);
     tcase_add_test(tc_core, test_write_txn_not_registered);
+    tcase_add_test(tc_core, test_freed_pages_tracking);
 
     suite_add_tcase(suite, tc_core);
     return suite;

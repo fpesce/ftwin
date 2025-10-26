@@ -87,7 +87,8 @@ typedef struct DB_ReaderSlot
 #define DB_METAPAGE_TXNID_OFFSET 8
 #define DB_METAPAGE_ROOT_OFFSET 16
 #define DB_METAPAGE_LAST_PGNO_OFFSET 24
-#define DB_METAPAGE_PAYLOAD_SIZE (4 + 4 + 8 + 8 + 8)
+#define DB_METAPAGE_FREE_DB_ROOT_OFFSET 32
+#define DB_METAPAGE_PAYLOAD_SIZE (4 + 4 + 8 + 8 + 8 + 8)
 #define DB_METAPAGE_RESERVED_SIZE (PAGE_SIZE - DB_METAPAGE_PAYLOAD_SIZE)
 
 /* DB_BranchNode layout */
@@ -189,9 +190,11 @@ typedef struct __attribute__((packed))
          uint32_t version;
                         /**< Format version: DB_VERSION (4 bytes) */
          txnid_t txnid; /**< Transaction ID (8 bytes) */
-         pgno_t root;   /**< Root page of B+ tree (8 bytes) */
+         pgno_t root;   /**< Root page of main B+ tree (8 bytes) */
          pgno_t last_pgno;
                         /**< Last allocated page number (8 bytes) */
+         pgno_t free_db_root;
+                        /**< Root page of Free DB B+ tree (8 bytes) */
          uint8_t reserved[DB_METAPAGE_RESERVED_SIZE];
                                                   /**< Reserved/padding to PAGE_SIZE */
      } DB_MetaPage;
@@ -289,12 +292,16 @@ struct napr_db_txn_t
     napr_db_env_t *env;         /**< Environment this transaction belongs to */
     apr_pool_t *pool;           /**< APR pool for transaction allocations */
     txnid_t txnid;              /**< Transaction ID (snapshot version) */
-    pgno_t root_pgno;           /**< Root page number for this snapshot */
+    pgno_t root_pgno;           /**< Root page number for main DB snapshot */
+    pgno_t free_db_root_pgno;   /**< Root page number for Free DB snapshot */
     unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
 
     /* Copy-on-Write tracking for write transactions */
     apr_hash_t *dirty_pages;    /**< Hash table: pgno_t -> DB_PageHeader* (dirty copy) */
     pgno_t new_last_pgno;       /**< Last page number for this transaction (for allocation) */
+
+    /* Free space tracking for write transactions */
+    apr_array_header_t *freed_pages;  /**< Array of pgno_t freed during this transaction */
 };
 
 /**
