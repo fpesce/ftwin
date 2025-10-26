@@ -773,6 +773,10 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
     return apr_file_sync(txn->env->file);
 }
 
+/* Forward declarations for Free DB helper functions */
+static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno, pgno_t *new_root_out);
+static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_root_pgno, pgno_t right_child_pgno, const napr_db_val_t *divider_key, pgno_t *new_root_out);
+
 /**
  * @brief Populate the Free DB with freed pages from this transaction.
  *
@@ -815,14 +819,236 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
     data.data = txn->freed_pages->elts;
     data.size = (size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
 
-    /* TODO: For now, we skip the actual insertion into Free DB.
-     * This is a placeholder that will be implemented in the next iteration
-     * once we have proper B+ tree operations that can work on different roots.
-     * The current napr_db_put always operates on the main DB root.
-     */
-    (void) key;                 /* Suppress unused variable warning */
-    (void) data;                /* Suppress unused variable warning */
-    (void) status;              /* Suppress unused variable warning */
+    /* Handle empty Free DB - allocate first root page */
+    if (txn->free_db_root_pgno == 0) {
+        pgno_t new_root_pgno = 0;
+        DB_PageHeader *new_root = NULL;
+
+        /* Allocate the first leaf page */
+        status = db_page_alloc(txn, 1, &new_root_pgno);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Allocate dirty page in memory */
+        new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
+        if (!new_root) {
+            return APR_ENOMEM;
+        }
+
+        /* Initialize the new leaf page */
+        new_root->pgno = new_root_pgno;
+        new_root->flags = P_LEAF;
+        new_root->num_keys = 0;
+        new_root->lower = sizeof(DB_PageHeader);
+        new_root->upper = PAGE_SIZE;
+
+        /* Insert the first entry */
+        status = db_page_insert(new_root, 0, &key, &data, 0);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Store in dirty pages hash */
+        pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+        if (!pgno_key) {
+            return APR_ENOMEM;
+        }
+        *pgno_key = new_root_pgno;
+        apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+
+        /* Update output with new Free DB root */
+        *new_free_db_root_out = new_root_pgno;
+
+        return APR_SUCCESS;
+    }
+
+    /* Non-empty Free DB - use tree traversal and insertion */
+    pgno_t path[MAX_TREE_DEPTH] = { 0 };
+    uint16_t path_len = 0;
+    DB_PageHeader *leaf_page = NULL;
+    DB_PageHeader *dirty_page = NULL;
+    uint16_t index = 0;
+    int idx = 0;
+
+    napr_db_val_t current_key = key;
+    napr_db_val_t current_data = data;
+    pgno_t right_child_pgno = 0;
+
+    /* Validate Free DB root is within valid range
+     * For write transactions, use new_last_pgno; for read transactions, use live_meta->last_pgno */
+    pgno_t max_valid_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
+    if (txn->free_db_root_pgno > max_valid_pgno) {
+        /* Invalid Free DB root - likely database corruption or uninitialized field */
+        return APR_EINVAL;
+    }
+
+    /* Find the leaf page and record path in the Free DB tree */
+    status = db_find_leaf_page_with_path_in_tree(txn, txn->free_db_root_pgno, &key, path, &path_len, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Search within the leaf page to find insertion point */
+    status = db_page_search(leaf_page, &current_key, &index);
+
+    /* If key already exists, reject (updates not yet supported) */
+    if (status == APR_SUCCESS) {
+        return APR_EEXIST;
+    }
+
+    /* CoW path propagation: Copy all pages from leaf to root in the Free DB tree */
+    for (idx = (int) path_len - 1; idx >= 0; idx--) {
+        pgno_t current_pgno = path[idx];
+        DB_PageHeader *page_to_cow = NULL;
+
+        /* Check if page is already dirty */
+        page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
+
+        if (page_to_cow) {
+            dirty_page = page_to_cow;
+        }
+        else {
+            /* Page is in mmap - CoW it */
+            DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+
+            status = db_page_get_writable(txn, original_page, &dirty_page);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+        }
+
+        /* Update leaf_page pointer if this is the leaf */
+        if (idx == (int) path_len - 1) {
+            leaf_page = dirty_page;
+        }
+    }
+
+    /* Try to insert into the dirty leaf page */
+    status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
+
+    /* If insertion succeeded, update Free DB root and we're done */
+    if (status == APR_SUCCESS) {
+        /* The Free DB root may have changed due to CoW */
+        *new_free_db_root_out = path[0];
+        return APR_SUCCESS;
+    }
+
+    /* If insertion failed due to insufficient space, handle split */
+    if (status != APR_ENOSPC) {
+        return status;          /* Other error */
+    }
+
+    /* Split required - start at leaf level and propagate up */
+    DB_PageHeader *left_page = leaf_page;
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+
+    /* Split the leaf page */
+    status = db_split_leaf(txn, left_page, &right_page, &divider_key);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Determine which page the original key belongs to */
+    apr_status_t search_status = db_page_search(left_page, &current_key, &index);
+    if (search_status == APR_NOTFOUND && index >= left_page->num_keys) {
+        /* Key goes to right page */
+        (void) db_page_search(right_page, &current_key, &index);
+        status = db_page_insert(right_page, index, &current_key, &current_data, 0);
+    }
+    else {
+        /* Key goes to left page */
+        status = db_page_insert(left_page, index, &current_key, &current_data, 0);
+    }
+
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Now propagate the split up the Free DB tree */
+    right_child_pgno = right_page->pgno;
+    current_key = divider_key;
+
+    status = propagate_split_up_tree_in_tree(txn, path, path_len, &current_key, &right_child_pgno, new_free_db_root_out);
+    if (status == APR_INCOMPLETE) {
+        /* Split was absorbed by an intermediate parent - no root split needed */
+        /* The Free DB root may have changed due to CoW */
+        *new_free_db_root_out = path[0];
+        return APR_SUCCESS;
+    }
+    if (status != APR_SUCCESS) {
+        /* Other error */
+        return status;
+    }
+
+    /* status == APR_SUCCESS means propagation reached the root, create new root for Free DB */
+    return handle_root_split_in_tree(txn, path[0], right_child_pgno, &current_key, new_free_db_root_out);
+}
+
+/**
+ * @brief Read an entry from the Free DB by TXNID.
+ *
+ * This helper function queries the Free DB to retrieve the list of pages
+ * freed by a specific transaction. Used for testing and debugging.
+ *
+ * NOTE: This function is NOT part of the public API. It is exposed only for testing purposes.
+ *
+ * @param txn Transaction handle (can be read-only)
+ * @param txnid The transaction ID to look up
+ * @param freed_pages_out Output: Array of pgno_t values freed by this transaction
+ * @param num_pages_out Output: Number of pages in the array
+ * @return APR_SUCCESS if found, APR_NOTFOUND if not found, error code otherwise
+ */
+apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed_pages_out, size_t *num_pages_out)
+{
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    DB_PageHeader *leaf_page = NULL;
+    uint16_t index = 0;
+    apr_status_t status = APR_SUCCESS;
+
+    if (!txn || !freed_pages_out || !num_pages_out) {
+        return APR_EINVAL;
+    }
+
+    /* Initialize outputs */
+    *freed_pages_out = NULL;
+    *num_pages_out = 0;
+
+    /* If Free DB is empty, nothing to find */
+    if (txn->free_db_root_pgno == 0) {
+        return APR_NOTFOUND;
+    }
+
+    /* Build the key: TXNID (8 bytes, little-endian) */
+    key.data = &txnid;
+    key.size = sizeof(txnid_t);
+
+    /* Find the leaf page in the Free DB tree */
+    status = db_find_leaf_page_in_tree(txn, txn->free_db_root_pgno, &key, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* Search for the key in the leaf page */
+    status = db_page_search(leaf_page, &key, &index);
+    if (status != APR_SUCCESS) {
+        return APR_NOTFOUND;    /* Key not found */
+    }
+
+    /* Key found - retrieve the data */
+    DB_LeafNode *node = db_page_leaf_node(leaf_page, index);
+    data.data = db_leaf_node_value(node);
+    data.size = node->data_size;
+
+    /* Parse the data as an array of pgno_t values */
+    if (data.size % sizeof(pgno_t) != 0) {
+        return APR_EGENERAL;    /* Invalid data format */
+    }
+
+    *num_pages_out = data.size / sizeof(pgno_t);
+    *freed_pages_out = (pgno_t *) data.data;
 
     return APR_SUCCESS;
 }
@@ -1374,6 +1600,149 @@ static apr_status_t handle_root_split(napr_db_txn_t *txn, pgno_t old_root_pgno, 
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
 
     txn->root_pgno = new_root_pgno;
+
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Propagate a split up the tree, updating an arbitrary tree root.
+ *
+ * This is similar to propagate_split_up_tree() but accepts a root output parameter
+ * instead of modifying txn->root_pgno. Used for Free DB operations.
+ *
+ * @param txn Transaction handle
+ * @param path Array of page numbers from root to leaf
+ * @param path_len Length of the path
+ * @param current_key Key to insert at parent level (may be updated during splits)
+ * @param right_child_pgno Right child page number (may be updated during splits)
+ * @param new_root_out Output: New root page number (may change due to CoW)
+ * @return APR_SUCCESS if split propagated to root, APR_INCOMPLETE if absorbed, error otherwise
+ */
+static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno, pgno_t *new_root_out)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+    uint16_t index = 0;
+    int idx = 0;
+
+    for (idx = (int) path_len - 2; idx >= 0; idx--) {
+        pgno_t parent_pgno = path[idx];
+        DB_PageHeader *parent_page = apr_hash_get(txn->dirty_pages, &parent_pgno, sizeof(pgno_t));
+        if (!parent_page) {
+            return APR_EGENERAL;
+        }
+
+        (void) db_page_search(parent_page, current_key, &index);
+
+        status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
+        if (status == APR_SUCCESS) {
+            /* Successfully inserted into this parent - split absorbed, no root split needed */
+            return APR_INCOMPLETE;
+        }
+        if (status != APR_ENOSPC) {
+            return status;
+        }
+
+        status = db_split_branch(txn, parent_page, &right_page, &divider_key);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        apr_status_t search_status = db_page_search(parent_page, current_key, &index);
+        if (search_status == APR_NOTFOUND && index >= parent_page->num_keys) {
+            (void) db_page_search(right_page, current_key, &index);
+            status = db_page_insert(right_page, index, current_key, NULL, *right_child_pgno);
+        }
+        else {
+            status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
+        }
+
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        *right_child_pgno = right_page->pgno;
+        *current_key = divider_key;
+    }
+
+    /* Exited loop - split propagated all the way to root, need new root */
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Handle root split for an arbitrary tree.
+ *
+ * This is similar to handle_root_split() but accepts a root output parameter
+ * instead of modifying txn->root_pgno. Used for Free DB operations.
+ *
+ * @param txn Transaction handle
+ * @param old_root_pgno Old root page number
+ * @param right_child_pgno Right child page number from split
+ * @param divider_key Key separating left and right children
+ * @param new_root_out Output: New root page number
+ * @return APR_SUCCESS on success, error code on failure
+ */
+static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_root_pgno, pgno_t right_child_pgno, const napr_db_val_t *divider_key, pgno_t *new_root_out)
+{
+    pgno_t new_root_pgno = 0;
+    DB_PageHeader *new_root = NULL;
+    DB_PageHeader *old_root_page = NULL;
+    napr_db_val_t left_min_key = { 0 };
+    apr_status_t status = APR_SUCCESS;
+
+    status = db_page_alloc(txn, 1, &new_root_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
+    if (!new_root) {
+        return APR_ENOMEM;
+    }
+
+    new_root->pgno = new_root_pgno;
+    new_root->flags = P_BRANCH;
+    new_root->num_keys = 0;
+    new_root->lower = sizeof(DB_PageHeader);
+    new_root->upper = PAGE_SIZE;
+
+    old_root_page = apr_hash_get(txn->dirty_pages, &old_root_pgno, sizeof(pgno_t));
+    if (!old_root_page) {
+        return APR_EGENERAL;
+    }
+
+    if (old_root_page->flags & P_BRANCH) {
+        DB_BranchNode *left_first_node = db_page_branch_node(old_root_page, 0);
+        left_min_key.data = db_branch_node_key(left_first_node);
+        left_min_key.size = left_first_node->key_size;
+    }
+    else {
+        DB_LeafNode *left_first_leaf = db_page_leaf_node(old_root_page, 0);
+        left_min_key.data = db_leaf_node_key(left_first_leaf);
+        left_min_key.size = left_first_leaf->key_size;
+    }
+
+    status = db_page_insert(new_root, 0, &left_min_key, NULL, old_root_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    status = db_page_insert(new_root, 1, divider_key, NULL, right_child_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+    if (!pgno_key) {
+        return APR_ENOMEM;
+    }
+    *pgno_key = new_root_pgno;
+    apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+
+    /* Update output parameter instead of txn->root_pgno */
+    *new_root_out = new_root_pgno;
 
     return APR_SUCCESS;
 }

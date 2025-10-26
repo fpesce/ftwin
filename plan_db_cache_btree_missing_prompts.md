@@ -345,13 +345,43 @@ Task 2: Update Write Transaction Logic.
 1. Update `napr_db_txn_t`: Add a list to track pages freed during the current transaction.
 2. Update CoW logic: When a page is replaced via CoW, add its original `pgno_t` to the transaction's freed list.
 3. Update `napr_db_txn_commit`:
-   - Before the final meta page update, insert the list of freed pages into the Free DB.
-   - Key = Current TXNID; Value = Serialized list of freed PGNOs.
-   - This insertion must be part of the same atomic transaction.
+   - Create a `populate_free_db()` helper function.
+   - Call it before the final meta page update.
+   - Pass the new Free DB root to `commit_meta_page()`.
+
+Task 3: Implement Free DB Insertion in `populate_free_db()`.
+1. If `txn->freed_pages` is empty, return the existing `free_db_root_pgno` unchanged.
+2. Prepare the Free DB entry:
+   - Key: Current TXNID (8 bytes, uint64_t).
+   - Value: Array of freed PGNOs (raw bytes from `txn->freed_pages->elts`).
+3. Handle Empty Free DB (when `free_db_root_pgno == 0`):
+   - Allocate a new page using `db_page_alloc()`.
+   - Initialize it as a leaf page.
+   - Insert the first entry directly.
+   - Return the new root page number.
+4. Use the refactored tree functions for non-empty Free DB:
+   - Call `db_find_leaf_page_with_path_in_tree(txn, txn->free_db_root_pgno, &key, ...)`.
+   - Implement insertion logic similar to `napr_db_put` but operating on the Free DB tree.
+   - Handle page splits if necessary (can reuse existing split logic).
+   - Return the potentially new Free DB root page number (if root split occurred).
+5. Important: The Free DB operations must use the transaction's dirty page tracking,
+   so freed pages from Free DB modifications are also recorded in `txn->freed_pages`.
 
 Task 4: Update `check/check_db_mvcc.c`.
-1. Test Free List Population: Perform a write transaction involving CoW (e.g., update an existing key). Commit.
-2. Verify (using inspection tools or dedicated read functions) that an entry corresponding to the TXNID and the old page PGNOs now exists in the Free DB.
+1. Test Empty Free DB Initialization:
+   - Start with a fresh database (free_db_root == 0).
+   - Perform a CoW operation (insert data, then update it).
+   - Verify freed_pages array contains page numbers.
+   - Commit and verify free_db_root is no longer 0 in the meta page.
+2. Test Free DB Entry Storage:
+   - Perform multiple CoW operations across several transactions.
+   - For each transaction, verify freed pages are recorded.
+   - Implement a helper function to read from Free DB using `db_find_leaf_page_in_tree()`.
+   - Query the Free DB for specific TXNIDs and verify the stored pgno arrays match.
+3. Test Free DB Insertion with Existing Entries:
+   - Populate Free DB with multiple TXNID entries.
+   - Verify all entries can be retrieved correctly.
+   - Verify the Free DB tree structure is valid (no corruption).
 ```
 
 ##### Prompt 7.3: Safe Page Reclamation

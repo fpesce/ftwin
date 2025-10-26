@@ -450,6 +450,36 @@ apr_status_t db_page_search(DB_PageHeader *page, const napr_db_val_t *key, uint1
 apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out);
 
 /**
+ * @brief Find leaf page in an arbitrary tree (used for Free DB).
+ *
+ * This variant accepts a root page number parameter, allowing it to traverse
+ * any B+ tree (main DB or Free DB).
+ *
+ * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, DB_PageHeader **leaf_page_out);
+
+/**
+ * @brief Find leaf page with path in an arbitrary tree (used for Free DB).
+ *
+ * This variant accepts a root page number parameter, allowing it to traverse
+ * any B+ tree (main DB or Free DB) while recording the path for CoW operations.
+ *
+ * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out);
+
+/**
  * @brief Allocate new pages in a write transaction.
  *
  * Allocates one or more contiguous pages by incrementing the last_pgno.
