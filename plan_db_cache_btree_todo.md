@@ -156,19 +156,25 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 7: MVCC and Free Space Management
 
-- [ ] **Implementation (MVCC Components)**
-    - [ ] Implement the Reader Tracking Table (in shared memory).
-    - [ ] CRITICAL: Ensure Reader Table slots are CPU cache-line aligned (e.g., 64 bytes) to prevent false sharing (Spec 3.2).
-    - [ ] Register reader (TXNID snapshot) in `napr_db_txn_begin` (Read-only).
-    - [ ] Unregister reader in `napr_db_txn_commit/abort` (Read-only).
-- [ ] **Implementation (Free Space Management)**
+- [x] **Implementation (MVCC Components)**
+    - [x] Implement the Reader Tracking Table (in shared memory).
+    - [x] CRITICAL: Ensure Reader Table slots are CPU cache-line aligned (e.g., 64 bytes) to prevent false sharing (Spec 3.2).
+    - [x] Register reader (TXNID snapshot) in `napr_db_txn_begin` (Read-only).
+    - [x] Unregister reader in `napr_db_txn_commit/abort` (Read-only).
+    - [x] Implement `db_get_oldest_reader_txnid()` helper function.
+- [x] **Testing (`check/check_db_mvcc.c`)**
+    - [x] Test `DB_ReaderSlot` size and alignment with `_Static_assert`.
+    - [x] Test reader registration with concurrent read transactions.
+    - [x] Test `db_get_oldest_reader_txnid()` correctness.
+    - [x] Test that write transactions do not register in reader table.
+- [ ] **Implementation (Free Space Management)** - Not yet implemented
     - [ ] Implement the "Free DB" (A separate B+ Tree tracking `TXNID -> [pgno_t array]`).
     - [ ] Update write transaction commit logic: Add newly freed pages (from CoW or deletion) to the Free DB under the current TXNID.
     - [ ] Refine Page Allocation:
         - [ ] Determine the oldest active reader TXNID from the Reader Table.
         - [ ] Query Free DB to reuse pages freed by transactions older than the oldest reader.
         - [ ] Fall back to extending the file if no reusable pages are found.
-- [ ] **Testing (`check/check_db_mvcc.c`)**
+- [ ] **Testing (Free Space Management)** - Not yet implemented
     - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes.
     - [ ] Test Page Reclamation: Verify pages are correctly reused only when safe.
 

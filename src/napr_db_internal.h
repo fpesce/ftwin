@@ -21,6 +21,7 @@ enum
 #include <apr_thread_mutex.h>
 #include <apr_proc_mutex.h>
 #include <apr_hash.h>
+#include <apr_portable.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -33,6 +34,34 @@ typedef uint64_t pgno_t;
 
 /** Transaction ID type (64-bit) */
 typedef uint64_t txnid_t;
+
+/*
+ * MVCC Reader Tracking
+ */
+
+/** Maximum concurrent read transactions */
+#define MAX_READERS 126
+
+/** CPU cache line size for alignment (prevents false sharing) */
+#define CACHE_LINE_SIZE 64
+
+#define PADDING_SIZE 44
+/**
+ * @brief Reader slot for MVCC tracking.
+ *
+ * Each active read transaction registers in a slot with its snapshot TXNID.
+ * CRITICAL (Spec 3.2): Structure is cache-line sized (64 bytes) to prevent
+ * false sharing between CPU cores when multiple readers access different slots.
+ *
+ * A slot is considered free when txnid == 0.
+ */
+typedef struct DB_ReaderSlot
+{
+    apr_os_proc_t pid;      /**< Process ID (for inter-process tracking) */
+    apr_os_thread_t tid;    /**< Thread ID (for intra-process tracking) */
+    txnid_t txnid;          /**< Snapshot TXNID (0 = slot is free) */
+    uint8_t padding[PADDING_SIZE];    /**< Padding to 64 bytes (4 + 8 + 8 + 44 = 64) */
+} __attribute__((packed)) DB_ReaderSlot;
 
 /*
  * Size and offset constants for validation
@@ -238,6 +267,10 @@ struct napr_db_env_t
     /* Synchronization - SWMR model */
     apr_thread_mutex_t *writer_thread_mutex;  /**< Intra-process writer lock */
     apr_proc_mutex_t *writer_proc_mutex;      /**< Inter-process writer lock */
+
+    /* MVCC Reader Tracking */
+    DB_ReaderSlot reader_table[MAX_READERS] __attribute__((aligned(CACHE_LINE_SIZE)));  /**< Active reader tracking table */
+    apr_thread_mutex_t *reader_table_mutex;   /**< Protects reader table access */
 };
 
 /**
@@ -487,5 +520,18 @@ apr_status_t db_page_delete(DB_PageHeader *page, uint16_t index);
  */
 apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
 apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
+
+/**
+ * @brief Get the oldest active reader TXNID from the reader tracking table.
+ *
+ * Scans the reader table to find the minimum TXNID among all active readers.
+ * This is used to determine which pages can be safely reclaimed (pages freed
+ * by transactions older than the oldest reader are no longer visible).
+ *
+ * @param env Database environment
+ * @param oldest_txnid_out Output: oldest active reader TXNID (0 if no active readers)
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_get_oldest_reader_txnid(napr_db_env_t *env, txnid_t *oldest_txnid_out);
 
 #endif /* NAPR_DB_INTERNAL_H */
