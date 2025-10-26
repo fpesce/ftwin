@@ -24,7 +24,7 @@ jobs:
           enable: all
           inconclusive: enable
           # Optional: Add other options like 'exclude_check' or 'suppress'
-          exclude_check: ./third-party/ ./bugfixes/
+          exclude_check: ./third-party/
           other_options: --suppressions-list=.cppcheck-suppressions
 
   clang-tidy:
@@ -86,6 +86,7 @@ jobs:
         id: linter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          exclude-regex: "(third_party|bugfixes)"
         with:
           repo-root: '.' # The compilation database is at the root
           style: '' # Disable clang-format
