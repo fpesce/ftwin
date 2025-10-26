@@ -530,87 +530,84 @@ END_TEST
 /* Forward declaration of internal helper function for testing */
 extern apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed_pages_out, size_t *num_pages_out);
 
+static void create_db_env(napr_db_env_t **env)
+{
+    apr_status_t status;
+    status = napr_db_env_create(env, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_env_set_mapsize(*env, DB_TEST_MAPSIZE_10MB);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_env_open(*env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void commit_dummy_data(napr_db_env_t *env, const char *key_str, const char *data_str, txnid_t *txnid)
+{
+    apr_status_t status;
+    napr_db_txn_t *write_txn;
+    napr_db_val_t key = { .data = (void *) key_str, .size = strlen(key_str) + 1 };
+    napr_db_val_t data = { .data = (void *) data_str, .size = strlen(data_str) + 1 };
+
+    status = napr_db_txn_begin(env, 0, &write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    if (txnid) {
+        *txnid = write_txn->txnid;
+    }
+    status = napr_db_put(write_txn, &key, &data);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_txn_commit(write_txn);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void get_freed_pages(napr_db_txn_t *read_txn, txnid_t txnid, pgno_t **freed_pages, size_t *num_pages)
+{
+    apr_status_t status;
+    status = read_from_free_db(read_txn, txnid, freed_pages, num_pages);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_ptr_nonnull(*freed_pages);
+
+    for (size_t i = 0; i < *num_pages; i++) {
+        ck_assert_int_gt((*freed_pages)[i], 0);
+    }
+}
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_free_db_entry_storage)
 {
     napr_db_env_t *env = NULL;
-    napr_db_txn_t *write_txn = NULL;
     napr_db_txn_t *read_txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
-    char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
     pgno_t *freed_pages = NULL;
     size_t num_pages = 0;
     txnid_t txn2_id = 0;
     int original_freed_count = 0;
+    napr_db_txn_t *write_txn;
+    napr_db_val_t key = { .data = "key1", .size = 5 };
+    napr_db_val_t data = { .data = "value2", .size = 7 };
 
-    /* Create and open environment */
-    status = napr_db_env_create(&env, test_pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    create_db_env(&env);
+    commit_dummy_data(env, "key1", "value1", NULL);
 
-    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Create first transaction to establish initial tree */
-    status = napr_db_txn_begin(env, 0, &write_txn);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    (void) snprintf(key_buf, sizeof(key_buf), "key1");
-    key.data = key_buf;
-    key.size = DB_TEST_MVCC_KEY_SIZE;
-    (void) snprintf(data_buf, sizeof(data_buf), "value1");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-
-    status = napr_db_put(write_txn, &key, &data);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_txn_commit(write_txn);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Create second transaction to trigger CoW and populate Free DB */
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
     txn2_id = write_txn->txnid;
-
-    (void) snprintf(data_buf, sizeof(data_buf), "value2");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-
     status = napr_db_put(write_txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Record how many pages were freed */
     original_freed_count = write_txn->freed_pages->nelts;
     ck_assert_int_gt(original_freed_count, 0);
 
     status = napr_db_txn_commit(write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Start read transaction to query Free DB */
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Query Free DB for txn2_id */
-    status = read_from_free_db(read_txn, txn2_id, &freed_pages, &num_pages);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    get_freed_pages(read_txn, txn2_id, &freed_pages, &num_pages);
     ck_assert_int_eq(num_pages, (size_t) original_freed_count);
-    ck_assert_ptr_nonnull(freed_pages);
-
-    /* Verify the freed pages are valid page numbers */
-    for (size_t i = 0; i < num_pages; i++) {
-        ck_assert_int_gt(freed_pages[i], 0);
-    }
 
     status = napr_db_txn_abort(read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Clean up */
     status = napr_db_env_close(env);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
@@ -622,84 +619,34 @@ END_TEST
 START_TEST(test_free_db_multiple_entries)
 {
     napr_db_env_t *env = NULL;
-    napr_db_txn_t *write_txn = NULL;
     napr_db_txn_t *read_txn = NULL;
     apr_status_t status = APR_SUCCESS;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
-    char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
     pgno_t *freed_pages = NULL;
     size_t num_pages = 0;
     txnid_t txnids[DB_TEST_TXNS_COUNT_5] = { 0 };
+    char data_buf[DB_TEST_DATA_BUF_SIZE];
 
-    /* Create and open environment */
-    status = napr_db_env_create(&env, test_pool);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    create_db_env(&env);
+    commit_dummy_data(env, "key1", "value0", NULL);
 
-    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Create initial transaction */
-    status = napr_db_txn_begin(env, 0, &write_txn);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    (void) snprintf(key_buf, sizeof(key_buf), "key1");
-    key.data = key_buf;
-    key.size = DB_TEST_MVCC_KEY_SIZE;
-    (void) snprintf(data_buf, sizeof(data_buf), "value0");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-
-    status = napr_db_put(write_txn, &key, &data);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    status = napr_db_txn_commit(write_txn);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Create multiple transactions that trigger CoW and populate Free DB */
     for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        status = napr_db_txn_begin(env, 0, &write_txn);
-        ck_assert_int_eq(status, APR_SUCCESS);
-        txnids[i] = write_txn->txnid;
-
         (void) snprintf(data_buf, sizeof(data_buf), "value%d", i + 1);
-        data.data = data_buf;
-        data.size = DB_TEST_MVCC_DATA_SIZE;
-
-        status = napr_db_put(write_txn, &key, &data);
-        ck_assert_int_eq(status, APR_SUCCESS);
-
-        /* Verify freed_pages is populated */
-        ck_assert_int_gt(write_txn->freed_pages->nelts, 0);
-
-        status = napr_db_txn_commit(write_txn);
-        ck_assert_int_eq(status, APR_SUCCESS);
+        commit_dummy_data(env, "key1", data_buf, &txnids[i]);
     }
 
-    /* Start read transaction to query Free DB */
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Verify all entries can be retrieved */
     for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        status = read_from_free_db(read_txn, txnids[i], &freed_pages, &num_pages);
-        ck_assert_int_eq(status, APR_SUCCESS);
+        get_freed_pages(read_txn, txnids[i], &freed_pages, &num_pages);
         ck_assert_int_gt(num_pages, 0);
-        ck_assert_ptr_nonnull(freed_pages);
     }
 
-    /* Query for non-existent TXNID should return NOTFOUND */
     status = read_from_free_db(read_txn, DB_TEST_NON_EXISTENT_TXNID, &freed_pages, &num_pages);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     status = napr_db_txn_abort(read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Clean up */
     status = napr_db_env_close(env);
     ck_assert_int_eq(status, APR_SUCCESS);
 }

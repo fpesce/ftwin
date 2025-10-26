@@ -774,7 +774,7 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
 }
 
 /* Forward declarations for Free DB helper functions */
-static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno, pgno_t *new_root_out);
+static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, DB_SplitPgnos pgnos);
 static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_root_pgno, pgno_t right_child_pgno, const napr_db_val_t *divider_key, pgno_t *new_root_out);
 
 /**
@@ -791,9 +791,134 @@ static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_roo
  * @param new_free_db_root_out Output: the new Free DB root page number
  * @return APR_SUCCESS or an error code
  */
+static apr_status_t initialize_empty_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_root_pgno_out)
+{
+    apr_status_t status;
+    pgno_t new_root_pgno;
+    DB_PageHeader *new_root;
+    pgno_t *pgno_key;
+
+    status = db_page_alloc(txn, 1, &new_root_pgno);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
+    if (!new_root) {
+        return APR_ENOMEM;
+    }
+
+    new_root->pgno = new_root_pgno;
+    new_root->flags = P_LEAF;
+    new_root->num_keys = 0;
+    new_root->lower = sizeof(DB_PageHeader);
+    new_root->upper = PAGE_SIZE;
+
+    status = db_page_insert(new_root, 0, key, data, 0);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
+    if (!pgno_key) {
+        return APR_ENOMEM;
+    }
+    *pgno_key = new_root_pgno;
+    apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+    *new_root_pgno_out = new_root_pgno;
+
+    return APR_SUCCESS;
+}
+
+static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_free_db_root_out)
+{
+    apr_status_t status;
+    pgno_t path[MAX_TREE_DEPTH] = { 0 };
+    uint16_t path_len = 0;
+    DB_PageHeader *leaf_page = NULL;
+    uint16_t index = 0;
+    napr_db_val_t current_key = *key;
+    napr_db_val_t current_data = *data;
+    pgno_t right_child_pgno = 0;
+
+    status = db_find_leaf_page_with_path_in_tree(txn, txn->free_db_root_pgno, &current_key, path, &path_len, &leaf_page);
+    if (status != APR_SUCCESS) {
+        return initialize_empty_free_db(txn, key, data, new_free_db_root_out);
+    }
+
+    status = db_page_search(leaf_page, &current_key, &index);
+    if (status == APR_SUCCESS) {
+        return APR_EEXIST;
+    }
+
+    for (int i = (int) path_len - 1; i >= 0; i--) {
+        pgno_t current_pgno = path[i];
+        DB_PageHeader *dirty_page;
+        DB_PageHeader *page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
+        if (page_to_cow) {
+            dirty_page = page_to_cow;
+        }
+        else {
+            DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
+            status = db_page_get_writable(txn, original_page, &dirty_page);
+            if (status != APR_SUCCESS) {
+                return status;
+            }
+        }
+        if (i == (int) path_len - 1) {
+            leaf_page = dirty_page;
+        }
+    }
+
+    status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
+    if (status == APR_SUCCESS) {
+        *new_free_db_root_out = path[0];
+        return APR_SUCCESS;
+    }
+    if (status != APR_ENOSPC) {
+        return status;
+    }
+
+    DB_PageHeader *left_page = leaf_page;
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+    status = db_split_leaf(txn, left_page, &right_page, &divider_key);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    apr_status_t search_status = db_page_search(left_page, &current_key, &index);
+    if (search_status == APR_NOTFOUND && index >= left_page->num_keys) {
+        (void) db_page_search(right_page, &current_key, &index);
+        status = db_page_insert(right_page, index, &current_key, &current_data, 0);
+    }
+    else {
+        status = db_page_insert(left_page, index, &current_key, &current_data, 0);
+    }
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    right_child_pgno = right_page->pgno;
+    current_key = divider_key;
+    status =
+        propagate_split_up_tree_in_tree(txn, path, path_len, &current_key,
+                                        (DB_SplitPgnos)
+                                        {
+                                        .right_child_pgno = &right_child_pgno,.new_root_out = new_free_db_root_out});
+    if (status == APR_INCOMPLETE) {
+        *new_free_db_root_out = path[0];
+        return APR_SUCCESS;
+    }
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return handle_root_split_in_tree(txn, path[0], right_child_pgno, &current_key, new_free_db_root_out);
+}
+
 static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_root_out)
 {
-    apr_status_t status = APR_SUCCESS;
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     txnid_t txnid_key = 0;
@@ -802,194 +927,23 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
         return APR_EINVAL;
     }
 
-    /* Start with the current Free DB root */
     *new_free_db_root_out = txn->free_db_root_pgno;
-
-    /* If no pages were freed, nothing to do */
     if (!txn->freed_pages || txn->freed_pages->nelts == 0) {
         return APR_SUCCESS;
     }
 
-    /* Build the key: TXNID (8 bytes, little-endian) */
     txnid_key = txn->txnid;
     key.data = &txnid_key;
     key.size = sizeof(txnid_t);
-
-    /* Build the value: array of pgno_t values (raw bytes) */
     data.data = txn->freed_pages->elts;
-    data.size = (apr_size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
+    data.size = (apr_size_t) txn->freed_pages->nelts * txn->freed_pages->elt_size;
 
-    /* Handle empty Free DB - allocate first root page */
-  initialize_empty_free_db:    /* Label for goto from validation failures */
-    if (txn->free_db_root_pgno == 0) {
-        pgno_t new_root_pgno = 0;
-        DB_PageHeader *new_root = NULL;
-
-        /* Allocate the first leaf page */
-        status = db_page_alloc(txn, 1, &new_root_pgno);
-        if (status != APR_SUCCESS) {
-            return status;
-        }
-
-        /* Allocate dirty page in memory */
-        new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
-        if (!new_root) {
-            return APR_ENOMEM;
-        }
-
-        /* Initialize the new leaf page */
-        new_root->pgno = new_root_pgno;
-        new_root->flags = P_LEAF;
-        new_root->num_keys = 0;
-        new_root->lower = sizeof(DB_PageHeader);
-        new_root->upper = PAGE_SIZE;
-
-        /* Insert the first entry */
-        status = db_page_insert(new_root, 0, &key, &data, 0);
-        if (status != APR_SUCCESS) {
-            return status;
-        }
-
-        /* Store in dirty pages hash */
-        pgno_t *pgno_key = apr_palloc(txn->pool, sizeof(pgno_t));
-        if (!pgno_key) {
-            return APR_ENOMEM;
-        }
-        *pgno_key = new_root_pgno;
-        apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
-
-        /* Update output with new Free DB root */
-        *new_free_db_root_out = new_root_pgno;
-
-        return APR_SUCCESS;
-    }
-
-    /* Non-empty Free DB - validate and use tree traversal */
-    pgno_t path[MAX_TREE_DEPTH] = { 0 };
-    uint16_t path_len = 0;
-    DB_PageHeader *leaf_page = NULL;
-    DB_PageHeader *dirty_page = NULL;
-    uint16_t index = 0;
-    int idx = 0;
-
-    napr_db_val_t current_key = key;
-    napr_db_val_t current_data = data;
-    pgno_t right_child_pgno = 0;
-
-    /* Validate Free DB root is within valid range
-     * For write transactions, use new_last_pgno; for read transactions, use live_meta->last_pgno */
     pgno_t max_valid_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
-    if (txn->free_db_root_pgno > max_valid_pgno) {
-        /* Invalid Free DB root - treat as empty and reinitialize */
-        txn->free_db_root_pgno = 0;
-        /* Fall through to empty Free DB initialization above */
-        goto initialize_empty_free_db;
+    if (txn->free_db_root_pgno == 0 || txn->free_db_root_pgno > max_valid_pgno) {
+        return initialize_empty_free_db(txn, &key, &data, new_free_db_root_out);
     }
 
-    /* Find the leaf page and record path in the Free DB tree
-     * If this fails (e.g., corrupt Free DB), treat as empty and reinitialize */
-    status = db_find_leaf_page_with_path_in_tree(txn, txn->free_db_root_pgno, &key, path, &path_len, &leaf_page);
-    if (status != APR_SUCCESS) {
-        /* Free DB is corrupt or inaccessible - reinitialize as empty */
-        txn->free_db_root_pgno = 0;
-        goto initialize_empty_free_db;
-    }
-
-    /* Search within the leaf page to find insertion point */
-    status = db_page_search(leaf_page, &current_key, &index);
-
-    /* If key already exists, reject (updates not yet supported) */
-    if (status == APR_SUCCESS) {
-        return APR_EEXIST;
-    }
-
-    /* CoW path propagation: Copy all pages from leaf to root in the Free DB tree */
-    for (idx = (int) path_len - 1; idx >= 0; idx--) {
-        pgno_t current_pgno = path[idx];
-        DB_PageHeader *page_to_cow = NULL;
-
-        /* Check if page is already dirty */
-        page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
-
-        if (page_to_cow) {
-            dirty_page = page_to_cow;
-        }
-        else {
-            /* Page is in mmap - CoW it */
-            DB_PageHeader *original_page = (DB_PageHeader *) ((char *) txn->env->map_addr + (current_pgno * PAGE_SIZE));
-
-            status = db_page_get_writable(txn, original_page, &dirty_page);
-            if (status != APR_SUCCESS) {
-                return status;
-            }
-        }
-
-        /* Update leaf_page pointer if this is the leaf */
-        if (idx == (int) path_len - 1) {
-            leaf_page = dirty_page;
-        }
-    }
-
-    /* Try to insert into the dirty leaf page */
-    status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
-
-    /* If insertion succeeded, update Free DB root and we're done */
-    if (status == APR_SUCCESS) {
-        /* The Free DB root may have changed due to CoW */
-        *new_free_db_root_out = path[0];
-        return APR_SUCCESS;
-    }
-
-    /* If insertion failed due to insufficient space, handle split */
-    if (status != APR_ENOSPC) {
-        return status;          /* Other error */
-    }
-
-    /* Split required - start at leaf level and propagate up */
-    DB_PageHeader *left_page = leaf_page;
-    DB_PageHeader *right_page = NULL;
-    napr_db_val_t divider_key = { 0 };
-
-    /* Split the leaf page */
-    status = db_split_leaf(txn, left_page, &right_page, &divider_key);
-    if (status != APR_SUCCESS) {
-        return status;
-    }
-
-    /* Determine which page the original key belongs to */
-    apr_status_t search_status = db_page_search(left_page, &current_key, &index);
-    if (search_status == APR_NOTFOUND && index >= left_page->num_keys) {
-        /* Key goes to right page */
-        (void) db_page_search(right_page, &current_key, &index);
-        status = db_page_insert(right_page, index, &current_key, &current_data, 0);
-    }
-    else {
-        /* Key goes to left page */
-        status = db_page_insert(left_page, index, &current_key, &current_data, 0);
-    }
-
-    if (status != APR_SUCCESS) {
-        return status;
-    }
-
-    /* Now propagate the split up the Free DB tree */
-    right_child_pgno = right_page->pgno;
-    current_key = divider_key;
-
-    status = propagate_split_up_tree_in_tree(txn, path, path_len, &current_key, &right_child_pgno, new_free_db_root_out);
-    if (status == APR_INCOMPLETE) {
-        /* Split was absorbed by an intermediate parent - no root split needed */
-        /* The Free DB root may have changed due to CoW */
-        *new_free_db_root_out = path[0];
-        return APR_SUCCESS;
-    }
-    if (status != APR_SUCCESS) {
-        /* Other error */
-        return status;
-    }
-
-    /* status == APR_SUCCESS means propagation reached the root, create new root for Free DB */
-    return handle_root_split_in_tree(txn, path[0], right_child_pgno, &current_key, new_free_db_root_out);
+    return insert_into_free_db(txn, &key, &data, new_free_db_root_out);
 }
 
 /**
@@ -1062,11 +1016,10 @@ apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed
 /**
  * @brief Atomically update the meta page to commit the transaction.
  * @param txn The transaction.
- * @param new_root_pgno The new root page number for main DB.
- * @param new_free_db_root_pgno The new root page number for Free DB.
+ * @param pgnos The page numbers to commit.
  * @return APR_SUCCESS or an error code.
  */
-static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno, pgno_t new_free_db_root_pgno)
+static apr_status_t commit_meta_page(napr_db_txn_t *txn, DB_CommitPgnos pgnos)
 {
     apr_status_t status = APR_SUCCESS;
     DB_MetaPage updated_meta;
@@ -1088,9 +1041,9 @@ static apr_status_t commit_meta_page(napr_db_txn_t *txn, pgno_t new_root_pgno, p
     updated_meta.magic = DB_MAGIC;
     updated_meta.version = DB_VERSION;
     updated_meta.txnid = txn->txnid;
-    updated_meta.root = new_root_pgno;
+    updated_meta.root = pgnos.new_root_pgno;
     updated_meta.last_pgno = txn->new_last_pgno;
-    updated_meta.free_db_root = new_free_db_root_pgno;
+    updated_meta.free_db_root = pgnos.new_free_db_root_pgno;
 
     meta_offset = (apr_off_t) meta_pgno *PAGE_SIZE;
 
@@ -1182,7 +1135,9 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
         goto cleanup;
     }
 
-    status = commit_meta_page(txn, new_root_pgno, new_free_db_root);
+    status = commit_meta_page(txn, (DB_CommitPgnos)
+                              {
+                              .new_root_pgno = new_root_pgno,.new_free_db_root_pgno = new_free_db_root});
     if (status != APR_SUCCESS) {
         goto cleanup;
     }
@@ -1363,6 +1318,7 @@ static apr_status_t handle_empty_tree_put(napr_db_txn_t *txn, const napr_db_val_
 
 static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno);
 static apr_status_t handle_root_split(napr_db_txn_t *txn, pgno_t old_root_pgno, pgno_t right_child_pgno, const napr_db_val_t *divider_key);
+static apr_status_t handle_page_split(napr_db_txn_t *txn, DB_PageHeader *leaf_page, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, napr_db_val_t *current_data);
 
 apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_val_t *data)
 {
@@ -1459,49 +1415,46 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         return status;          /* Other error */
     }
 
-    /* Split required - start at leaf level and propagate up */
+    return handle_page_split(txn, leaf_page, path, path_len, &current_key, &current_data);
+}
+
+static apr_status_t handle_page_split(napr_db_txn_t *txn, DB_PageHeader *leaf_page, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, napr_db_val_t *current_data)
+{
+    apr_status_t status;
     DB_PageHeader *left_page = leaf_page;
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
+    uint16_t index;
 
-    /* Split the leaf page */
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
     if (status != APR_SUCCESS) {
         return status;
     }
 
-    /* Determine which page the original key belongs to */
-    apr_status_t search_status = db_page_search(left_page, &current_key, &index);
+    apr_status_t search_status = db_page_search(left_page, current_key, &index);
     if (search_status == APR_NOTFOUND && index >= left_page->num_keys) {
-        /* Key goes to right page */
-        (void) db_page_search(right_page, &current_key, &index);
-        status = db_page_insert(right_page, index, &current_key, &current_data, 0);
+        (void) db_page_search(right_page, current_key, &index);
+        status = db_page_insert(right_page, index, current_key, current_data, 0);
     }
     else {
-        /* Key goes to left page */
-        status = db_page_insert(left_page, index, &current_key, &current_data, 0);
+        status = db_page_insert(left_page, index, current_key, current_data, 0);
     }
-
     if (status != APR_SUCCESS) {
         return status;
     }
 
-    /* Now propagate the split up the tree */
-    right_child_pgno = right_page->pgno;
-    current_key = divider_key;
+    pgno_t right_child_pgno = right_page->pgno;
+    *current_key = divider_key;
 
-    status = propagate_split_up_tree(txn, path, path_len, &current_key, &right_child_pgno);
+    status = propagate_split_up_tree(txn, path, path_len, current_key, &right_child_pgno);
     if (status == APR_INCOMPLETE) {
-        /* Split was absorbed by an intermediate parent - no root split needed */
         return APR_SUCCESS;
     }
     if (status != APR_SUCCESS) {
-        /* Other error */
         return status;
     }
 
-    /* status == APR_SUCCESS means propagation reached the root, create new root */
-    return handle_root_split(txn, path[0], right_child_pgno, &current_key);
+    return handle_root_split(txn, path[0], right_child_pgno, current_key);
 }
 
 static apr_status_t propagate_split_up_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno)
@@ -1629,11 +1582,10 @@ static apr_status_t handle_root_split(napr_db_txn_t *txn, pgno_t old_root_pgno, 
  * @param path Array of page numbers from root to leaf
  * @param path_len Length of the path
  * @param current_key Key to insert at parent level (may be updated during splits)
- * @param right_child_pgno Right child page number (may be updated during splits)
- * @param new_root_out Output: New root page number (may change due to CoW)
+ * @param pgnos The page numbers to update.
  * @return APR_SUCCESS if split propagated to root, APR_INCOMPLETE if absorbed, error otherwise
  */
-static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, pgno_t *right_child_pgno, pgno_t *new_root_out)
+static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, DB_SplitPgnos pgnos)
 {
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
@@ -1651,7 +1603,7 @@ static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pg
 
         (void) db_page_search(parent_page, current_key, &index);
 
-        status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
+        status = db_page_insert(parent_page, index, current_key, NULL, *pgnos.right_child_pgno);
         if (status == APR_SUCCESS) {
             /* Successfully inserted into this parent - split absorbed, no root split needed */
             return APR_INCOMPLETE;
@@ -1668,17 +1620,17 @@ static apr_status_t propagate_split_up_tree_in_tree(napr_db_txn_t *txn, const pg
         apr_status_t search_status = db_page_search(parent_page, current_key, &index);
         if (search_status == APR_NOTFOUND && index >= parent_page->num_keys) {
             (void) db_page_search(right_page, current_key, &index);
-            status = db_page_insert(right_page, index, current_key, NULL, *right_child_pgno);
+            status = db_page_insert(right_page, index, current_key, NULL, *pgnos.right_child_pgno);
         }
         else {
-            status = db_page_insert(parent_page, index, current_key, NULL, *right_child_pgno);
+            status = db_page_insert(parent_page, index, current_key, NULL, *pgnos.right_child_pgno);
         }
 
         if (status != APR_SUCCESS) {
             return status;
         }
 
-        *right_child_pgno = right_page->pgno;
+        *pgnos.right_child_pgno = right_page->pgno;
         *current_key = divider_key;
     }
 
