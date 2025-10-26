@@ -1,0 +1,22 @@
+Checks: >
+  -*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -readability-identifier-length,
+  -cert-err33-c,
+  -bugprone-assignment-in-if-condition,
+  -readability-function-cognitive-complexity,
+  -bugprone-easily-swappable-parameters,
+  bugprone-*,
+  cert-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*
+
+HeaderFilterRegex: ''
+
+CheckOptions:
+  - key: cert-err34-c.Gotchas
+    value: 'gets, getpw, getlogin, cuserid'
+...
