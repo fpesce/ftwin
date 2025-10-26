@@ -19,6 +19,7 @@
 #define DB_TEST_PATH_TXN "/tmp/test_napr_db_txn.db"
 #define DB_TEST_PATH_WRITE "/tmp/test_write.db"
 #define DB_TEST_PATH_DELETE "/tmp/test_db_delete.db"
+#define DB_TEST_PATH_MVCC "/tmp/test_mvcc.db"
 
 /*
  * =================================================================

@@ -18,9 +18,7 @@
 #include <string.h>
 #include "napr_db.h"
 #include "napr_db_internal.h"
-
-/* Test database path */
-#define TEST_DB_PATH "/tmp/test_mvcc.db"
+#include "check_db_constants.h"
 
 /* Global fixtures */
 static apr_pool_t *test_pool = NULL;
@@ -40,7 +38,7 @@ static void setup(void)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Remove test database if it exists */
-    apr_file_remove(TEST_DB_PATH, test_pool);
+    apr_file_remove(DB_TEST_PATH_MVCC, test_pool);
 }
 
 /**
@@ -50,7 +48,7 @@ static void teardown(void)
 {
     /* Clean up test database */
     if (test_pool) {
-        apr_file_remove(TEST_DB_PATH, test_pool);
+        apr_file_remove(DB_TEST_PATH_MVCC, test_pool);
         apr_pool_destroy(test_pool);
         test_pool = NULL;
     }
@@ -102,10 +100,10 @@ START_TEST(test_reader_registration)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify reader table is initially empty */
@@ -197,10 +195,10 @@ START_TEST(test_oldest_reader_txnid)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Initially, no readers - should return 0 */
@@ -315,10 +313,10 @@ START_TEST(test_write_txn_not_registered)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_PATH, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
+    status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Begin write transaction - should NOT register */
