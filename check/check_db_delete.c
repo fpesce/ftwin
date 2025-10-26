@@ -10,21 +10,21 @@
 #include <string.h>
 #include "napr_db.h"
 
-/* Test database path */
-#define TEST_DB_DELETE "test_db_delete.db"
+#include "check_db_constants.h"
 
 /* Test fixture setup/teardown */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static apr_pool_t *test_pool = NULL;
 
 static void setup(void)
 {
     apr_pool_create(&test_pool, NULL);
-    apr_file_remove(TEST_DB_DELETE, test_pool);
+    apr_file_remove(DB_TEST_PATH_DELETE, test_pool);
 }
 
 static void teardown(void)
 {
-    apr_file_remove(TEST_DB_DELETE, test_pool);
+    apr_file_remove(DB_TEST_PATH_DELETE, test_pool);
     apr_pool_destroy(test_pool);
     test_pool = NULL;
 }
@@ -47,10 +47,10 @@ START_TEST(test_basic_deletion)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_DELETE, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_DELETE, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert three keys: A, B, C */
@@ -58,23 +58,23 @@ START_TEST(test_basic_deletion)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     data.data = "valueA";
-    data.size = 6;
+    data.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_put(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyB";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     data.data = "valueB";
-    data.size = 6;
+    data.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_put(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyC";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     data.data = "valueC";
-    data.size = 6;
+    data.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_put(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -86,7 +86,7 @@ START_TEST(test_basic_deletion)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyB";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -98,23 +98,23 @@ START_TEST(test_basic_deletion)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_get(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
-    ck_assert_int_eq(data.size, 6);
-    ck_assert_mem_eq(data.data, "valueA", 6);
+    ck_assert_int_eq(data.size, DB_TEST_DELETE_DATA_SIZE);
+    ck_assert_mem_eq(data.data, "valueA", DB_TEST_DELETE_DATA_SIZE);
 
     key.data = "keyB";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_get(txn, &key, &data);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     key.data = "keyC";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_get(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
-    ck_assert_int_eq(data.size, 6);
-    ck_assert_mem_eq(data.data, "valueC", 6);
+    ck_assert_int_eq(data.size, DB_TEST_DELETE_DATA_SIZE);
+    ck_assert_mem_eq(data.data, "valueC", DB_TEST_DELETE_DATA_SIZE);
 
     napr_db_txn_abort(txn);
     napr_db_env_close(env);
@@ -136,26 +136,26 @@ START_TEST(test_delete_boundaries)
     napr_db_val_t key = { 0 };
     napr_db_val_t data = { 0 };
     apr_status_t status = APR_SUCCESS;
-    char key_buf[32] = { 0 };
-    char val_buf[32] = { 0 };
+    char key_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
+    char val_buf[DB_TEST_KEY_BUF_SIZE] = { 0 };
 
     /* Create and open database */
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_DELETE, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_DELETE, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert multiple keys (key000 to key009) */
     status = napr_db_txn_begin(env, 0, &txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (int i = 0; i < 10; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key%03d", i);
-        snprintf(val_buf, sizeof(val_buf), "value%03d", i);
+    for (int i = 0; i < TEST_PAGE_NO_10; i++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "key%03d", i);
+        (void) snprintf(val_buf, sizeof(val_buf), "value%03d", i);
         key.data = key_buf;
         key.size = (apr_size_t) strlen(key_buf);
         data.data = val_buf;
@@ -172,7 +172,7 @@ START_TEST(test_delete_boundaries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "key000";
-    key.size = 6;
+    key.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -184,7 +184,7 @@ START_TEST(test_delete_boundaries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "key009";
-    key.size = 6;
+    key.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -196,19 +196,19 @@ START_TEST(test_delete_boundaries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "key000";
-    key.size = 6;
+    key.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_get(txn, &key, &data);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     key.data = "key009";
-    key.size = 6;
+    key.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_get(txn, &key, &data);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
     /* Verify middle keys still exist */
     for (int i = 1; i < 9; i++) {
-        snprintf(key_buf, sizeof(key_buf), "key%03d", i);
-        snprintf(val_buf, sizeof(val_buf), "value%03d", i);
+        (void) snprintf(key_buf, sizeof(key_buf), "key%03d", i);
+        (void) snprintf(val_buf, sizeof(val_buf), "value%03d", i);
         key.data = key_buf;
         key.size = (apr_size_t) strlen(key_buf);
         status = napr_db_get(txn, &key, &data);
@@ -242,10 +242,10 @@ START_TEST(test_delete_nonexistent)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_DELETE, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_DELETE, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert one key */
@@ -253,9 +253,9 @@ START_TEST(test_delete_nonexistent)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     data.data = "valueA";
-    data.size = 6;
+    data.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_put(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -267,7 +267,7 @@ START_TEST(test_delete_nonexistent)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyZ";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
@@ -279,7 +279,7 @@ START_TEST(test_delete_nonexistent)
 
     /* First delete the only key */
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -291,7 +291,7 @@ START_TEST(test_delete_nonexistent)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_NOTFOUND);
 
@@ -318,10 +318,10 @@ START_TEST(test_delete_readonly_txn)
     status = napr_db_env_create(&env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_set_mapsize(env, 10 * 1024 * 1024);
+    status = napr_db_env_set_mapsize(env, DB_TEST_MAPSIZE_10MB);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_env_open(env, TEST_DB_DELETE, NAPR_DB_CREATE);
+    status = napr_db_env_open(env, DB_TEST_PATH_DELETE, NAPR_DB_CREATE);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Insert a key */
@@ -329,9 +329,9 @@ START_TEST(test_delete_readonly_txn)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     data.data = "valueA";
-    data.size = 6;
+    data.size = DB_TEST_DELETE_DATA_SIZE;
     status = napr_db_put(txn, &key, &data);
     ck_assert_int_eq(status, APR_SUCCESS);
 
@@ -343,7 +343,7 @@ START_TEST(test_delete_readonly_txn)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     key.data = "keyA";
-    key.size = 4;
+    key.size = DB_TEST_DELETE_KEY_SIZE;
     status = napr_db_del(txn, &key, NULL);
     ck_assert_int_eq(status, APR_EINVAL);
 
