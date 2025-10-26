@@ -35,6 +35,20 @@ typedef uint64_t pgno_t;
 /** Transaction ID type (64-bit) */
 typedef uint64_t txnid_t;
 
+/** @brief Structure for passing page numbers to commit_meta_page */
+typedef struct DB_CommitPgnos
+{
+    pgno_t new_root_pgno;       /**< New root page number for main DB */
+    pgno_t new_free_db_root_pgno;   /**< New root page number for Free DB */
+} DB_CommitPgnos;
+
+/** @brief Structure for passing page numbers to propagate_split_up_tree_in_tree */
+typedef struct DB_SplitPgnos
+{
+    pgno_t *right_child_pgno;   /**< Right child page number */
+    pgno_t *new_root_out;       /**< New root page number */
+} DB_SplitPgnos;
+
 /*
  * MVCC Reader Tracking
  */
