@@ -442,7 +442,6 @@ END_TEST
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_free_db_initialization)
-
 {
     napr_db_env_t *env = NULL;
     napr_db_txn_t *txn1 = NULL;

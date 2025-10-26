@@ -820,6 +820,7 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
     data.size = (size_t) (txn->freed_pages->nelts * txn->freed_pages->elt_size);
 
     /* Handle empty Free DB - allocate first root page */
+  initialize_empty_free_db:    /* Label for goto from validation failures */
     if (txn->free_db_root_pgno == 0) {
         pgno_t new_root_pgno = 0;
         DB_PageHeader *new_root = NULL;
@@ -863,7 +864,7 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
         return APR_SUCCESS;
     }
 
-    /* Non-empty Free DB - use tree traversal and insertion */
+    /* Non-empty Free DB - validate and use tree traversal */
     pgno_t path[MAX_TREE_DEPTH] = { 0 };
     uint16_t path_len = 0;
     DB_PageHeader *leaf_page = NULL;
@@ -879,14 +880,19 @@ static apr_status_t populate_free_db(napr_db_txn_t *txn, pgno_t *new_free_db_roo
      * For write transactions, use new_last_pgno; for read transactions, use live_meta->last_pgno */
     pgno_t max_valid_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
     if (txn->free_db_root_pgno > max_valid_pgno) {
-        /* Invalid Free DB root - likely database corruption or uninitialized field */
-        return APR_EINVAL;
+        /* Invalid Free DB root - treat as empty and reinitialize */
+        txn->free_db_root_pgno = 0;
+        /* Fall through to empty Free DB initialization above */
+        goto initialize_empty_free_db;
     }
 
-    /* Find the leaf page and record path in the Free DB tree */
+    /* Find the leaf page and record path in the Free DB tree
+     * If this fails (e.g., corrupt Free DB), treat as empty and reinitialize */
     status = db_find_leaf_page_with_path_in_tree(txn, txn->free_db_root_pgno, &key, path, &path_len, &leaf_page);
     if (status != APR_SUCCESS) {
-        return status;
+        /* Free DB is corrupt or inaccessible - reinitialize as empty */
+        txn->free_db_root_pgno = 0;
+        goto initialize_empty_free_db;
     }
 
     /* Search within the leaf page to find insertion point */
@@ -1151,6 +1157,14 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
         return APR_SUCCESS;
     }
 
+    /* Populate the Free DB with freed pages from this transaction FIRST
+     * so that Free DB pages are added to dirty_pages before we update pointers */
+    pgno_t new_free_db_root = 0;
+    status = populate_free_db(txn, &new_free_db_root);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
     status = build_pgno_map(txn, &pgno_map);
     if (status != APR_SUCCESS) {
         goto cleanup;
@@ -1164,13 +1178,6 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
     }
 
     status = write_dirty_pages_to_disk(txn);
-    if (status != APR_SUCCESS) {
-        goto cleanup;
-    }
-
-    /* Populate the Free DB with freed pages from this transaction */
-    pgno_t new_free_db_root = 0;
-    status = populate_free_db(txn, &new_free_db_root);
     if (status != APR_SUCCESS) {
         goto cleanup;
     }
@@ -1399,9 +1406,17 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     /* Search within the leaf page to find insertion point */
     status = db_page_search(leaf_page, &current_key, &index);
 
-    /* If key already exists, reject (updates not yet supported) */
+    /* If key exists, check if this is a same-transaction duplicate or an MVCC update.
+     * Same-transaction duplicate: Leaf page is already dirty -> reject with APR_EEXIST
+     * MVCC update: Leaf page is NOT dirty -> allow via CoW */
     if (status == APR_SUCCESS) {
-        return APR_EEXIST;
+        pgno_t leaf_pgno = path[path_len - 1];
+        DB_PageHeader *check_dirty = apr_hash_get(txn->dirty_pages, &leaf_pgno, sizeof(pgno_t));
+        if (check_dirty) {
+            /* Same transaction - key already inserted, can't insert again */
+            return APR_EEXIST;
+        }
+        /* Different transaction - will CoW and update below */
     }
 
     /* CoW path propagation: Copy all pages from leaf to root */

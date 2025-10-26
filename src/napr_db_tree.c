@@ -849,6 +849,12 @@ apr_status_t db_find_leaf_page_with_path_in_tree(napr_db_txn_t *txn, pgno_t root
         path_out[depth] = current_pgno;
         depth++;
 
+        /* Validate page number is within bounds before accessing */
+        pgno_t max_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
+        if (current_pgno > max_pgno) {
+            return APR_EINVAL;  /* Page number out of bounds */
+        }
+
         /* Get page (checks dirty pages first for write txns) */
         page = db_get_page(txn, current_pgno);
 
