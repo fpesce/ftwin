@@ -86,7 +86,6 @@ jobs:
         id: linter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          exclude-regex: "(third_party|bugfixes)"
         with:
           repo-root: '.' # The compilation database is at the root
           style: '' # Disable clang-format
