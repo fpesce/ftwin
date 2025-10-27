@@ -11,18 +11,7 @@
 #include <stddef.h>
 
 #include "../src/napr_cache.h"
-
-enum
-{
-    TEST_CACHE_ENTRY_SIZE = 40,
-    TEST_CACHE_OFFSET_MTIME = 0,
-    TEST_CACHE_OFFSET_CTIME = 8,
-    TEST_CACHE_OFFSET_SIZE = 16,
-    TEST_CACHE_OFFSET_HASH = 24,
-    TEST_CACHE_HASH_SIZE = 16,
-    TEST_CACHE_APR_TIME_SIZE = 8,
-    TEST_CACHE_APR_OFF_SIZE = 8
-};
+#include "check_cache_constants.h"
 
 /* ========================================================================
  * CRITICAL: Structure Size and Layout Verification
@@ -39,7 +28,7 @@ enum
  *
  * This is a compile-time check. If this fails, compilation will stop.
  */
-_Static_assert(sizeof(napr_cache_entry_t) == TEST_CACHE_ENTRY_SIZE, "napr_cache_entry_t must be exactly 40 bytes for zero-copy");
+_Static_assert(sizeof(napr_cache_entry_t) == CACHE_ENTRY_SIZE_BYTES, "napr_cache_entry_t must be exactly 40 bytes for zero-copy");
 
 /**
  * @test Verify structure field offsets are as expected
@@ -47,20 +36,20 @@ _Static_assert(sizeof(napr_cache_entry_t) == TEST_CACHE_ENTRY_SIZE, "napr_cache_
  * While the total size is the critical requirement, we also verify
  * the expected layout for documentation purposes.
  */
-_Static_assert(offsetof(napr_cache_entry_t, mtime) == TEST_CACHE_OFFSET_MTIME, "mtime must be at offset 0");
+_Static_assert(offsetof(napr_cache_entry_t, mtime) == CACHE_ENTRY_OFFSET_MTIME, "mtime must be at offset 0");
 
-_Static_assert(offsetof(napr_cache_entry_t, ctime) == TEST_CACHE_OFFSET_CTIME, "ctime must be at offset 8 (after 8-byte mtime)");
+_Static_assert(offsetof(napr_cache_entry_t, ctime) == CACHE_ENTRY_OFFSET_CTIME, "ctime must be at offset 8 (after 8-byte mtime)");
 
-_Static_assert(offsetof(napr_cache_entry_t, size) == TEST_CACHE_OFFSET_SIZE, "size must be at offset 16 (after 8-byte ctime)");
+_Static_assert(offsetof(napr_cache_entry_t, size) == CACHE_ENTRY_OFFSET_SIZE, "size must be at offset 16 (after 8-byte ctime)");
 
-_Static_assert(offsetof(napr_cache_entry_t, hash) == TEST_CACHE_OFFSET_HASH, "hash must be at offset 24 (after 8-byte size)");
+_Static_assert(offsetof(napr_cache_entry_t, hash) == CACHE_ENTRY_OFFSET_HASH, "hash must be at offset 24 (after 8-byte size)");
 
 /**
  * @test Verify XXH128_hash_t is 16 bytes
  *
  * The XXH128 hash should be 16 bytes (128 bits).
  */
-_Static_assert(sizeof(XXH128_hash_t) == TEST_CACHE_HASH_SIZE, "XXH128_hash_t must be 16 bytes");
+_Static_assert(sizeof(XXH128_hash_t) == CACHE_ENTRY_HASH_SIZE, "XXH128_hash_t must be 16 bytes");
 
 /* ========================================================================
  * Runtime Tests
@@ -75,7 +64,7 @@ _Static_assert(sizeof(XXH128_hash_t) == TEST_CACHE_HASH_SIZE, "XXH128_hash_t mus
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cache_entry_size)
 {
-    ck_assert_msg(sizeof(napr_cache_entry_t) == TEST_CACHE_ENTRY_SIZE, "napr_cache_entry_t size is %zu, expected 40", sizeof(napr_cache_entry_t));
+    ck_assert_msg(sizeof(napr_cache_entry_t) == CACHE_ENTRY_SIZE_BYTES, "napr_cache_entry_t size is %zu, expected 40", sizeof(napr_cache_entry_t));
 }
 /* *INDENT-OFF* */
 END_TEST
@@ -88,11 +77,11 @@ END_TEST
 START_TEST(test_cache_entry_field_sizes)
 {
     /* Verify APR types are as expected on this platform */
-    ck_assert_msg(sizeof(apr_time_t) == TEST_CACHE_APR_TIME_SIZE, "apr_time_t size is %zu, expected 8", sizeof(apr_time_t));
+    ck_assert_msg(sizeof(apr_time_t) == CACHE_ENTRY_APR_TIME_SIZE, "apr_time_t size is %zu, expected 8", sizeof(apr_time_t));
 
-    ck_assert_msg(sizeof(apr_off_t) == TEST_CACHE_APR_OFF_SIZE, "apr_off_t size is %zu, expected 8", sizeof(apr_off_t));
+    ck_assert_msg(sizeof(apr_off_t) == CACHE_ENTRY_APR_OFF_SIZE, "apr_off_t size is %zu, expected 8", sizeof(apr_off_t));
 
-    ck_assert_msg(sizeof(XXH128_hash_t) == TEST_CACHE_HASH_SIZE, "XXH128_hash_t size is %zu, expected 16", sizeof(XXH128_hash_t));
+    ck_assert_msg(sizeof(XXH128_hash_t) == CACHE_ENTRY_HASH_SIZE, "XXH128_hash_t size is %zu, expected 16", sizeof(XXH128_hash_t));
 
     /* Total: 8 + 8 + 8 + 16 = 40 bytes */
 }

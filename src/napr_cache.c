@@ -12,7 +12,8 @@
 #include <apr_hash.h>
 
 /* Constants */
-enum {
+enum
+{
     CACHE_MAPSIZE_GB = 10,
     CACHE_MAPSIZE = (CACHE_MAPSIZE_GB * 1024ULL * 1024ULL * 1024ULL)
 };
@@ -189,34 +190,98 @@ apr_status_t napr_cache_close(napr_cache_t *cache)
 
 apr_status_t napr_cache_begin_read(napr_cache_t *cache, apr_pool_t *pool)
 {
-    (void) cache;
-    (void) pool;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache || !pool) {
+        return APR_EINVAL;
+    }
+
+    /* Begin read-only transaction on underlying DB */
+    status = napr_db_txn_begin(cache->db_env, NAPR_DB_RDONLY, &cache->active_txn);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool)
 {
-    (void) cache;
-    (void) pool;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache || !pool) {
+        return APR_EINVAL;
+    }
+
+    /* Begin write transaction on underlying DB */
+    status = napr_db_txn_begin(cache->db_env, 0, &cache->active_txn);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_cache_end_read(napr_cache_t *cache)
 {
-    (void) cache;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache) {
+        return APR_EINVAL;
+    }
+
+    if (!cache->active_txn) {
+        return APR_EINVAL;      /* No active transaction */
+    }
+
+    /* Abort read transaction (no changes to commit) */
+    status = napr_db_txn_abort(cache->active_txn);
+    cache->active_txn = NULL;
+
+    return status;
 }
 
 apr_status_t napr_cache_commit_write(napr_cache_t *cache)
 {
-    (void) cache;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache) {
+        return APR_EINVAL;
+    }
+
+    if (!cache->active_txn) {
+        return APR_EINVAL;      /* No active transaction */
+    }
+
+    /* Commit write transaction */
+    status = napr_db_txn_commit(cache->active_txn);
+    cache->active_txn = NULL;
+
+    return status;
 }
 
 apr_status_t napr_cache_abort_write(napr_cache_t *cache)
 {
-    (void) cache;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache) {
+        return APR_EINVAL;
+    }
+
+    if (!cache->active_txn) {
+        return APR_EINVAL;      /* No active transaction */
+    }
+
+    /* Abort write transaction */
+    status = napr_db_txn_abort(cache->active_txn);
+    cache->active_txn = NULL;
+
+    return status;
 }
 
 /* ========================================================================
@@ -225,18 +290,67 @@ apr_status_t napr_cache_abort_write(napr_cache_t *cache)
 
 apr_status_t napr_cache_lookup_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t **entry_ptr)
 {
-    (void) cache;
-    (void) path;
-    (void) entry_ptr;
-    return APR_ENOTIMPL;
+    napr_db_val_t key;
+    napr_db_val_t value;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+
+    if (!cache || !path || !entry_ptr) {
+        return APR_EINVAL;
+    }
+
+    if (!cache->active_txn) {
+        return APR_EINVAL;      /* No active transaction */
+    }
+
+    /* Initialize output to NULL */
+    *entry_ptr = NULL;
+
+    /* Prepare key */
+    key.data = (void *) path;
+    key.size = strlen(path);
+
+    /* Lookup in database */
+    status = napr_db_get(cache->active_txn, &key, &value);
+    if (status != APR_SUCCESS) {
+        return status;          /* APR_NOTFOUND if key doesn't exist */
+    }
+
+    /* CRITICAL VALIDATION: Ensure zero-copy safety */
+    if (value.size != sizeof(napr_cache_entry_t)) {
+        /* Database corruption or version mismatch */
+        return APR_EGENERAL;
+    }
+
+    /* Zero-copy: return direct pointer to mmap'd data */
+    *entry_ptr = (const napr_cache_entry_t *) value.data;
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_cache_upsert_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t *entry)
 {
-    (void) cache;
-    (void) path;
-    (void) entry;
-    return APR_ENOTIMPL;
+    napr_db_val_t key;
+    napr_db_val_t value;
+
+    if (!cache || !path || !entry) {
+        return APR_EINVAL;
+    }
+
+    if (!cache->active_txn) {
+        return APR_EINVAL;      /* No active transaction */
+    }
+
+    /* Prepare key (file path) */
+    key.data = (void *) path;
+    key.size = strlen(path);
+
+    /* Prepare value (cache entry) */
+    value.data = (void *) entry;
+    value.size = sizeof(napr_cache_entry_t);
+
+    /* Insert or update in database */
+    return napr_db_put(cache->active_txn, &key, &value);
 }
 
 /* ========================================================================

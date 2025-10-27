@@ -208,7 +208,7 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Define the concrete `struct napr_cache_t` (pool, db_env, lock_file_handle, visited_set, visited_mutex).
 - [x] **Testing (`check/check_cache_model.c`)**
     - [x] CRITICAL: Verify `sizeof(napr_cache_entry_t)` is exactly 40 bytes using `_Static_assert` (Spec 4.2).
-- [x] **Implementation (`src/napr_cache.c`)** - Partial (Open/Close complete)
+- [x] **Implementation (`src/napr_cache.c`)**
     - [x] Implement `napr_cache_open`:
         - [x] Process Exclusivity Lock: Create/Open lock file (e.g., append ".lock"). Acquire `apr_file_lock(..., APR_FLOCK_EXCLUSIVE | APR_FLOCK_NONBLOCK)` (Spec 3.1).
         - [x] Initialize `napr_db_env`.
@@ -216,14 +216,14 @@ This checklist follows the detailed project blueprint, organized by phases and i
         - [x] Open `napr_db` using the `NAPR_DB_INTRAPROCESS_LOCK` flag (Spec 3.2).
         - [x] Initialize Mark-and-Sweep structures (mutex, hash table).
     - [x] Implement `napr_cache_close` (Close DB, release and close lock file).
-    - [ ] Implement Transaction Wrappers (`begin_read/write`, `end_read`, `commit/abort_write`).
-    - [ ] Implement `napr_cache_upsert_in_txn`.
-    - [ ] Implement `napr_cache_lookup_in_txn`:
-        - [ ] CRITICAL: Validate that the retrieved data size is exactly `sizeof(napr_cache_entry_t)` before returning the zero-copy pointer.
-- [x] **Testing (`check/check_cache_init.c` and `check_cache_access.c`)** - Partial (Init tests complete)
+    - [x] Implement Transaction Wrappers (`begin_read/write`, `end_read`, `commit/abort_write`).
+    - [x] Implement `napr_cache_upsert_in_txn`.
+    - [x] Implement `napr_cache_lookup_in_txn`:
+        - [x] CRITICAL: Validate that the retrieved data size is exactly `sizeof(napr_cache_entry_t)` before returning the zero-copy pointer.
+- [x] **Testing (`check/check_cache_init.c` and `check_cache_access.c`)**
     - [x] Test Open/Close Lifecycle.
     - [x] Test Process Exclusivity: Verify a second instance cannot open the cache if locked.
-    - [ ] Test CRUD operations (Upsert, Lookup, Verify data integrity).
+    - [x] Test CRUD operations (Upsert, Lookup, Verify data integrity).
 
 ### Iteration 9: Mark-and-Sweep Strategy
 
