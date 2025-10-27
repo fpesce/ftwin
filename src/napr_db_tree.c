@@ -157,18 +157,19 @@ static inline DB_PageHeader *db_get_page(napr_db_txn_t *txn, pgno_t pgno)
 }
 
 /**
- * @brief Find the leaf page that should contain a given key.
+ * @brief Find the leaf page that should contain a given key in a specific tree.
  *
- * Traverses the B+ tree from the root down to the appropriate leaf page.
+ * Traverses a B+ tree from the specified root down to the appropriate leaf page.
  * This function performs tree traversal following child pointers in branch
  * pages until reaching a leaf.
  *
- * @param txn Transaction handle (contains root_pgno snapshot)
+ * @param txn Transaction handle (for accessing pages)
+ * @param root_pgno Root page number of the tree to search
  * @param key Key to search for
  * @param leaf_page_out Output: pointer to the leaf page in the memory map
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
+apr_status_t db_find_leaf_page_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -180,8 +181,8 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
         return APR_EINVAL;
     }
 
-    /* Start at the root page from the transaction's snapshot */
-    current_pgno = txn->root_pgno;
+    /* Start at the specified root page */
+    current_pgno = root_pgno;
 
     /* Traverse the tree */
     while (1) {
@@ -234,6 +235,24 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
 
     /* Should never reach here */
     return APR_EGENERAL;
+}
+
+/**
+ * @brief Find the leaf page that should contain a given key.
+ *
+ * This is a convenience wrapper that uses the main DB root from the transaction.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page in the memory map
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
+{
+    if (!txn) {
+        return APR_EINVAL;
+    }
+    return db_find_leaf_page_in_tree(txn, txn->root_pgno, key, leaf_page_out);
 }
 
 /**
@@ -332,6 +351,14 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_pa
 
     /* Store the dirty copy in the hash table */
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), dirty_copy);
+
+    /* Record the original page as freed (Copy-on-Write) */
+    if (txn->freed_pages) {
+        pgno_t *freed_pgno = (pgno_t *) apr_array_push(txn->freed_pages);
+        if (freed_pgno) {
+            *freed_pgno = pgno;
+        }
+    }
 
     *dirty_copy_out = dirty_copy;
     return APR_SUCCESS;
@@ -783,20 +810,21 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
 }
 
 /**
- * @brief Find the leaf page for a key and record the path (for CoW).
+ * @brief Find the leaf page for a key in a specific tree and record the path (for CoW).
  *
- * This is similar to db_find_leaf_page, but it records the path from
+ * This is similar to db_find_leaf_page_in_tree, but it records the path from
  * root to leaf for later CoW propagation. This is necessary for write
  * operations to ensure the entire path is copied.
  *
  * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
  * @param key Key to search for
  * @param path_out Array to store page numbers along the path
  * @param path_len_out Output: length of the path
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
+apr_status_t db_find_leaf_page_with_path_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -809,8 +837,8 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
         return APR_EINVAL;
     }
 
-    /* Start at the root page from the transaction's snapshot */
-    current_pgno = txn->root_pgno;
+    /* Start at the specified root page */
+    current_pgno = root_pgno;
 
     /* Traverse the tree and record the path */
     while (1) {
@@ -820,6 +848,12 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
         }
         path_out[depth] = current_pgno;
         depth++;
+
+        /* Validate page number is within bounds before accessing */
+        pgno_t max_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
+        if (current_pgno > max_pgno) {
+            return APR_EINVAL;  /* Page number out of bounds */
+        }
 
         /* Get page (checks dirty pages first for write txns) */
         page = db_get_page(txn, current_pgno);
@@ -856,4 +890,24 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
     }
 
     return APR_EGENERAL;
+}
+
+/**
+ * @brief Find the leaf page for a key and record the path (for CoW).
+ *
+ * This is a convenience wrapper that uses the main DB root from the transaction.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
+{
+    if (!txn) {
+        return APR_EINVAL;
+    }
+    return db_find_leaf_page_with_path_in_tree(txn, txn->root_pgno, key, path_out, path_len_out, leaf_page_out);
 }
