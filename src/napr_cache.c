@@ -460,7 +460,7 @@ apr_status_t napr_cache_sweep(napr_cache_t *cache)
         /* ================================================================
          * STEP 5: Check if key exists in visited_set
          * ================================================================ */
-        void *found = apr_hash_get(cache->visited_set, key.data, key.size);
+        void *found = apr_hash_get(cache->visited_set, key.data, (apr_ssize_t) key.size);
 
         /* ================================================================
          * STEP 6: If NOT found, delete the entry
