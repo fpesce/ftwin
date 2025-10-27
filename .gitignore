@@ -1,3 +1,10 @@
+# Repomix
+.repomixignore
+repomix.config.json
+repomix.coverage-config.json
+ftwin-cov-repomix.md
+ftwin-repomix.md
+
 # Autotools generated files
 Makefile
 Makefile.in
@@ -20,6 +27,8 @@ libtool
 
 # Doxygen
 Doxyfile
+docs/html/
+docs/man/
 
 # Object files and libraries
 *.o
@@ -35,6 +44,7 @@ check_ftwin
 bench_ftwin
 
 # Test and coverage artifacts
+build-test.log
 check_test_log.xml
 check_log.xml
 *.cov

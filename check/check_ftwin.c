@@ -498,6 +498,21 @@ Suite *make_ft_report_suite(void);
 Suite *make_ft_report_json_suite(void);
 Suite *make_key_hash_suite(void);
 Suite *make_ft_process_suite(void);
+Suite *make_db_layout_suite(void);
+Suite *make_db_env_suite(void);
+Suite *make_db_txn_suite(void);
+Suite *make_db_page_suite(void);
+Suite *make_db_read_suite(void);
+Suite *make_db_cow_suite(void);
+Suite *make_db_write_suite(void);
+Suite *make_db_split_suite(void);
+Suite *db_cursor_suite(void);
+Suite *db_delete_suite(void);
+Suite *db_mvcc_suite(void);
+Suite *cache_model_suite(void);
+Suite *cache_init_suite(void);
+Suite *cache_access_suite(void);
+Suite *cache_mark_sweep_suite(void);
 
 enum test_suite
 {
@@ -513,7 +528,22 @@ enum test_suite
     FT_ARCHIVE_SUITE,
     FT_IMAGE_SUITE,
     FT_CONFIG_SUITE,
-    KEY_HASH_SUITE
+    KEY_HASH_SUITE,
+    DB_LAYOUT_SUITE,
+    DB_ENV_SUITE,
+    DB_TXN_SUITE,
+    DB_PAGE_SUITE,
+    DB_READ_SUITE,
+    DB_COW_SUITE,
+    DB_WRITE_SUITE,
+    DB_SPLIT_SUITE,
+    DB_CURSOR_SUITE,
+    DB_DELETE_SUITE,
+    DB_MVCC_SUITE,
+    CACHE_MODEL_SUITE,
+    CACHE_INIT_SUITE,
+    CACHE_ACCESS_SUITE,
+    CACHE_MARK_SWEEP_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -533,6 +563,21 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, make_ft_report_json_suite());
     srunner_add_suite(suite_runner, make_key_hash_suite());
     srunner_add_suite(suite_runner, make_ft_process_suite());
+    srunner_add_suite(suite_runner, make_db_layout_suite());
+    srunner_add_suite(suite_runner, make_db_env_suite());
+    srunner_add_suite(suite_runner, make_db_txn_suite());
+    srunner_add_suite(suite_runner, make_db_page_suite());
+    srunner_add_suite(suite_runner, make_db_read_suite());
+    srunner_add_suite(suite_runner, make_db_cow_suite());
+    srunner_add_suite(suite_runner, make_db_write_suite());
+    srunner_add_suite(suite_runner, make_db_split_suite());
+    srunner_add_suite(suite_runner, db_cursor_suite());
+    srunner_add_suite(suite_runner, db_delete_suite());
+    srunner_add_suite(suite_runner, db_mvcc_suite());
+    srunner_add_suite(suite_runner, cache_model_suite());
+    srunner_add_suite(suite_runner, cache_init_suite());
+    srunner_add_suite(suite_runner, cache_access_suite());
+    srunner_add_suite(suite_runner, cache_mark_sweep_suite());
 }
 
 int main(int argc, char **argv)
@@ -615,6 +660,51 @@ int main(int argc, char **argv)
             break;
         case KEY_HASH_SUITE:
             srunner_add_suite(suite_runner, make_key_hash_suite());
+            break;
+        case DB_LAYOUT_SUITE:
+            srunner_add_suite(suite_runner, make_db_layout_suite());
+            break;
+        case DB_ENV_SUITE:
+            srunner_add_suite(suite_runner, make_db_env_suite());
+            break;
+        case DB_TXN_SUITE:
+            srunner_add_suite(suite_runner, make_db_txn_suite());
+            break;
+        case DB_PAGE_SUITE:
+            srunner_add_suite(suite_runner, make_db_page_suite());
+            break;
+        case DB_READ_SUITE:
+            srunner_add_suite(suite_runner, make_db_read_suite());
+            break;
+        case DB_COW_SUITE:
+            srunner_add_suite(suite_runner, make_db_cow_suite());
+            break;
+        case DB_WRITE_SUITE:
+            srunner_add_suite(suite_runner, make_db_write_suite());
+            break;
+        case DB_SPLIT_SUITE:
+            srunner_add_suite(suite_runner, make_db_split_suite());
+            break;
+        case DB_CURSOR_SUITE:
+            srunner_add_suite(suite_runner, db_cursor_suite());
+            break;
+        case DB_DELETE_SUITE:
+            srunner_add_suite(suite_runner, db_delete_suite());
+            break;
+        case DB_MVCC_SUITE:
+            srunner_add_suite(suite_runner, db_mvcc_suite());
+            break;
+        case CACHE_MODEL_SUITE:
+            srunner_add_suite(suite_runner, cache_model_suite());
+            break;
+        case CACHE_INIT_SUITE:
+            srunner_add_suite(suite_runner, cache_init_suite());
+            break;
+        case CACHE_ACCESS_SUITE:
+            srunner_add_suite(suite_runner, cache_access_suite());
+            break;
+        case CACHE_MARK_SWEEP_SUITE:
+            srunner_add_suite(suite_runner, cache_mark_sweep_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */
