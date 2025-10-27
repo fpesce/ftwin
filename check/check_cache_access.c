@@ -288,7 +288,8 @@ START_TEST(test_upsert_update)
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
     const char *path = CACHE_TEST_PATH_UPDATE;
-    napr_cache_entry_t entry1, entry2;
+    napr_cache_entry_t entry1;
+    napr_cache_entry_t entry2;
     const napr_cache_entry_t *entry_out = NULL;
 
     /* Create pool for transactions */
