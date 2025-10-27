@@ -532,6 +532,7 @@ extern apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t 
 
 static void create_db_env(napr_db_env_t **env)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     status = napr_db_env_create(env, test_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -543,10 +544,11 @@ static void create_db_env(napr_db_env_t **env)
 
 static void commit_dummy_data(napr_db_env_t *env, const char *key_str, const char *data_str, txnid_t *txnid)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
-    napr_db_txn_t *write_txn;
-    napr_db_val_t key = { .data = (void *) key_str, .size = strlen(key_str) + 1 };
-    napr_db_val_t data = { .data = (void *) data_str, .size = strlen(data_str) + 1 };
+    napr_db_txn_t *write_txn = NULL;
+    napr_db_val_t key = {.data = (void *) key_str,.size = strlen(key_str) + 1 };
+    napr_db_val_t data = {.data = (void *) data_str,.size = strlen(data_str) + 1 };
 
     status = napr_db_txn_begin(env, 0, &write_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -561,6 +563,7 @@ static void commit_dummy_data(napr_db_env_t *env, const char *key_str, const cha
 
 static void get_freed_pages(napr_db_txn_t *read_txn, txnid_t txnid, pgno_t **freed_pages, size_t *num_pages)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     status = read_from_free_db(read_txn, txnid, freed_pages, num_pages);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -581,9 +584,9 @@ START_TEST(test_free_db_entry_storage)
     size_t num_pages = 0;
     txnid_t txn2_id = 0;
     int original_freed_count = 0;
-    napr_db_txn_t *write_txn;
-    napr_db_val_t key = { .data = "key1", .size = 5 };
-    napr_db_val_t data = { .data = "value2", .size = 7 };
+    napr_db_txn_t *write_txn = NULL;
+    napr_db_val_t key = {.data = "key1",.size = DB_TEST_MVCC_KEY_SIZE };
+    napr_db_val_t data = {.data = "value2",.size = DB_TEST_MVCC_DATA_SIZE };
 
     create_db_env(&env);
     commit_dummy_data(env, "key1", "value1", NULL);

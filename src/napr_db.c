@@ -793,9 +793,13 @@ static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_roo
  */
 static apr_status_t initialize_empty_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_root_pgno_out)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     pgno_t new_root_pgno;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     DB_PageHeader *new_root;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     pgno_t *pgno_key;
 
     status = db_page_alloc(txn, 1, &new_root_pgno);
@@ -832,6 +836,7 @@ static apr_status_t initialize_empty_free_db(napr_db_txn_t *txn, const napr_db_v
 
 static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_free_db_root_out)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     pgno_t path[MAX_TREE_DEPTH] = { 0 };
     uint16_t path_len = 0;
@@ -851,9 +856,9 @@ static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t 
         return APR_EEXIST;
     }
 
-    for (int i = (int) path_len - 1; i >= 0; i--) {
+    for (int i = (int)path_len - 1; i >= 0; i--) {
         pgno_t current_pgno = path[i];
-        DB_PageHeader *dirty_page;
+        DB_PageHeader *dirty_page = NULL;
         DB_PageHeader *page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
         if (page_to_cow) {
             dirty_page = page_to_cow;
@@ -901,11 +906,9 @@ static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t 
 
     right_child_pgno = right_page->pgno;
     current_key = divider_key;
-    status =
-        propagate_split_up_tree_in_tree(txn, path, path_len, &current_key,
-                                        (DB_SplitPgnos)
-                                        {
-                                        .right_child_pgno = &right_child_pgno,.new_root_out = new_free_db_root_out});
+    status = propagate_split_up_tree_in_tree(txn, path, path_len, &current_key, (DB_SplitPgnos) {
+                                             .right_child_pgno = &right_child_pgno,.new_root_out = new_free_db_root_out}
+    );
     if (status == APR_INCOMPLETE) {
         *new_free_db_root_out = path[0];
         return APR_SUCCESS;
@@ -1135,9 +1138,9 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
         goto cleanup;
     }
 
-    status = commit_meta_page(txn, (DB_CommitPgnos)
-                              {
-                              .new_root_pgno = new_root_pgno,.new_free_db_root_pgno = new_free_db_root});
+    status = commit_meta_page(txn, (DB_CommitPgnos) {
+                              .new_root_pgno = new_root_pgno,.new_free_db_root_pgno = new_free_db_root}
+    );
     if (status != APR_SUCCESS) {
         goto cleanup;
     }
@@ -1420,11 +1423,12 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
 static apr_status_t handle_page_split(napr_db_txn_t *txn, DB_PageHeader *leaf_page, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, napr_db_val_t *current_data)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     DB_PageHeader *left_page = leaf_page;
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
-    uint16_t index;
+    uint16_t index = 0;
 
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
     if (status != APR_SUCCESS) {
