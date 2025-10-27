@@ -1018,8 +1018,9 @@ apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed
 
 static apr_status_t find_reclaimable_entry(napr_db_txn_t *txn, txnid_t oldest_reader_txnid, napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
-    txnid_t entry_txnid;
+    txnid_t entry_txnid = 0;
 
     status = napr_db_cursor_get(cursor, key, data, NAPR_DB_FIRST);
     while (status == APR_SUCCESS) {
@@ -1044,6 +1045,7 @@ static apr_status_t find_reclaimable_entry(napr_db_txn_t *txn, txnid_t oldest_re
 
 static apr_status_t update_or_delete_reclaimed_entry(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     size_t num_pages = data->size / sizeof(pgno_t);
 
