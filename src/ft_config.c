@@ -267,6 +267,7 @@ ft_conf_t *ft_config_create(apr_pool_t *pool)
     ft_load_defaults(conf);     /* Load default ignore patterns */
     conf->mask = OPTION_RECSD;
     conf->threshold = PUZZLE_CVEC_SIMILARITY_LOWER_THRESHOLD;
+    conf->cache = NULL;
 
     return conf;
 }

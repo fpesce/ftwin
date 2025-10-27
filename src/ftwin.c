@@ -46,6 +46,7 @@
 #include "ft_report_json.h"
 #include "ft_image.h"
 #include "key_hash.h"
+#include "napr_cache.h"
 
 int ft_file_cmp(const void *param1, const void *param2);
 

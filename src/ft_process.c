@@ -10,6 +10,7 @@
 #include "napr_hash.h"
 #include <apr_file_io.h>
 #include "ft_file.h"
+#include "napr_cache.h"
 
 int ft_file_cmp(const void *param1, const void *param2);
 
