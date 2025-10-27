@@ -199,15 +199,15 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 8: `napr_cache` Core Implementation
 
-- [ ] **API Definition (`src/napr_cache.h`)**
-    - [ ] Include headers (APR, `napr_db.h`, `xxhash.h`).
-    - [ ] Define `napr_cache_entry_t` (mtime, ctime, size, XXH128_hash_t).
-    - [ ] Add platform dependency warnings (Spec 4.3).
-    - [ ] Declare opaque handle `napr_cache_t` and the full API.
-- [ ] **Internal Definitions (`src/napr_cache.c`)**
-    - [ ] Define the concrete `struct napr_cache_t` (pool, db_env, lock_file_handle, visited_set, visited_mutex).
-- [ ] **Testing (`check/check_cache_model.c`)**
-    - [ ] CRITICAL: Verify `sizeof(napr_cache_entry_t)` is exactly 40 bytes using `_Static_assert` (Spec 4.2).
+- [x] **API Definition (`src/napr_cache.h`)**
+    - [x] Include headers (APR, `napr_db.h`, `xxhash.h`).
+    - [x] Define `napr_cache_entry_t` (mtime, ctime, size, XXH128_hash_t).
+    - [x] Add platform dependency warnings (Spec 4.3).
+    - [x] Declare opaque handle `napr_cache_t` and the full API.
+- [x] **Internal Definitions (`src/napr_cache.c`)**
+    - [x] Define the concrete `struct napr_cache_t` (pool, db_env, lock_file_handle, visited_set, visited_mutex).
+- [x] **Testing (`check/check_cache_model.c`)**
+    - [x] CRITICAL: Verify `sizeof(napr_cache_entry_t)` is exactly 40 bytes using `_Static_assert` (Spec 4.2).
 - [ ] **Implementation (`src/napr_cache.c`)**
     - [ ] Implement `napr_cache_open`:
         - [ ] Process Exclusivity Lock: Create/Open lock file (e.g., append ".lock"). Acquire `apr_file_lock(..., APR_FLOCK_EXCLUSIVE | APR_FLOCK_NONBLOCK)` (Spec 3.1).
