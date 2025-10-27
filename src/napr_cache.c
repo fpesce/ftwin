@@ -12,8 +12,10 @@
 #include <apr_hash.h>
 
 /* Constants */
-#define CACHE_MAPSIZE_GB 10
-#define CACHE_MAPSIZE (CACHE_MAPSIZE_GB * 1024ULL * 1024ULL * 1024ULL)
+enum {
+    CACHE_MAPSIZE_GB = 10,
+    CACHE_MAPSIZE = (CACHE_MAPSIZE_GB * 1024ULL * 1024ULL * 1024ULL)
+};
 
 /**
  * @brief Internal cache structure

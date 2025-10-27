@@ -20,10 +20,11 @@ static apr_pool_t *test_pool = NULL;
 
 static void setup(void)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status = APR_SUCCESS;
 
-    rv = apr_pool_create(&test_pool, NULL);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = apr_pool_create(&test_pool, NULL);
+    ck_assert_int_eq(status, APR_SUCCESS);
 }
 
 static void teardown(void)
@@ -43,11 +44,11 @@ static void teardown(void)
  */
 static const char *get_temp_cache_path(apr_pool_t *pool)
 {
-    const char *temp_dir;
-    apr_status_t rv;
+    const char *temp_dir = NULL;
+    apr_status_t status = APR_SUCCESS;
 
-    rv = apr_temp_dir_get(&temp_dir, pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = apr_temp_dir_get(&temp_dir, pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     return apr_psprintf(pool, "%s/napr_cache_test_%d.db", temp_dir, (int) apr_time_now());
 }
@@ -74,19 +75,19 @@ static void cleanup_cache_files(const char *cache_path, apr_pool_t *pool)
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cache_open_close)
 {
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t status = APR_SUCCESS;
     napr_cache_t *cache = NULL;
     const char *cache_path = get_temp_cache_path(test_pool);
     cleanup_cache_files(cache_path, test_pool);
 
     /* Open cache */
-    rv = napr_cache_open(&cache, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(cache);
 
     /* Close cache */
-    rv = napr_cache_close(cache);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Clean up */
     cleanup_cache_files(cache_path, test_pool);
@@ -101,27 +102,27 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cache_sequential_opens)
 {
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t status = APR_SUCCESS;
     napr_cache_t *cache1 = NULL;
     napr_cache_t *cache2 = NULL;
     const char *cache_path = get_temp_cache_path(test_pool);
     cleanup_cache_files(cache_path, test_pool);
 
     /* First open/close cycle */
-    rv = napr_cache_open(&cache1, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache1, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(cache1);
 
-    rv = napr_cache_close(cache1);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache1);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Second open/close cycle - should reuse existing cache file */
-    rv = napr_cache_open(&cache2, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache2, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(cache2);
 
-    rv = napr_cache_close(cache2);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache2);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Clean up */
     cleanup_cache_files(cache_path, test_pool);
@@ -142,36 +143,36 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cache_process_exclusivity)
 {
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t status = APR_SUCCESS;
     napr_cache_t *cache1 = NULL;
     napr_cache_t *cache2 = NULL;
     const char *cache_path = get_temp_cache_path(test_pool);
     cleanup_cache_files(cache_path, test_pool);
 
     /* Open first cache instance */
-    rv = napr_cache_open(&cache1, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache1, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(cache1);
 
     /* Attempt to open second instance - should fail due to lock */
-    rv = napr_cache_open(&cache2, cache_path, test_pool);
+    status = napr_cache_open(&cache2, cache_path, test_pool);
 
     /* The lock should prevent the second open */
-    ck_assert_msg(rv != APR_SUCCESS, "Second cache open should fail due to exclusive lock, got: %d", rv);
+    ck_assert_msg(status != APR_SUCCESS, "Second cache open should fail due to exclusive lock, got: %d", status);
     ck_assert_ptr_null(cache2);
 
     /* Close first cache */
-    rv = napr_cache_close(cache1);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache1);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Now the second open should succeed */
-    rv = napr_cache_open(&cache2, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache2, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(cache2);
 
     /* Close second cache */
-    rv = napr_cache_close(cache2);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache2);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Clean up */
     cleanup_cache_files(cache_path, test_pool);
@@ -189,7 +190,7 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_cache_lock_release_on_error)
 {
-    apr_status_t rv = APR_SUCCESS;
+    apr_status_t status = APR_SUCCESS;
     napr_cache_t *cache1 = NULL;
     napr_cache_t *cache2 = NULL;
     const char *cache_path = get_temp_cache_path(test_pool);
@@ -201,18 +202,18 @@ START_TEST(test_cache_lock_release_on_error)
      * inject a failure after lock acquisition without modifying the code */
 
     /* Open and close normally */
-    rv = napr_cache_open(&cache1, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache1, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
-    rv = napr_cache_close(cache1);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache1);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Verify we can open again */
-    rv = napr_cache_open(&cache2, cache_path, test_pool);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_open(&cache2, cache_path, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
-    rv = napr_cache_close(cache2);
-    ck_assert_int_eq(rv, APR_SUCCESS);
+    status = napr_cache_close(cache2);
+    ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Clean up */
     cleanup_cache_files(cache_path, test_pool);
@@ -226,9 +227,9 @@ END_TEST
  * ======================================================================== */
 Suite *cache_init_suite(void)
 {
-    Suite *suite;
-    TCase *tc_lifecycle;
-    TCase *tc_exclusivity;
+    Suite *suite = NULL;
+    TCase *tc_lifecycle = NULL;
+    TCase *tc_exclusivity = NULL;
 
     suite = suite_create("Cache Initialization");
 
