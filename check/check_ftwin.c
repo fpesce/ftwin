@@ -512,6 +512,7 @@ Suite *db_mvcc_suite(void);
 Suite *cache_model_suite(void);
 Suite *cache_init_suite(void);
 Suite *cache_access_suite(void);
+Suite *cache_mark_sweep_suite(void);
 
 enum test_suite
 {
@@ -541,7 +542,8 @@ enum test_suite
     DB_MVCC_SUITE,
     CACHE_MODEL_SUITE,
     CACHE_INIT_SUITE,
-    CACHE_ACCESS_SUITE
+    CACHE_ACCESS_SUITE,
+    CACHE_MARK_SWEEP_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -575,6 +577,7 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, cache_model_suite());
     srunner_add_suite(suite_runner, cache_init_suite());
     srunner_add_suite(suite_runner, cache_access_suite());
+    srunner_add_suite(suite_runner, cache_mark_sweep_suite());
 }
 
 int main(int argc, char **argv)
@@ -699,6 +702,9 @@ int main(int argc, char **argv)
             break;
         case CACHE_ACCESS_SUITE:
             srunner_add_suite(suite_runner, cache_access_suite());
+            break;
+        case CACHE_MARK_SWEEP_SUITE:
+            srunner_add_suite(suite_runner, cache_mark_sweep_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */

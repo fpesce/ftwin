@@ -28,6 +28,7 @@
  * =================================================================
  */
 
+#define CACHE_TEST_PATH_BUG_SIZE 256
 #define CACHE_TEST_PATH_FILE1 "/test/file1.txt"
 #define CACHE_TEST_PATH_NONEXISTENT "/nonexistent/file.txt"
 #define CACHE_TEST_PATH_MULTI1 "/file1.txt"
@@ -97,5 +98,15 @@
 #define CACHE_TEST_PERSIST_SIZE 7777
 #define CACHE_TEST_PERSIST_HASH_LOW 0xDEADBEEF
 #define CACHE_TEST_PERSIST_HASH_HIGH 0xCAFEBABE
+
+/*
+ * =================================================================
+ * Mark Concurrency Values
+ * =================================================================
+ */
+
+#define CACHE_TEST_NB_THREADS 4
+#define CACHE_TEST_MARK_PER_THREAD 25
+#define CACHE_TEST_MARK_VISITED_MULT 10
 
 #endif /* CHECK_CACHE_CONSTANTS_H */
