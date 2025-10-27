@@ -23,14 +23,14 @@
 #endif
 
 /* Option flags */
-#define is_option_set(mask, option)  ((mask & option) == option)
+#define is_option_set(mask, option)  (((mask) & (option)) == (option))
 
 #define set_option(mask, option, on)     \
     do {                                 \
         if (on)                          \
-            *mask |= option;             \
+            *(mask) |= (option);         \
         else                             \
-            *mask &= ~option;            \
+            *(mask) &= ~(option);        \
     } while (0)
 
 #define OPTION_ICASE 0x0001
