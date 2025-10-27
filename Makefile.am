@@ -51,7 +51,8 @@ noinst_HEADERS = src/debug.h \
 		  src/napr_db_internal.h \
 		  src/napr_db.h \
 		  src/napr_cache.h \
-		  check/check_db_constants.h
+		  check/check_db_constants.h \
+		  check/check_cache_constants.h
 
 ftwin_SOURCES = src/ftwin.c \
 		   src/ft_config.c \

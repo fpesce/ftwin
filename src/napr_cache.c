@@ -190,16 +190,17 @@ apr_status_t napr_cache_close(napr_cache_t *cache)
 
 apr_status_t napr_cache_begin_read(napr_cache_t *cache, apr_pool_t *pool)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache || !pool) {
         return APR_EINVAL;
     }
 
     /* Begin read-only transaction on underlying DB */
-    rv = napr_db_txn_begin(cache->db_env, NAPR_DB_RDONLY, &cache->active_txn);
-    if (rv != APR_SUCCESS) {
-        return rv;
+    status = napr_db_txn_begin(cache->db_env, NAPR_DB_RDONLY, &cache->active_txn);
+    if (status != APR_SUCCESS) {
+        return status;
     }
 
     return APR_SUCCESS;
@@ -207,16 +208,17 @@ apr_status_t napr_cache_begin_read(napr_cache_t *cache, apr_pool_t *pool)
 
 apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache || !pool) {
         return APR_EINVAL;
     }
 
     /* Begin write transaction on underlying DB */
-    rv = napr_db_txn_begin(cache->db_env, 0, &cache->active_txn);
-    if (rv != APR_SUCCESS) {
-        return rv;
+    status = napr_db_txn_begin(cache->db_env, 0, &cache->active_txn);
+    if (status != APR_SUCCESS) {
+        return status;
     }
 
     return APR_SUCCESS;
@@ -224,7 +226,8 @@ apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool)
 
 apr_status_t napr_cache_end_read(napr_cache_t *cache)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache) {
         return APR_EINVAL;
@@ -235,15 +238,16 @@ apr_status_t napr_cache_end_read(napr_cache_t *cache)
     }
 
     /* Abort read transaction (no changes to commit) */
-    rv = napr_db_txn_abort(cache->active_txn);
+    status = napr_db_txn_abort(cache->active_txn);
     cache->active_txn = NULL;
 
-    return rv;
+    return status;
 }
 
 apr_status_t napr_cache_commit_write(napr_cache_t *cache)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache) {
         return APR_EINVAL;
@@ -254,15 +258,16 @@ apr_status_t napr_cache_commit_write(napr_cache_t *cache)
     }
 
     /* Commit write transaction */
-    rv = napr_db_txn_commit(cache->active_txn);
+    status = napr_db_txn_commit(cache->active_txn);
     cache->active_txn = NULL;
 
-    return rv;
+    return status;
 }
 
 apr_status_t napr_cache_abort_write(napr_cache_t *cache)
 {
-    apr_status_t rv;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache) {
         return APR_EINVAL;
@@ -273,10 +278,10 @@ apr_status_t napr_cache_abort_write(napr_cache_t *cache)
     }
 
     /* Abort write transaction */
-    rv = napr_db_txn_abort(cache->active_txn);
+    status = napr_db_txn_abort(cache->active_txn);
     cache->active_txn = NULL;
 
-    return rv;
+    return status;
 }
 
 /* ========================================================================
@@ -285,8 +290,10 @@ apr_status_t napr_cache_abort_write(napr_cache_t *cache)
 
 apr_status_t napr_cache_lookup_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t **entry_ptr)
 {
-    napr_db_val_t key, value;
-    apr_status_t rv;
+    napr_db_val_t key;
+    napr_db_val_t value;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
 
     if (!cache || !path || !entry_ptr) {
         return APR_EINVAL;
@@ -304,9 +311,9 @@ apr_status_t napr_cache_lookup_in_txn(napr_cache_t *cache, const char *path, con
     key.size = strlen(path);
 
     /* Lookup in database */
-    rv = napr_db_get(cache->active_txn, &key, &value);
-    if (rv != APR_SUCCESS) {
-        return rv;              /* APR_NOTFOUND if key doesn't exist */
+    status = napr_db_get(cache->active_txn, &key, &value);
+    if (status != APR_SUCCESS) {
+        return status;          /* APR_NOTFOUND if key doesn't exist */
     }
 
     /* CRITICAL VALIDATION: Ensure zero-copy safety */
@@ -323,7 +330,8 @@ apr_status_t napr_cache_lookup_in_txn(napr_cache_t *cache, const char *path, con
 
 apr_status_t napr_cache_upsert_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t *entry)
 {
-    napr_db_val_t key, value;
+    napr_db_val_t key;
+    napr_db_val_t value;
 
     if (!cache || !path || !entry) {
         return APR_EINVAL;

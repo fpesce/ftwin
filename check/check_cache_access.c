@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "../src/napr_cache.h"
+#include "check_cache_constants.h"
 
 /* Global APR pool for tests */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
@@ -87,9 +88,9 @@ static napr_cache_entry_t make_test_entry(apr_time_t mtime, apr_time_t ctime, ap
 /**
  * @brief Compare two cache entries for equality
  */
-static int entries_equal(const napr_cache_entry_t *a, const napr_cache_entry_t *b)
+static int entries_equal(const napr_cache_entry_t *first, const napr_cache_entry_t *second)
 {
-    return (a->mtime == b->mtime && a->ctime == b->ctime && a->size == b->size && a->hash.low64 == b->hash.low64 && a->hash.high64 == b->hash.high64);
+    return (first->mtime == second->mtime && first->ctime == second->ctime && first->size == second->size && first->hash.low64 == second->hash.low64 && first->hash.high64 == second->hash.high64);
 }
 
 /* ========================================================================
@@ -148,7 +149,7 @@ START_TEST(test_upsert_and_lookup)
 {
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
-    const char *path = "/test/file1.txt";
+    const char *path = CACHE_TEST_PATH_FILE1;
     napr_cache_entry_t entry_in;
     const napr_cache_entry_t *entry_out = NULL;
 
@@ -157,7 +158,7 @@ START_TEST(test_upsert_and_lookup)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create test entry */
-    entry_in = make_test_entry(100000, 100001, 12345, 0x1234567890ABCDEFULL, 0xFEDCBA0987654321ULL);
+    entry_in = make_test_entry(CACHE_TEST_BASIC_MTIME, CACHE_TEST_BASIC_CTIME, CACHE_TEST_BASIC_SIZE, CACHE_TEST_BASIC_HASH_LOW, CACHE_TEST_BASIC_HASH_HIGH);
 
     /* Write transaction: upsert entry */
     status = napr_cache_begin_write(test_cache, txn_pool);
@@ -197,7 +198,7 @@ START_TEST(test_lookup_miss)
 {
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
-    const char *path = "/nonexistent/file.txt";
+    const char *path = CACHE_TEST_PATH_NONEXISTENT;
     const napr_cache_entry_t *entry_out = NULL;
 
     /* Create pool for transaction */
@@ -229,8 +230,8 @@ START_TEST(test_multiple_entries)
 {
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
-    const char *paths[] = { "/file1.txt", "/file2.txt", "/file3.txt" };
-    napr_cache_entry_t entries[3];
+    const char *paths[] = { CACHE_TEST_PATH_MULTI1, CACHE_TEST_PATH_MULTI2, CACHE_TEST_PATH_MULTI3 };
+    napr_cache_entry_t entries[CACHE_TEST_MULTI_ENTRY_COUNT];
     const napr_cache_entry_t *entry_out = NULL;
     int idx = 0;
 
@@ -239,15 +240,17 @@ START_TEST(test_multiple_entries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create test entries with different values */
-    for (idx = 0; idx < 3; idx++) {
-        entries[idx] = make_test_entry(200000 + idx, 200001 + idx, 10000 + idx * 1000, 0x1000 + idx, 0x2000 + idx);
+    for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
+        entries[idx] =
+            make_test_entry(CACHE_TEST_MULTI_BASE_MTIME + idx, CACHE_TEST_MULTI_BASE_CTIME + idx, CACHE_TEST_MULTI_BASE_SIZE + idx * CACHE_TEST_MULTI_SIZE_INCREMENT,
+                            CACHE_TEST_MULTI_BASE_HASH_LOW + idx, CACHE_TEST_MULTI_BASE_HASH_HIGH + idx);
     }
 
     /* Write transaction: upsert all entries */
     status = napr_cache_begin_write(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < 3; idx++) {
+    for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
         status = napr_cache_upsert_in_txn(test_cache, paths[idx], &entries[idx]);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
@@ -259,7 +262,7 @@ START_TEST(test_multiple_entries)
     status = napr_cache_begin_read(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (idx = 0; idx < 3; idx++) {
+    for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
         entry_out = NULL;
         status = napr_cache_lookup_in_txn(test_cache, paths[idx], &entry_out);
         ck_assert_int_eq(status, APR_SUCCESS);
@@ -284,7 +287,7 @@ START_TEST(test_upsert_update)
 {
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
-    const char *path = "/test/update.txt";
+    const char *path = CACHE_TEST_PATH_UPDATE;
     napr_cache_entry_t entry1, entry2;
     const napr_cache_entry_t *entry_out = NULL;
 
@@ -293,7 +296,7 @@ START_TEST(test_upsert_update)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create first entry */
-    entry1 = make_test_entry(300000, 300001, 5000, 0xAAAA, 0xBBBB);
+    entry1 = make_test_entry(CACHE_TEST_UPDATE_V1_MTIME, CACHE_TEST_UPDATE_V1_CTIME, CACHE_TEST_UPDATE_V1_SIZE, CACHE_TEST_UPDATE_V1_HASH_LOW, CACHE_TEST_UPDATE_V1_HASH_HIGH);
 
     /* Insert first version */
     status = napr_cache_begin_write(test_cache, txn_pool);
@@ -306,7 +309,7 @@ START_TEST(test_upsert_update)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create updated entry */
-    entry2 = make_test_entry(400000, 400001, 6000, 0xCCCC, 0xDDDD);
+    entry2 = make_test_entry(CACHE_TEST_UPDATE_V2_MTIME, CACHE_TEST_UPDATE_V2_CTIME, CACHE_TEST_UPDATE_V2_SIZE, CACHE_TEST_UPDATE_V2_HASH_LOW, CACHE_TEST_UPDATE_V2_HASH_HIGH);
 
     /* Update with second version */
     status = napr_cache_begin_write(test_cache, txn_pool);
@@ -347,7 +350,7 @@ START_TEST(test_persistence)
 {
     apr_status_t status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
-    const char *path = "/test/persist.txt";
+    const char *path = CACHE_TEST_PATH_PERSIST;
     napr_cache_entry_t entry_in;
     const napr_cache_entry_t *entry_out = NULL;
 
@@ -356,7 +359,7 @@ START_TEST(test_persistence)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create test entry */
-    entry_in = make_test_entry(500000, 500001, 7777, 0xDEADBEEF, 0xCAFEBABE);
+    entry_in = make_test_entry(CACHE_TEST_PERSIST_MTIME, CACHE_TEST_PERSIST_CTIME, CACHE_TEST_PERSIST_SIZE, CACHE_TEST_PERSIST_HASH_LOW, CACHE_TEST_PERSIST_HASH_HIGH);
 
     /* Write entry */
     status = napr_cache_begin_write(test_cache, txn_pool);
