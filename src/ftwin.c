@@ -28,6 +28,7 @@
 #include <apr_file_io.h>
 #include <apr_strings.h>
 #include <apr_user.h>
+#include <apr_env.h>
 
 #include "config.h"
 
@@ -157,8 +158,64 @@ int ftwin_main(int argc, const char **argv)
     }
 
     conf = ft_config_create(pool);
+
+    /* Open cache database */
+    {
+        char *home_dir = NULL;
+        const char *cache_dir_path = NULL;
+        const char *cache_db_path = NULL;
+
+        status = apr_env_get(&home_dir, "HOME", pool);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error getting HOME environment variable: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            if (should_manage_apr) {
+                apr_terminate();
+            }
+            return -1;
+        }
+
+        cache_dir_path = apr_pstrcat(pool, home_dir, "/.cache/ftwin", NULL);
+        if (NULL == cache_dir_path) {
+            DEBUG_ERR("error constructing cache directory path");
+            if (should_manage_apr) {
+                apr_terminate();
+            }
+            return -1;
+        }
+
+        status = apr_dir_make_recursive(cache_dir_path, APR_OS_DEFAULT, pool);
+        if (APR_SUCCESS != status && !APR_STATUS_IS_EEXIST(status)) {
+            DEBUG_ERR("error creating cache directory %s: %s", cache_dir_path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            if (should_manage_apr) {
+                apr_terminate();
+            }
+            return -1;
+        }
+
+        cache_db_path = apr_pstrcat(pool, cache_dir_path, "/file_cache.db", NULL);
+        if (NULL == cache_db_path) {
+            DEBUG_ERR("error constructing cache database path");
+            if (should_manage_apr) {
+                apr_terminate();
+            }
+            return -1;
+        }
+
+        status = napr_cache_open(&conf->cache, cache_db_path, pool);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error opening cache at %s: %s", cache_db_path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            if (should_manage_apr) {
+                apr_terminate();
+            }
+            return -1;
+        }
+    }
+
     status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
     if (APR_SUCCESS != status) {
+        if (conf->cache) {
+            napr_cache_close(conf->cache);
+        }
         if (should_manage_apr) {
             apr_terminate();
         }
@@ -168,10 +225,24 @@ int ftwin_main(int argc, const char **argv)
     status = run_ftwin_processing(conf, argc, argv, first_arg_index);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        if (conf->cache) {
+            apr_status_t close_status = napr_cache_close(conf->cache);
+            if (APR_SUCCESS != close_status) {
+                DEBUG_ERR("error closing cache: %s", apr_strerror(close_status, errbuf, ERR_BUF_SIZE));
+            }
+        }
         if (should_manage_apr) {
             apr_terminate();
         }
         return -1;
+    }
+
+    /* Close cache before termination */
+    if (conf->cache) {
+        status = napr_cache_close(conf->cache);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error closing cache: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        }
     }
 
     if (should_manage_apr) {
