@@ -72,16 +72,28 @@ static void teardown(void)
  * ======================================================================== */
 
 /**
+ * @brief Arguments for make_test_entry
+ */
+typedef struct
+{
+    apr_time_t mtime;       /**< Modification time */
+    apr_time_t ctime;       /**< Creation time */
+    apr_off_t size;         /**< File size */
+    uint64_t hash_low;      /**< Low 64 bits of hash */
+    uint64_t hash_high;     /**< High 64 bits of hash */
+} make_test_entry_args;
+
+/**
  * @brief Create a test cache entry with specific values
  */
-static napr_cache_entry_t make_test_entry(apr_time_t mtime, apr_time_t ctime, apr_off_t size, uint64_t hash_low, uint64_t hash_high)
+static napr_cache_entry_t make_test_entry(const make_test_entry_args * args)
 {
     napr_cache_entry_t entry;
-    entry.mtime = mtime;
-    entry.ctime = ctime;
-    entry.size = size;
-    entry.hash.low64 = hash_low;
-    entry.hash.high64 = hash_high;
+    entry.mtime = args->mtime;
+    entry.ctime = args->ctime;
+    entry.size = args->size;
+    entry.hash.low64 = args->hash_low;
+    entry.hash.high64 = args->hash_high;
     return entry;
 }
 
@@ -91,6 +103,34 @@ static napr_cache_entry_t make_test_entry(apr_time_t mtime, apr_time_t ctime, ap
 static int entries_equal(const napr_cache_entry_t *first, const napr_cache_entry_t *second)
 {
     return (first->mtime == second->mtime && first->ctime == second->ctime && first->size == second->size && first->hash.low64 == second->hash.low64 && first->hash.high64 == second->hash.high64);
+}
+
+/**
+ * @brief Assert that a cache upsert operation succeeded.
+ * @param cache The cache instance.
+ * @param path The key for the upsert.
+ * @param entry The entry to upsert.
+ */
+static void assert_upsert_succeeded(napr_cache_t *cache, const char *path, napr_cache_entry_t *entry)
+{
+    apr_status_t status = napr_cache_upsert_in_txn(cache, path, entry);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+/**
+ * @brief Assert that a cache lookup operation succeeded and the returned entry matches the expected one.
+ * @param cache The cache instance.
+ * @param path The key for the lookup.
+ * @param expected_entry The expected entry.
+ */
+static const napr_cache_entry_t *assert_lookup_succeeded(napr_cache_t *cache, const char *path, const napr_cache_entry_t *expected_entry)
+{
+    const napr_cache_entry_t *actual_entry = NULL;
+    apr_status_t status = napr_cache_lookup_in_txn(cache, path, &actual_entry);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_ptr_nonnull(actual_entry);
+    ck_assert_msg(entries_equal(expected_entry, actual_entry), "Entry data mismatch for path: %s", path);
+    return actual_entry;
 }
 
 /* ========================================================================
@@ -158,14 +198,15 @@ START_TEST(test_upsert_and_lookup)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create test entry */
-    entry_in = make_test_entry(CACHE_TEST_BASIC_MTIME, CACHE_TEST_BASIC_CTIME, CACHE_TEST_BASIC_SIZE, CACHE_TEST_BASIC_HASH_LOW, CACHE_TEST_BASIC_HASH_HIGH);
+    entry_in = make_test_entry(&(make_test_entry_args) {
+                               .mtime = CACHE_TEST_BASIC_MTIME,.ctime = CACHE_TEST_BASIC_CTIME,.size = CACHE_TEST_BASIC_SIZE,.hash_low = CACHE_TEST_BASIC_HASH_LOW,.hash_high =
+                               CACHE_TEST_BASIC_HASH_HIGH});
 
     /* Write transaction: upsert entry */
     status = napr_cache_begin_write(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_upsert_in_txn(test_cache, path, &entry_in);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    assert_upsert_succeeded(test_cache, path, &entry_in);
 
     status = napr_cache_commit_write(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -174,12 +215,8 @@ START_TEST(test_upsert_and_lookup)
     status = napr_cache_begin_read(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_lookup_in_txn(test_cache, path, &entry_out);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    entry_out = assert_lookup_succeeded(test_cache, path, &entry_in);
     ck_assert_ptr_nonnull(entry_out);
-
-    /* Verify entry data (confirms zero-copy) */
-    ck_assert_msg(entries_equal(&entry_in, entry_out), "Entry data mismatch after lookup");
 
     status = napr_cache_end_read(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -232,7 +269,6 @@ START_TEST(test_multiple_entries)
     apr_pool_t *txn_pool = NULL;
     const char *paths[] = { CACHE_TEST_PATH_MULTI1, CACHE_TEST_PATH_MULTI2, CACHE_TEST_PATH_MULTI3 };
     napr_cache_entry_t entries[CACHE_TEST_MULTI_ENTRY_COUNT];
-    const napr_cache_entry_t *entry_out = NULL;
     int idx = 0;
 
     /* Create pool for transactions */
@@ -241,9 +277,11 @@ START_TEST(test_multiple_entries)
 
     /* Create test entries with different values */
     for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
-        entries[idx] =
-            make_test_entry(CACHE_TEST_MULTI_BASE_MTIME + idx, CACHE_TEST_MULTI_BASE_CTIME + idx, CACHE_TEST_MULTI_BASE_SIZE + idx * CACHE_TEST_MULTI_SIZE_INCREMENT,
-                            CACHE_TEST_MULTI_BASE_HASH_LOW + idx, CACHE_TEST_MULTI_BASE_HASH_HIGH + idx);
+        entries[idx] = make_test_entry(&(make_test_entry_args) {
+                                       .mtime = CACHE_TEST_MULTI_BASE_MTIME + idx,.ctime = CACHE_TEST_MULTI_BASE_CTIME + idx,.size =
+                                       CACHE_TEST_MULTI_BASE_SIZE + idx * CACHE_TEST_MULTI_SIZE_INCREMENT,.hash_low = CACHE_TEST_MULTI_BASE_HASH_LOW + idx,.hash_high =
+                                       CACHE_TEST_MULTI_BASE_HASH_HIGH + idx,}
+        );
     }
 
     /* Write transaction: upsert all entries */
@@ -251,8 +289,7 @@ START_TEST(test_multiple_entries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
-        status = napr_cache_upsert_in_txn(test_cache, paths[idx], &entries[idx]);
-        ck_assert_int_eq(status, APR_SUCCESS);
+        assert_upsert_succeeded(test_cache, paths[idx], &entries[idx]);
     }
 
     status = napr_cache_commit_write(test_cache);
@@ -263,11 +300,7 @@ START_TEST(test_multiple_entries)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     for (idx = 0; idx < CACHE_TEST_MULTI_ENTRY_COUNT; idx++) {
-        entry_out = NULL;
-        status = napr_cache_lookup_in_txn(test_cache, paths[idx], &entry_out);
-        ck_assert_int_eq(status, APR_SUCCESS);
-        ck_assert_ptr_nonnull(entry_out);
-        ck_assert_msg(entries_equal(&entries[idx], entry_out), "Entry %d data mismatch", idx);
+        assert_lookup_succeeded(test_cache, paths[idx], &entries[idx]);
     }
 
     status = napr_cache_end_read(test_cache);
@@ -297,27 +330,29 @@ START_TEST(test_upsert_update)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create first entry */
-    entry1 = make_test_entry(CACHE_TEST_UPDATE_V1_MTIME, CACHE_TEST_UPDATE_V1_CTIME, CACHE_TEST_UPDATE_V1_SIZE, CACHE_TEST_UPDATE_V1_HASH_LOW, CACHE_TEST_UPDATE_V1_HASH_HIGH);
+    entry1 = make_test_entry(&(make_test_entry_args) {
+                             .mtime = CACHE_TEST_UPDATE_V1_MTIME,.ctime = CACHE_TEST_UPDATE_V1_CTIME,.size = CACHE_TEST_UPDATE_V1_SIZE,.hash_low = CACHE_TEST_UPDATE_V1_HASH_LOW,.hash_high =
+                             CACHE_TEST_UPDATE_V1_HASH_HIGH});
 
     /* Insert first version */
     status = napr_cache_begin_write(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_upsert_in_txn(test_cache, path, &entry1);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    assert_upsert_succeeded(test_cache, path, &entry1);
 
     status = napr_cache_commit_write(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create updated entry */
-    entry2 = make_test_entry(CACHE_TEST_UPDATE_V2_MTIME, CACHE_TEST_UPDATE_V2_CTIME, CACHE_TEST_UPDATE_V2_SIZE, CACHE_TEST_UPDATE_V2_HASH_LOW, CACHE_TEST_UPDATE_V2_HASH_HIGH);
+    entry2 = make_test_entry(&(make_test_entry_args) {
+                             .mtime = CACHE_TEST_UPDATE_V2_MTIME,.ctime = CACHE_TEST_UPDATE_V2_CTIME,.size = CACHE_TEST_UPDATE_V2_SIZE,.hash_low = CACHE_TEST_UPDATE_V2_HASH_LOW,.hash_high =
+                             CACHE_TEST_UPDATE_V2_HASH_HIGH});
 
     /* Update with second version */
     status = napr_cache_begin_write(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_upsert_in_txn(test_cache, path, &entry2);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    assert_upsert_succeeded(test_cache, path, &entry2);
 
     status = napr_cache_commit_write(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -326,12 +361,7 @@ START_TEST(test_upsert_update)
     status = napr_cache_begin_read(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_lookup_in_txn(test_cache, path, &entry_out);
-    ck_assert_int_eq(status, APR_SUCCESS);
-    ck_assert_ptr_nonnull(entry_out);
-
-    /* Should match entry2, not entry1 */
-    ck_assert_msg(entries_equal(&entry2, entry_out), "Entry should be updated to second version");
+    entry_out = assert_lookup_succeeded(test_cache, path, &entry2);
     ck_assert_msg(!entries_equal(&entry1, entry_out), "Entry should not match first version");
 
     status = napr_cache_end_read(test_cache);
@@ -360,14 +390,15 @@ START_TEST(test_persistence)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Create test entry */
-    entry_in = make_test_entry(CACHE_TEST_PERSIST_MTIME, CACHE_TEST_PERSIST_CTIME, CACHE_TEST_PERSIST_SIZE, CACHE_TEST_PERSIST_HASH_LOW, CACHE_TEST_PERSIST_HASH_HIGH);
+    entry_in = make_test_entry(&(make_test_entry_args) {
+                               .mtime = CACHE_TEST_PERSIST_MTIME,.ctime = CACHE_TEST_PERSIST_CTIME,.size = CACHE_TEST_PERSIST_SIZE,.hash_low = CACHE_TEST_PERSIST_HASH_LOW,.hash_high =
+                               CACHE_TEST_PERSIST_HASH_HIGH});
 
     /* Write entry */
     status = napr_cache_begin_write(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_upsert_in_txn(test_cache, path, &entry_in);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    assert_upsert_succeeded(test_cache, path, &entry_in);
 
     status = napr_cache_commit_write(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
@@ -386,11 +417,8 @@ START_TEST(test_persistence)
     status = napr_cache_begin_read(test_cache, txn_pool);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_cache_lookup_in_txn(test_cache, path, &entry_out);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    entry_out = assert_lookup_succeeded(test_cache, path, &entry_in);
     ck_assert_ptr_nonnull(entry_out);
-
-    ck_assert_msg(entries_equal(&entry_in, entry_out), "Entry should persist across close/reopen");
 
     status = napr_cache_end_read(test_cache);
     ck_assert_int_eq(status, APR_SUCCESS);
