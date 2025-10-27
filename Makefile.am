@@ -85,7 +85,7 @@ check_ftwin_SOURCES = check/check_ftwin.c check/check_napr_heap.c src/napr_heap.
 		      check/check_db_read.c check/check_db_cow.c check/check_db_write.c check/check_db_split.c \
 		      check/check_db_cursor.c check/check_db_delete.c check/check_db_mvcc.c \
 		      src/napr_db.c src/napr_db_tree.c src/napr_db_cursor.c \
-		      check/check_cache_model.c src/napr_cache.c
+		      check/check_cache_model.c check/check_cache_init.c src/napr_cache.c
 
 # CFLAGS is for additional C compiler flags
 ftwin_CFLAGS = @APR_CFLAGS@ @PCRE_CFLAGS@ $(JANSSON_CFLAGS) -Wall -Werror -g -ggdb -I$(top_srcdir)/src -O0 @COVERAGE_CFLAGS@

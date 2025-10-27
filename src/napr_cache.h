@@ -73,7 +73,7 @@ extern "C"
  * @param pool APR pool for allocations
  * @return APR_SUCCESS or error code (APR_EBUSY if already locked)
  */
-    apr_status_t napr_cache_open(napr_cache_t ** cache_ptr, const char *path, apr_pool_t *pool);
+    apr_status_t napr_cache_open(napr_cache_t **cache_ptr, const char *path, apr_pool_t *pool);
 
 /**
  * @brief Close the cache and release all resources
@@ -81,7 +81,7 @@ extern "C"
  * @param cache Cache handle to close
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_close(napr_cache_t * cache);
+    apr_status_t napr_cache_close(napr_cache_t *cache);
 
 /**
  * @brief Begin a read transaction
@@ -90,7 +90,7 @@ extern "C"
  * @param pool APR pool for transaction allocations
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_begin_read(napr_cache_t * cache, apr_pool_t *pool);
+    apr_status_t napr_cache_begin_read(napr_cache_t *cache, apr_pool_t *pool);
 
 /**
  * @brief Begin a write transaction
@@ -99,7 +99,7 @@ extern "C"
  * @param pool APR pool for transaction allocations
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_begin_write(napr_cache_t * cache, apr_pool_t *pool);
+    apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool);
 
 /**
  * @brief End a read transaction
@@ -107,7 +107,7 @@ extern "C"
  * @param cache Cache handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_end_read(napr_cache_t * cache);
+    apr_status_t napr_cache_end_read(napr_cache_t *cache);
 
 /**
  * @brief Commit a write transaction
@@ -115,7 +115,7 @@ extern "C"
  * @param cache Cache handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_commit_write(napr_cache_t * cache);
+    apr_status_t napr_cache_commit_write(napr_cache_t *cache);
 
 /**
  * @brief Abort a write transaction
@@ -123,7 +123,7 @@ extern "C"
  * @param cache Cache handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_abort_write(napr_cache_t * cache);
+    apr_status_t napr_cache_abort_write(napr_cache_t *cache);
 
 /**
  * @brief Lookup a cache entry within a transaction
@@ -136,7 +136,7 @@ extern "C"
  * @param entry_ptr Output pointer to receive entry (zero-copy)
  * @return APR_SUCCESS, APR_NOTFOUND, or error code
  */
-    apr_status_t napr_cache_lookup_in_txn(napr_cache_t * cache, const char *path, const napr_cache_entry_t ** entry_ptr);
+    apr_status_t napr_cache_lookup_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t **entry_ptr);
 
 /**
  * @brief Insert or update a cache entry within a transaction
@@ -146,7 +146,7 @@ extern "C"
  * @param entry Entry data to store
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_upsert_in_txn(napr_cache_t * cache, const char *path, const napr_cache_entry_t * entry);
+    apr_status_t napr_cache_upsert_in_txn(napr_cache_t *cache, const char *path, const napr_cache_entry_t *entry);
 
 /**
  * @brief Mark a path as visited (thread-safe)
@@ -159,7 +159,7 @@ extern "C"
  * @param path Absolute file path to mark
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_mark_visited(napr_cache_t * cache, const char *path);
+    apr_status_t napr_cache_mark_visited(napr_cache_t *cache, const char *path);
 
 /**
  * @brief Remove all cache entries not marked as visited
@@ -177,7 +177,7 @@ extern "C"
  * @param cache Cache handle
  * @return APR_SUCCESS or error code
  */
-    apr_status_t napr_cache_sweep(napr_cache_t * cache);
+    apr_status_t napr_cache_sweep(napr_cache_t *cache);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,6 @@
 -l 200 -i4 -npsl -di0 -br -nce -d0 -cli0 -npcs -nfc1 -nut
+-T DB_BranchNode
+-T DB_LeafNode
 -T DB_MetaPage
 -T DB_PageHeader
 -T Suite
@@ -33,9 +35,13 @@
 -T get_key_callback_fn_t
 -T get_key_len_callback_fn_t
 -T hash_callback_fn_t
+-T hashing_context_t
+-T hashing_task_t
 -T json_t
 -T key_cmp_callback_fn_t
 -T key_params_t
+-T napr_cache_entry_t
+-T napr_cache_t
 -T napr_cell_t
 -T napr_db_cursor_op_t
 -T napr_db_cursor_t
