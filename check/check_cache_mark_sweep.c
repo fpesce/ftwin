@@ -137,16 +137,17 @@ typedef struct
 static void *APR_THREAD_FUNC mark_visited_thread(apr_thread_t *thread, void *data)
 {
     thread_data_t *tdata = (thread_data_t *) data;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     int idx = 0;
-    char path_buf[256];
+    char path_buf[CACHE_TEST_PATH_BUG_SIZE];
 
     (void) thread;              /* Unused parameter */
 
     /* Mark multiple paths concurrently */
     for (idx = 0; idx < tdata->num_marks; idx++) {
         /* Create a unique path for this thread and iteration */
-        snprintf(path_buf, sizeof(path_buf), "/thread_%d/file_%d.txt", tdata->thread_id, idx);
+        (void) snprintf(path_buf, sizeof(path_buf), "/thread_%d/file_%d.txt", tdata->thread_id, idx);
 
         status = napr_cache_mark_visited(tdata->cache, path_buf);
         if (status != APR_SUCCESS) {
@@ -169,10 +170,8 @@ static void *APR_THREAD_FUNC mark_visited_thread(apr_thread_t *thread, void *dat
 START_TEST(test_mark_visited_concurrency)
 {
     apr_status_t status = APR_SUCCESS;
-    apr_thread_t *threads[4];
-    thread_data_t thread_data[4];
-    int num_threads = 4;
-    int marks_per_thread = 25;
+    apr_thread_t *threads[CACHE_TEST_NB_THREADS];
+    thread_data_t thread_data[CACHE_TEST_NB_THREADS];
     int idx = 0;
     apr_threadattr_t *thread_attr = NULL;
 
@@ -181,10 +180,10 @@ START_TEST(test_mark_visited_concurrency)
     ck_assert_int_eq(status, APR_SUCCESS);
 
     /* Spawn threads */
-    for (idx = 0; idx < num_threads; idx++) {
+    for (idx = 0; idx < CACHE_TEST_NB_THREADS; idx++) {
         thread_data[idx].cache = test_cache;
         thread_data[idx].thread_id = idx;
-        thread_data[idx].num_marks = marks_per_thread;
+        thread_data[idx].num_marks = CACHE_TEST_MARK_PER_THREAD;
         thread_data[idx].result = APR_EGENERAL;
 
         status = apr_thread_create(&threads[idx], thread_attr, mark_visited_thread, &thread_data[idx], test_pool);
@@ -192,7 +191,7 @@ START_TEST(test_mark_visited_concurrency)
     }
 
     /* Wait for all threads to complete */
-    for (idx = 0; idx < num_threads; idx++) {
+    for (idx = 0; idx < CACHE_TEST_NB_THREADS; idx++) {
         apr_status_t thread_status = APR_SUCCESS;
         status = apr_thread_join(&thread_status, threads[idx]);
         ck_assert_int_eq(status, APR_SUCCESS);
@@ -218,12 +217,13 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_mark_visited_idempotent)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     const char *path = "/test/idempotent.txt";
     int idx = 0;
 
     /* Mark the same path multiple times */
-    for (idx = 0; idx < 10; idx++) {
+    for (idx = 0; idx < CACHE_TEST_MARK_VISITED_MULT; idx++) {
         status = napr_cache_mark_visited(test_cache, path);
         ck_assert_int_eq(status, APR_SUCCESS);
     }
@@ -238,6 +238,7 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_mark_visited_special_paths)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
 
     /* Test various path formats */
