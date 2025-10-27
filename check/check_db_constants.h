@@ -53,6 +53,11 @@
 #define DB_TEST_NUM_KEYS_10K 10000
 #define DB_TEST_TXNS_COUNT_5 5
 
+#define DB_TEST_MVCC_MANY_KEY_COUNT_250 250
+#define DB_TEST_MVCC_MANY_KEY_COUNT_500 500
+#define DB_TEST_MVCC_MANY_KEY_COUNT_600 600
+#define DB_TEST_MVCC_MANY_KEY_COUNT_900 900
+#define DB_TEST_MVCC_MANY_KEY_COUNT_999 999
 /*
  * =================================================================
  * Miscellaneous test constants

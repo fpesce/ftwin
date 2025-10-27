@@ -571,8 +571,8 @@ static void get_freed_pages(napr_db_txn_t *read_txn, txnid_t txnid, pgno_t **fre
 
     /* Verify all page numbers are valid (> 0) */
     const pgno_t *pages = *freed_pages;
-    for (size_t i = 0; i < *num_pages; i++) {
-        ck_assert_int_gt(pages[i], 0);
+    for (size_t idx = 0; idx < *num_pages; idx++) {
+        ck_assert_int_gt(pages[idx], 0);
     }
 }
 
@@ -634,16 +634,16 @@ START_TEST(test_free_db_multiple_entries)
     create_db_env(&env);
     commit_dummy_data(env, "key1", "value0", NULL);
 
-    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        (void) snprintf(data_buf, sizeof(data_buf), "value%d", i + 1);
-        commit_dummy_data(env, "key1", data_buf, &txnids[i]);
+    for (int idx = 0; idx < DB_TEST_TXNS_COUNT_5; idx++) {
+        (void) snprintf(data_buf, sizeof(data_buf), "value%d", idx + 1);
+        commit_dummy_data(env, "key1", data_buf, &txnids[idx]);
     }
 
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        get_freed_pages(read_txn, txnids[i], &freed_pages, &num_pages);
+    for (int idx = 0; idx < DB_TEST_TXNS_COUNT_5; idx++) {
+        get_freed_pages(read_txn, txnids[idx], &freed_pages, &num_pages);
         ck_assert_int_gt(num_pages, 0);
     }
 
@@ -684,7 +684,7 @@ START_TEST(test_page_reclamation_safety)
     pgno_t last_pgno_after_delete = 0;
     pgno_t last_pgno_after_w2 = 0;
     pgno_t last_pgno_after_w3 = 0;
-    int i = 0;
+    int idx = 0;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -700,11 +700,11 @@ START_TEST(test_page_reclamation_safety)
     status = napr_db_txn_begin(env, 0, &txn_setup);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (i = 0; i < 500; i++) {
-        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+    for (idx = 0; idx < DB_TEST_MVCC_MANY_KEY_COUNT_500; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
         key.data = key_buf;
         key.size = DB_TEST_MVCC_KEY_SIZE;
-        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
         data.data = data_buf;
         data.size = DB_TEST_MVCC_DATA_SIZE;
         status = napr_db_put(txn_setup, &key, &data);
@@ -722,8 +722,8 @@ START_TEST(test_page_reclamation_safety)
     status = napr_db_txn_begin(env, 0, &txn_delete);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (i = 250; i < 500; i++) {
-        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+    for (idx = DB_TEST_MVCC_MANY_KEY_COUNT_250; idx < DB_TEST_MVCC_MANY_KEY_COUNT_500; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
         key.data = key_buf;
         key.size = DB_TEST_MVCC_KEY_SIZE;
         status = napr_db_del(txn_delete, &key, NULL);
@@ -746,11 +746,11 @@ START_TEST(test_page_reclamation_safety)
     status = napr_db_txn_begin(env, 0, &txn_w2);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (i = 600; i < 900; i++) {
-        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+    for (idx = DB_TEST_MVCC_MANY_KEY_COUNT_600; idx < DB_TEST_MVCC_MANY_KEY_COUNT_900; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
         key.data = key_buf;
         key.size = DB_TEST_MVCC_KEY_SIZE;
-        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
         data.data = data_buf;
         data.size = DB_TEST_MVCC_DATA_SIZE;
         status = napr_db_put(txn_w2, &key, &data);
@@ -772,11 +772,11 @@ START_TEST(test_page_reclamation_safety)
     status = napr_db_txn_begin(env, 0, &txn_w3);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (i = 900; i < 999; i++) {
-        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+    for (idx = DB_TEST_MVCC_MANY_KEY_COUNT_900; idx < DB_TEST_MVCC_MANY_KEY_COUNT_999; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
         key.data = key_buf;
         key.size = DB_TEST_MVCC_KEY_SIZE;
-        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
         data.data = data_buf;
         data.size = DB_TEST_MVCC_DATA_SIZE;
         status = napr_db_put(txn_w3, &key, &data);
