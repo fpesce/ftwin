@@ -359,9 +359,40 @@ apr_status_t napr_cache_upsert_in_txn(napr_cache_t *cache, const char *path, con
 
 apr_status_t napr_cache_mark_visited(napr_cache_t *cache, const char *path)
 {
-    (void) cache;
-    (void) path;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    char *duplicated_path = NULL;
+
+    if (!cache || !path) {
+        return APR_EINVAL;
+    }
+
+    /* Acquire mutex for thread-safe access to visited_set */
+    status = apr_thread_mutex_lock(cache->visited_mutex);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* CRITICAL: Duplicate the path into the cache's main pool
+     * This ensures the string remains valid even if the caller's pool is destroyed */
+    duplicated_path = apr_pstrdup(cache->pool, path);
+    if (!duplicated_path) {
+        /* Release mutex before returning error */
+        apr_thread_mutex_unlock(cache->visited_mutex);
+        return APR_ENOMEM;
+    }
+
+    /* Insert the duplicated path into visited_set
+     * Using the duplicated string as the key ensures proper memory ownership */
+    apr_hash_set(cache->visited_set, duplicated_path, APR_HASH_KEY_STRING, duplicated_path);
+
+    /* Release mutex */
+    status = apr_thread_mutex_unlock(cache->visited_mutex);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return APR_SUCCESS;
 }
 
 apr_status_t napr_cache_sweep(napr_cache_t *cache)

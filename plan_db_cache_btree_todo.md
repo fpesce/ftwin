@@ -227,12 +227,12 @@ This checklist follows the detailed project blueprint, organized by phases and i
 
 ### Iteration 9: Mark-and-Sweep Strategy
 
-- [ ] **Implementation (`src/napr_cache.c`)**
-    - [ ] Implement `napr_cache_mark_visited` (Spec 5.1):
-        - [ ] Acquire `visited_mutex` (Thread-safe).
-        - [ ] CRITICAL Memory Management: Duplicate the path string into the main cache pool using `apr_pstrdup(cache->pool, ...)` (Spec 7.2.2).
-        - [ ] Insert the duplicated path into `visited_set`.
-        - [ ] Release `visited_mutex`.
+- [x] **Implementation (`src/napr_cache.c`)**
+    - [x] Implement `napr_cache_mark_visited` (Spec 5.1):
+        - [x] Acquire `visited_mutex` (Thread-safe).
+        - [x] CRITICAL Memory Management: Duplicate the path string into the main cache pool using `apr_pstrdup(cache->pool, ...)` (Spec 7.2.2).
+        - [x] Insert the duplicated path into `visited_set`.
+        - [x] Release `visited_mutex`.
     - [ ] Implement `napr_cache_sweep` (Spec 5.2):
         - [ ] Begin a single write transaction.
         - [ ] Iterate the entire `napr_db` using a cursor.
@@ -240,8 +240,8 @@ This checklist follows the detailed project blueprint, organized by phases and i
         - [ ] If NOT found, delete the entry from the DB.
         - [ ] Commit the transaction.
         - [ ] Clear the `visited_set` (`apr_hash_clear`).
-- [ ] **Testing (`check/check_cache_mark_sweep.c`)**
-    - [ ] Test Memory Management: Mark a path from a short-lived pool, destroy the pool, verify the internal set still holds a valid copy.
-    - [ ] Test Concurrency: Stress test concurrent calls to `mark_visited`.
+- [x] **Testing (`check/check_cache_mark_sweep.c`)**
+    - [x] Test Memory Management: Mark a path from a short-lived pool, destroy the pool, verify the internal set still holds a valid copy.
+    - [x] Test Concurrency: Stress test concurrent calls to `mark_visited`.
     - [ ] Test Sweep Logic Integration: Populate (A, B, C). Mark (A, C). Sweep. Verify (A, C) remain and (B) is removed.
 ```
