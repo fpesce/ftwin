@@ -1473,12 +1473,12 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     }
 
     /* Search within the leaf page to find insertion point */
-    status = db_page_search(leaf_page, &current_key, &index);
+    apr_status_t search_status = db_page_search(leaf_page, &current_key, &index);
 
     /* If key exists, check if this is a same-transaction duplicate or an MVCC update.
      * Same-transaction duplicate: Leaf page is already dirty -> reject with APR_EEXIST
      * MVCC update: Leaf page is NOT dirty -> allow via CoW */
-    if (status == APR_SUCCESS) {
+    if (search_status == APR_SUCCESS) {
         pgno_t leaf_pgno = path[path_len - 1];
         DB_PageHeader *check_dirty = apr_hash_get(txn->dirty_pages, &leaf_pgno, sizeof(pgno_t));
         if (check_dirty) {
@@ -1512,6 +1512,14 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         /* Update leaf_page pointer if this is the leaf */
         if (idx == (int) path_len - 1) {
             leaf_page = dirty_page;
+        }
+    }
+
+    /* If key exists (MVCC update), delete the old entry before inserting new one */
+    if (search_status == APR_SUCCESS) {
+        status = db_page_delete(leaf_page, index);
+        if (status != APR_SUCCESS) {
+            return status;
         }
     }
 
