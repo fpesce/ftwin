@@ -36,6 +36,7 @@ unreadVariable:check/check_napr_hash.c
 
 # Suppress work in progress
 unreadVariable:src/napr_db_cursor.c
+unusedFunction:src/napr_cache.c
 
 # Suppress false positive objectIndex warning in test helper function
 # The freed_pages pointer points to zero-copy mmap data, not a local variable
