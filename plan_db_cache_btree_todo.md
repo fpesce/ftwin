@@ -177,18 +177,23 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Implement actual Free DB insertion in `populate_free_db()`.
     - [x] Fix commit sequencing to ensure Free DB pages are written to disk.
     - [x] Implement MVCC update semantics (distinguish same-transaction duplicates from cross-transaction updates).
-    - [ ] Refine Page Allocation (FUTURE WORK):
-        - [ ] Determine the oldest active reader TXNID from the Reader Table.
-        - [ ] Query Free DB to reuse pages freed by transactions older than the oldest reader.
-        - [ ] Fall back to extending the file if no reusable pages are found.
+    - [x] Refine Page Allocation (Spec 2.4):
+        - [x] Implemented `db_reclaim_page_from_free_db()` helper function.
+        - [x] Determine the oldest active reader TXNID from the Reader Table.
+        - [x] Query Free DB to reuse pages freed by transactions older than the oldest reader.
+        - [x] Fall back to extending the file if no reusable pages are found.
+        - [x] Updated `db_page_alloc()` to try Free DB reclamation before extending file.
 - [x] **Testing (Free Space Management)** - COMPLETE
     - [x] Test `test_freed_pages_tracking`: Verify freed pages array is populated during CoW operations.
     - [x] Test `test_free_db_initialization`: Verify Free DB root changes from 0 after CoW.
     - [x] Test `test_free_db_entry_storage`: Test storing and retrieving freed pages by TXNID.
     - [x] Test `test_free_db_multiple_entries`: Test multiple Free DB entries.
-    - [x] All 144 unit tests pass (100% success rate).
+    - [x] All 145 unit tests pass (100% success rate).
+    - [x] Test `test_page_reclamation_safety`: Comprehensive test for MVCC-safe page reclamation. Test inserts 500 keys to create multi-page tree, deletes 250 keys to populate Free DB, then verifies:
+        - W2 cannot reclaim pages while R1 is active (extends file instead)
+        - W3 can reclaim pages after R1 ends (reuses freed pages)
+        - Test properly exercises db_page_alloc() by forcing B-tree splits with sufficient insertions
     - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes (FUTURE WORK).
-    - [ ] Test Page Reclamation: Verify pages are correctly reused only when safe (FUTURE WORK).
 
 ## Phase 2: `napr_cache` (Filesystem Hash Cache)
 

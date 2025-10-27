@@ -569,8 +569,10 @@ static void get_freed_pages(napr_db_txn_t *read_txn, txnid_t txnid, pgno_t **fre
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(*freed_pages);
 
-    for (size_t i = 0; i < *num_pages; i++) {
-        ck_assert_int_gt((*freed_pages)[i], 0);
+    /* Verify all page numbers are valid (> 0) */
+    const pgno_t *pages = *freed_pages;
+    for (size_t idx = 0; idx < *num_pages; idx++) {
+        ck_assert_int_gt(pages[idx], 0);
     }
 }
 
@@ -632,16 +634,16 @@ START_TEST(test_free_db_multiple_entries)
     create_db_env(&env);
     commit_dummy_data(env, "key1", "value0", NULL);
 
-    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        (void) snprintf(data_buf, sizeof(data_buf), "value%d", i + 1);
-        commit_dummy_data(env, "key1", data_buf, &txnids[i]);
+    for (int idx = 0; idx < DB_TEST_TXNS_COUNT_5; idx++) {
+        (void) snprintf(data_buf, sizeof(data_buf), "value%d", idx + 1);
+        commit_dummy_data(env, "key1", data_buf, &txnids[idx]);
     }
 
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    for (int i = 0; i < DB_TEST_TXNS_COUNT_5; i++) {
-        get_freed_pages(read_txn, txnids[i], &freed_pages, &num_pages);
+    for (int idx = 0; idx < DB_TEST_TXNS_COUNT_5; idx++) {
+        get_freed_pages(read_txn, txnids[idx], &freed_pages, &num_pages);
         ck_assert_int_gt(num_pages, 0);
     }
 
@@ -650,6 +652,169 @@ START_TEST(test_free_db_multiple_entries)
 
     status = napr_db_txn_abort(read_txn);
     ck_assert_int_eq(status, APR_SUCCESS);
+    status = napr_db_env_close(env);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+static void setup_initial_data(napr_db_env_t *env, pgno_t *last_pgno_out)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    napr_db_txn_t *txn_setup = NULL;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
+    char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
+
+    status = napr_db_txn_begin(env, 0, &txn_setup);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (int idx = 0; idx < DB_TEST_MVCC_MANY_KEY_COUNT_500; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_setup, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    status = napr_db_txn_commit(txn_setup);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    *last_pgno_out = env->live_meta->last_pgno;
+}
+
+static void delete_data_to_free_pages(napr_db_env_t *env, pgno_t *last_pgno_out)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    napr_db_txn_t *txn_delete = NULL;
+    napr_db_val_t key = { 0 };
+    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
+
+    status = napr_db_txn_begin(env, 0, &txn_delete);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (int idx = DB_TEST_MVCC_MANY_KEY_COUNT_250; idx < DB_TEST_MVCC_MANY_KEY_COUNT_500; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        status = napr_db_del(txn_delete, &key, NULL);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    ck_assert_int_gt(txn_delete->freed_pages->nelts, 0);
+    status = napr_db_txn_commit(txn_delete);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    *last_pgno_out = env->live_meta->last_pgno;
+}
+
+static void write_with_active_reader(napr_db_env_t *env, pgno_t *last_pgno_out)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    napr_db_txn_t *txn_r1 = NULL;
+    napr_db_txn_t *txn_w2 = NULL;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
+    char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
+
+    status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn_r1);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_db_txn_begin(env, 0, &txn_w2);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (int idx = DB_TEST_MVCC_MANY_KEY_COUNT_600; idx < DB_TEST_MVCC_MANY_KEY_COUNT_900; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_w2, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    status = napr_db_txn_commit(txn_w2);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    *last_pgno_out = env->live_meta->last_pgno;
+
+    status = napr_db_txn_abort(txn_r1);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+
+static void write_after_reader_closes(napr_db_env_t *env, pgno_t *last_pgno_out)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    napr_db_txn_t *txn_w3 = NULL;
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
+    char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
+
+    status = napr_db_txn_begin(env, 0, &txn_w3);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    for (int idx = DB_TEST_MVCC_MANY_KEY_COUNT_900; idx < DB_TEST_MVCC_MANY_KEY_COUNT_999; idx++) {
+        (void) snprintf(key_buf, sizeof(key_buf), "k%03d", idx);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        (void) snprintf(data_buf, sizeof(data_buf), "v%03d", idx);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_w3, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
+
+    status = napr_db_txn_commit(txn_w3);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    *last_pgno_out = env->live_meta->last_pgno;
+}
+
+/**
+ * @brief Test page reclamation safety with MVCC
+ *
+ * Verifies that pages cannot be reused while there are active readers that need them,
+ * and can be reused once those readers are done. Uses insertions that trigger splits
+ * to actually allocate new pages.
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_page_reclamation_safety)
+{
+    napr_db_env_t *env = NULL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    pgno_t last_pgno_after_setup = 0;
+    pgno_t last_pgno_after_delete = 0;
+    pgno_t last_pgno_after_w2 = 0;
+    pgno_t last_pgno_after_w3 = 0;
+
+    /* Create and open environment */
+    create_db_env(&env);
+
+    /* Phase 1: Setup initial data and verify we created a multi-page tree */
+    setup_initial_data(env, &last_pgno_after_setup);
+    ck_assert_int_gt(last_pgno_after_setup, 3);
+
+    /* Phase 2: Delete data to free pages */
+    delete_data_to_free_pages(env, &last_pgno_after_delete);
+
+    /* Phase 3: Write with an active reader (should extend file) */
+    write_with_active_reader(env, &last_pgno_after_w2);
+    ck_assert_int_gt(last_pgno_after_w2, last_pgno_after_delete);
+
+    /* Phase 4: Write after reader closes (should reuse pages) */
+    write_after_reader_closes(env, &last_pgno_after_w3);
+    ck_assert_int_le(last_pgno_after_w3, last_pgno_after_w2);
+
+    /* Cleanup */
     status = napr_db_env_close(env);
     ck_assert_int_eq(status, APR_SUCCESS);
 }
@@ -675,6 +840,7 @@ Suite *db_mvcc_suite(void)
     tcase_add_test(tc_core, test_free_db_initialization);
     tcase_add_test(tc_core, test_free_db_entry_storage);
     tcase_add_test(tc_core, test_free_db_multiple_entries);
+    tcase_add_test(tc_core, test_page_reclamation_safety);
 
     suite_add_tcase(suite, tc_core);
     return suite;
