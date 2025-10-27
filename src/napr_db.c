@@ -1016,6 +1016,60 @@ apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed
     return APR_SUCCESS;
 }
 
+static apr_status_t find_reclaimable_entry(napr_db_txn_t *txn, txnid_t oldest_reader_txnid, napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    txnid_t entry_txnid = 0;
+
+    status = napr_db_cursor_get(cursor, key, data, NAPR_DB_FIRST);
+    while (status == APR_SUCCESS) {
+        if (key->size != sizeof(txnid_t)) {
+            status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+            continue;
+        }
+
+        memcpy(&entry_txnid, key->data, sizeof(txnid_t));
+
+        if (entry_txnid < oldest_reader_txnid) {
+            if (data->size % sizeof(pgno_t) == 0 && data->size > 0) {
+                return APR_SUCCESS;
+            }
+        }
+
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+    }
+
+    return APR_NOTFOUND;
+}
+
+static apr_status_t update_or_delete_reclaimed_entry(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data)
+{
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters) - key/data is standard DB convention
+    apr_status_t status;
+    size_t num_pages = data->size / sizeof(pgno_t);
+
+    if (num_pages == 1) {
+        return napr_db_del(txn, key, NULL);
+    }
+
+    pgno_t *freed_pages = (pgno_t *) data->data;
+    pgno_t *remaining_pages = apr_palloc(txn->pool, (num_pages - 1) * sizeof(pgno_t));
+    if (!remaining_pages) {
+        return APR_ENOMEM;
+    }
+    memcpy(remaining_pages, &freed_pages[1], (num_pages - 1) * sizeof(pgno_t));
+
+    napr_db_val_t new_data = {.data = remaining_pages,.size = (num_pages - 1) * sizeof(pgno_t) };
+
+    status = napr_db_del(txn, key, NULL);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return napr_db_put(txn, key, &new_data);
+}
+
 /**
  * @brief Try to reclaim a page from the Free DB based on MVCC safety rules.
  *
@@ -1028,142 +1082,47 @@ apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed
  */
 apr_status_t db_reclaim_page_from_free_db(napr_db_txn_t *txn, pgno_t *reclaimed_pgno_out)
 {
-    apr_status_t status = APR_SUCCESS;
-    txnid_t oldest_reader_txnid = 0;
-    napr_db_cursor_t *cursor = NULL;
-    napr_db_val_t key = { 0 };
-    napr_db_val_t data = { 0 };
-    txnid_t entry_txnid = 0;
-    pgno_t *freed_pages = NULL;
-    size_t num_pages = 0;
-    pgno_t reclaimed_pgno = 0;
-
     if (!txn || !reclaimed_pgno_out) {
         return APR_EINVAL;
     }
-
-    /* If Free DB is empty, no pages to reclaim */
     if (txn->free_db_root_pgno == 0) {
         return APR_NOTFOUND;
     }
 
-    /* Get the oldest active reader TXNID */
-    status = db_get_oldest_reader_txnid(txn->env, &oldest_reader_txnid);
+    txnid_t oldest_reader_txnid = 0;
+    apr_status_t status = db_get_oldest_reader_txnid(txn->env, &oldest_reader_txnid);
     if (status != APR_SUCCESS) {
-        /* Error getting reader info - be conservative and don't reclaim */
         return APR_NOTFOUND;
     }
-
-    /* If oldest_reader_txnid is 0, there are no active readers */
-    /* In this case, all freed pages are safe to reuse */
     if (oldest_reader_txnid == 0) {
-        oldest_reader_txnid = txn->txnid;       /* All entries older than current txn are safe */
+        oldest_reader_txnid = txn->txnid;
     }
 
-    /* Temporarily swap roots to operate on Free DB */
     pgno_t saved_root = txn->root_pgno;
     txn->root_pgno = txn->free_db_root_pgno;
 
-    /* Open a cursor on the Free DB to iterate through entries */
+    napr_db_cursor_t *cursor = NULL;
     status = napr_db_cursor_open(txn, &cursor);
     if (status != APR_SUCCESS) {
         txn->root_pgno = saved_root;
         return status;
     }
 
-    /* Iterate through Free DB to find an entry with TXNID < oldest_reader */
-    status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_FIRST);
-    while (status == APR_SUCCESS) {
-        /* Parse the key as TXNID */
-        if (key.size != sizeof(txnid_t)) {
-            status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
-            continue;
-        }
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    status = find_reclaimable_entry(txn, oldest_reader_txnid, cursor, &key, &data);
 
-        memcpy(&entry_txnid, key.data, sizeof(txnid_t));
+    napr_db_cursor_close(cursor);
 
-        /* Check if this entry is safe to reclaim (older than oldest reader) */
-        if (entry_txnid < oldest_reader_txnid) {
-            /* Found a reclaimable entry! */
+    if (status == APR_SUCCESS) {
+        pgno_t *freed_pages = (pgno_t *) data.data;
+        *reclaimed_pgno_out = freed_pages[0];
 
-            /* Parse the data as an array of page numbers */
-            if (data.size % sizeof(pgno_t) != 0 || data.size == 0) {
-                /* Invalid entry, skip it */
-                status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
-                continue;
-            }
-
-            num_pages = data.size / sizeof(pgno_t);
-            freed_pages = (pgno_t *) data.data;
-
-            /* Reclaim the first page from this entry */
-            reclaimed_pgno = freed_pages[0];
-
-            /* Close cursor before modifying the Free DB */
-            napr_db_cursor_close(cursor);
-            cursor = NULL;
-
-            /* root_pgno is already set to Free DB root from above */
-
-            /* If this was the last page in the entry, delete the entry */
-            if (num_pages == 1) {
-                /* Delete the entire entry from Free DB */
-                status = napr_db_del(txn, &key, NULL);
-                /* Restore original root */
-                txn->root_pgno = saved_root;
-                if (status != APR_SUCCESS) {
-                    return status;
-                }
-            }
-            else {
-                /* Update the entry with remaining pages */
-                /* We need to copy the data to a local buffer since we're modifying the Free DB */
-                pgno_t *remaining_pages = apr_palloc(txn->pool, (num_pages - 1) * sizeof(pgno_t));
-                if (!remaining_pages) {
-                    txn->root_pgno = saved_root;
-                    return APR_ENOMEM;
-                }
-                memcpy(remaining_pages, &freed_pages[1], (num_pages - 1) * sizeof(pgno_t));
-
-                napr_db_val_t new_data = { 0 };
-                new_data.data = remaining_pages;
-                new_data.size = (num_pages - 1) * sizeof(pgno_t);
-
-                /* Delete the old entry and insert the updated one */
-                /* Note: We need to delete first because napr_db_put rejects duplicates */
-                status = napr_db_del(txn, &key, NULL);
-                if (status != APR_SUCCESS) {
-                    txn->root_pgno = saved_root;
-                    return status;
-                }
-
-                status = napr_db_put(txn, &key, &new_data);
-                /* Restore original root */
-                txn->root_pgno = saved_root;
-                if (status != APR_SUCCESS) {
-                    return status;
-                }
-            }
-
-            /* Successfully reclaimed a page */
-            *reclaimed_pgno_out = reclaimed_pgno;
-            return APR_SUCCESS;
-        }
-
-        /* Try next entry */
-        status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
+        status = update_or_delete_reclaimed_entry(txn, &key, &data);
     }
 
-    /* Close cursor if still open */
-    if (cursor) {
-        napr_db_cursor_close(cursor);
-    }
-
-    /* Restore original root before returning */
     txn->root_pgno = saved_root;
-
-    /* No reclaimable pages found */
-    return APR_NOTFOUND;
+    return status;
 }
 
 /**
