@@ -233,15 +233,15 @@ This checklist follows the detailed project blueprint, organized by phases and i
         - [x] CRITICAL Memory Management: Duplicate the path string into the main cache pool using `apr_pstrdup(cache->pool, ...)` (Spec 7.2.2).
         - [x] Insert the duplicated path into `visited_set`.
         - [x] Release `visited_mutex`.
-    - [ ] Implement `napr_cache_sweep` (Spec 5.2):
-        - [ ] Begin a single write transaction.
-        - [ ] Iterate the entire `napr_db` using a cursor.
-        - [ ] Check if the current key exists in `visited_set` (`apr_hash_get`).
-        - [ ] If NOT found, delete the entry from the DB.
-        - [ ] Commit the transaction.
-        - [ ] Clear the `visited_set` (`apr_hash_clear`).
+    - [x] Implement `napr_cache_sweep` (Spec 5.2):
+        - [x] Begin a single write transaction.
+        - [x] Iterate the entire `napr_db` using a cursor.
+        - [x] Check if the current key exists in `visited_set` (`apr_hash_get`).
+        - [x] If NOT found, delete the entry from the DB.
+        - [x] Commit the transaction.
+        - [x] Clear the `visited_set` (`apr_hash_clear`).
 - [x] **Testing (`check/check_cache_mark_sweep.c`)**
     - [x] Test Memory Management: Mark a path from a short-lived pool, destroy the pool, verify the internal set still holds a valid copy.
     - [x] Test Concurrency: Stress test concurrent calls to `mark_visited`.
-    - [ ] Test Sweep Logic Integration: Populate (A, B, C). Mark (A, C). Sweep. Verify (A, C) remain and (B) is removed.
+    - [x] Test Sweep Logic Integration: Populate (A, B, C, D). Mark (A, C). Sweep. Verify (A, C) remain and (B, D) are removed. Verify visited_set is cleared after sweep.
 ```

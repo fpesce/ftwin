@@ -264,6 +264,144 @@ END_TEST
 /* *INDENT-ON* */
 
 /* ========================================================================
+ * Sweep Tests
+ * ======================================================================== */
+
+/**
+ * @test Test sweep logic integration
+ *
+ * This test verifies that the sweep operation correctly removes
+ * unmarked entries while preserving marked ones.
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_sweep_integration)
+{
+    apr_status_t status = APR_SUCCESS;
+    napr_cache_entry_t entry_a;
+    napr_cache_entry_t entry_b;
+    napr_cache_entry_t entry_c;
+    napr_cache_entry_t entry_d;
+    const napr_cache_entry_t *retrieved = NULL;
+
+    /* Define test paths */
+    const char *path_a = "/sweep/test/a.txt";
+    const char *path_b = "/sweep/test/b.txt";
+    const char *path_c = "/sweep/test/c.txt";
+    const char *path_d = "/sweep/test/d.txt";
+
+    /* Prepare test entries */
+    entry_a.mtime = CACHE_TEST_SWEEP_A_MTIME;
+    entry_a.ctime = CACHE_TEST_SWEEP_A_CTIME;
+    entry_a.size = CACHE_TEST_SWEEP_A_SIZE;
+    entry_a.hash.low64 = CACHE_TEST_SWEEP_A_HASH_LOW;
+    entry_a.hash.high64 = CACHE_TEST_SWEEP_A_HASH_HIGH;
+
+    entry_b.mtime = CACHE_TEST_SWEEP_B_MTIME;
+    entry_b.ctime = CACHE_TEST_SWEEP_B_CTIME;
+    entry_b.size = CACHE_TEST_SWEEP_B_SIZE;
+    entry_b.hash.low64 = CACHE_TEST_SWEEP_B_HASH_LOW;
+    entry_b.hash.high64 = CACHE_TEST_SWEEP_B_HASH_HIGH;
+
+    entry_c.mtime = CACHE_TEST_SWEEP_C_MTIME;
+    entry_c.ctime = CACHE_TEST_SWEEP_C_CTIME;
+    entry_c.size = CACHE_TEST_SWEEP_C_SIZE;
+    entry_c.hash.low64 = CACHE_TEST_SWEEP_C_HASH_LOW;
+    entry_c.hash.high64 = CACHE_TEST_SWEEP_C_HASH_HIGH;
+
+    entry_d.mtime = CACHE_TEST_SWEEP_D_MTIME;
+    entry_d.ctime = CACHE_TEST_SWEEP_D_CTIME;
+    entry_d.size = CACHE_TEST_SWEEP_D_SIZE;
+    entry_d.hash.low64 = CACHE_TEST_SWEEP_D_HASH_LOW;
+    entry_d.hash.high64 = CACHE_TEST_SWEEP_D_HASH_HIGH;
+
+    /* STEP 1: Populate cache with A, B, C, D */
+    status = napr_cache_begin_write(test_cache, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_upsert_in_txn(test_cache, path_a, &entry_a);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_upsert_in_txn(test_cache, path_b, &entry_b);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_upsert_in_txn(test_cache, path_c, &entry_c);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_upsert_in_txn(test_cache, path_d, &entry_d);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_commit_write(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* STEP 2: Mark only A and C as visited */
+    status = napr_cache_mark_visited(test_cache, path_a);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_mark_visited(test_cache, path_c);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* STEP 3: Call sweep to remove unmarked entries (B and D) */
+    status = napr_cache_sweep(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* STEP 4: Verify A and C still exist */
+    status = napr_cache_begin_read(test_cache, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_a, &retrieved);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_ptr_nonnull(retrieved);
+    ck_assert_int_eq(retrieved->mtime, entry_a.mtime);
+    ck_assert_int_eq(retrieved->size, entry_a.size);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_c, &retrieved);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_ptr_nonnull(retrieved);
+    ck_assert_int_eq(retrieved->mtime, entry_c.mtime);
+    ck_assert_int_eq(retrieved->size, entry_c.size);
+
+    status = napr_cache_end_read(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* STEP 5: Verify B and D are gone */
+    status = napr_cache_begin_read(test_cache, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_b, &retrieved);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_d, &retrieved);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+
+    status = napr_cache_end_read(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* STEP 6: Verify visited_set is empty after sweep
+     * (We do this indirectly by marking new paths and sweeping again) */
+    status = napr_cache_mark_visited(test_cache, path_a);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_sweep(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* After second sweep, only A should remain, C should be gone */
+    status = napr_cache_begin_read(test_cache, test_pool);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_a, &retrieved);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    status = napr_cache_lookup_in_txn(test_cache, path_c, &retrieved);
+    ck_assert_int_eq(status, APR_NOTFOUND);
+
+    status = napr_cache_end_read(test_cache);
+    ck_assert_int_eq(status, APR_SUCCESS);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/* ========================================================================
  * Test Suite Setup
  * ======================================================================== */
 
@@ -272,6 +410,7 @@ Suite *cache_mark_sweep_suite(void)
     Suite *suite = NULL;
     TCase *tc_memory = NULL;
     TCase *tc_concurrency = NULL;
+    TCase *tc_sweep = NULL;
 
     suite = suite_create("Cache Mark and Sweep");
 
@@ -288,6 +427,12 @@ Suite *cache_mark_sweep_suite(void)
     tcase_add_checked_fixture(tc_concurrency, setup, teardown);
     tcase_add_test(tc_concurrency, test_mark_visited_concurrency);
     suite_add_tcase(suite, tc_concurrency);
+
+    /* Sweep tests */
+    tc_sweep = tcase_create("Sweep");
+    tcase_add_checked_fixture(tc_sweep, setup, teardown);
+    tcase_add_test(tc_sweep, test_sweep_integration);
+    suite_add_tcase(suite, tc_sweep);
 
     return suite;
 }

@@ -109,4 +109,52 @@
 #define CACHE_TEST_MARK_PER_THREAD 25
 #define CACHE_TEST_MARK_VISITED_MULT 10
 
+/*
+ * =================================================================
+ * Test Entry Values - Sweep Test Entry A
+ * =================================================================
+ */
+
+#define CACHE_TEST_SWEEP_A_MTIME 1000
+#define CACHE_TEST_SWEEP_A_CTIME 1001
+#define CACHE_TEST_SWEEP_A_SIZE 100
+#define CACHE_TEST_SWEEP_A_HASH_LOW 0xAAAAAAAAAAAAAAAAULL
+#define CACHE_TEST_SWEEP_A_HASH_HIGH 0xBBBBBBBBBBBBBBBBULL
+
+/*
+ * =================================================================
+ * Test Entry Values - Sweep Test Entry B
+ * =================================================================
+ */
+
+#define CACHE_TEST_SWEEP_B_MTIME 2000
+#define CACHE_TEST_SWEEP_B_CTIME 2001
+#define CACHE_TEST_SWEEP_B_SIZE 200
+#define CACHE_TEST_SWEEP_B_HASH_LOW 0xCCCCCCCCCCCCCCCCULL
+#define CACHE_TEST_SWEEP_B_HASH_HIGH 0xDDDDDDDDDDDDDDDDULL
+
+/*
+ * =================================================================
+ * Test Entry Values - Sweep Test Entry C
+ * =================================================================
+ */
+
+#define CACHE_TEST_SWEEP_C_MTIME 3000
+#define CACHE_TEST_SWEEP_C_CTIME 3001
+#define CACHE_TEST_SWEEP_C_SIZE 300
+#define CACHE_TEST_SWEEP_C_HASH_LOW 0xEEEEEEEEEEEEEEEEULL
+#define CACHE_TEST_SWEEP_C_HASH_HIGH 0xFFFFFFFFFFFFFFFFULL
+
+/*
+ * =================================================================
+ * Test Entry Values - Sweep Test Entry D
+ * =================================================================
+ */
+
+#define CACHE_TEST_SWEEP_D_MTIME 4000
+#define CACHE_TEST_SWEEP_D_CTIME 4001
+#define CACHE_TEST_SWEEP_D_SIZE 400
+#define CACHE_TEST_SWEEP_D_HASH_LOW 0x1111111111111111ULL
+#define CACHE_TEST_SWEEP_D_HASH_HIGH 0x2222222222222222ULL
+
 #endif /* CHECK_CACHE_CONSTANTS_H */
