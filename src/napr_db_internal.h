@@ -21,6 +21,7 @@ enum
 #include <apr_thread_mutex.h>
 #include <apr_proc_mutex.h>
 #include <apr_hash.h>
+#include <apr_portable.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -33,6 +34,48 @@ typedef uint64_t pgno_t;
 
 /** Transaction ID type (64-bit) */
 typedef uint64_t txnid_t;
+
+/** @brief Structure for passing page numbers to commit_meta_page */
+typedef struct DB_CommitPgnos
+{
+    pgno_t new_root_pgno;       /**< New root page number for main DB */
+    pgno_t new_free_db_root_pgno;   /**< New root page number for Free DB */
+} DB_CommitPgnos;
+
+/** @brief Structure for passing page numbers to propagate_split_up_tree_in_tree */
+typedef struct DB_SplitPgnos
+{
+    pgno_t *right_child_pgno;   /**< Right child page number */
+    pgno_t *new_root_out;       /**< New root page number */
+} DB_SplitPgnos;
+
+/*
+ * MVCC Reader Tracking
+ */
+
+/** Maximum concurrent read transactions */
+#define MAX_READERS 126
+
+/** CPU cache line size for alignment (prevents false sharing) */
+#define CACHE_LINE_SIZE 64
+
+#define PADDING_SIZE 44
+/**
+ * @brief Reader slot for MVCC tracking.
+ *
+ * Each active read transaction registers in a slot with its snapshot TXNID.
+ * CRITICAL (Spec 3.2): Structure is cache-line sized (64 bytes) to prevent
+ * false sharing between CPU cores when multiple readers access different slots.
+ *
+ * A slot is considered free when txnid == 0.
+ */
+typedef struct DB_ReaderSlot
+{
+    apr_os_proc_t pid;      /**< Process ID (for inter-process tracking) */
+    apr_os_thread_t tid;    /**< Thread ID (for intra-process tracking) */
+    txnid_t txnid;          /**< Snapshot TXNID (0 = slot is free) */
+    uint8_t padding[PADDING_SIZE];    /**< Padding to 64 bytes (4 + 8 + 8 + 44 = 64) */
+} __attribute__((packed)) DB_ReaderSlot;
 
 /*
  * Size and offset constants for validation
@@ -58,7 +101,8 @@ typedef uint64_t txnid_t;
 #define DB_METAPAGE_TXNID_OFFSET 8
 #define DB_METAPAGE_ROOT_OFFSET 16
 #define DB_METAPAGE_LAST_PGNO_OFFSET 24
-#define DB_METAPAGE_PAYLOAD_SIZE (4 + 4 + 8 + 8 + 8)
+#define DB_METAPAGE_FREE_DB_ROOT_OFFSET 32
+#define DB_METAPAGE_PAYLOAD_SIZE (4 + 4 + 8 + 8 + 8 + 8)
 #define DB_METAPAGE_RESERVED_SIZE (PAGE_SIZE - DB_METAPAGE_PAYLOAD_SIZE)
 
 /* DB_BranchNode layout */
@@ -73,6 +117,8 @@ typedef uint64_t txnid_t;
 #define DB_LEAFNODE_DATA_SIZE_OFFSET 2
 #define DB_LEAFNODE_KV_DATA_OFFSET 4
 
+/* Freed Pages default array size  */
+#define DB_FREED_PAGES_DFLT_SIZE 16
 
 /*
  * Constants
@@ -160,9 +206,11 @@ typedef struct __attribute__((packed))
          uint32_t version;
                         /**< Format version: DB_VERSION (4 bytes) */
          txnid_t txnid; /**< Transaction ID (8 bytes) */
-         pgno_t root;   /**< Root page of B+ tree (8 bytes) */
+         pgno_t root;   /**< Root page of main B+ tree (8 bytes) */
          pgno_t last_pgno;
                         /**< Last allocated page number (8 bytes) */
+         pgno_t free_db_root;
+                        /**< Root page of Free DB B+ tree (8 bytes) */
          uint8_t reserved[DB_METAPAGE_RESERVED_SIZE];
                                                   /**< Reserved/padding to PAGE_SIZE */
      } DB_MetaPage;
@@ -238,6 +286,10 @@ struct napr_db_env_t
     /* Synchronization - SWMR model */
     apr_thread_mutex_t *writer_thread_mutex;  /**< Intra-process writer lock */
     apr_proc_mutex_t *writer_proc_mutex;      /**< Inter-process writer lock */
+
+    /* MVCC Reader Tracking */
+    DB_ReaderSlot reader_table[MAX_READERS] __attribute__((aligned(CACHE_LINE_SIZE)));  /**< Active reader tracking table */
+    apr_thread_mutex_t *reader_table_mutex;   /**< Protects reader table access */
 };
 
 /**
@@ -256,12 +308,16 @@ struct napr_db_txn_t
     napr_db_env_t *env;         /**< Environment this transaction belongs to */
     apr_pool_t *pool;           /**< APR pool for transaction allocations */
     txnid_t txnid;              /**< Transaction ID (snapshot version) */
-    pgno_t root_pgno;           /**< Root page number for this snapshot */
+    pgno_t root_pgno;           /**< Root page number for main DB snapshot */
+    pgno_t free_db_root_pgno;   /**< Root page number for Free DB snapshot */
     unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
 
     /* Copy-on-Write tracking for write transactions */
     apr_hash_t *dirty_pages;    /**< Hash table: pgno_t -> DB_PageHeader* (dirty copy) */
     pgno_t new_last_pgno;       /**< Last page number for this transaction (for allocation) */
+
+    /* Free space tracking for write transactions */
+    apr_array_header_t *freed_pages;  /**< Array of pgno_t freed during this transaction */
 };
 
 /**
@@ -410,6 +466,36 @@ apr_status_t db_page_search(DB_PageHeader *page, const napr_db_val_t *key, uint1
 apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out);
 
 /**
+ * @brief Find leaf page in an arbitrary tree (used for Free DB).
+ *
+ * This variant accepts a root page number parameter, allowing it to traverse
+ * any B+ tree (main DB or Free DB).
+ *
+ * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, DB_PageHeader **leaf_page_out);
+
+/**
+ * @brief Find leaf page with path in an arbitrary tree (used for Free DB).
+ *
+ * This variant accepts a root page number parameter, allowing it to traverse
+ * any B+ tree (main DB or Free DB) while recording the path for CoW operations.
+ *
+ * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out);
+
+/**
  * @brief Allocate new pages in a write transaction.
  *
  * Allocates one or more contiguous pages by incrementing the last_pgno.
@@ -461,6 +547,18 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
 apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t child_pgno);
 
 /**
+ * @brief Delete a node from a page by index.
+ *
+ * Removes the specified node from the page and compacts the data area
+ * to reclaim space. Updates page header accordingly.
+ *
+ * @param page Page containing the node to delete (must be writable/dirty)
+ * @param index Index of the node to delete (0-based)
+ * @return APR_SUCCESS on success, APR_EINVAL if index out of bounds
+ */
+apr_status_t db_page_delete(DB_PageHeader *page, uint16_t index);
+
+/**
  * @brief Split a leaf page when it becomes full.
  *
  * Splits a full leaf page into two pages, moving approximately half the
@@ -475,5 +573,26 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
  */
 apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
 apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_PageHeader **right_page_out, napr_db_val_t *divider_key_out);
+
+/**
+ * @brief Get the oldest active reader TXNID from the reader tracking table.
+ *
+ * Scans the reader table to find the minimum TXNID among all active readers.
+ * This is used to determine which pages can be safely reclaimed (pages freed
+ * by transactions older than the oldest reader are no longer visible).
+ *
+ * @param env Database environment
+ * @param oldest_txnid_out Output: oldest active reader TXNID (0 if no active readers)
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_get_oldest_reader_txnid(napr_db_env_t *env, txnid_t *oldest_txnid_out);
+
+/**
+ * @brief Try to reclaim a page from the Free DB based on MVCC safety rules.
+ * @param txn The write transaction requesting allocation.
+ * @param reclaimed_pgno_out Output parameter for the reclaimed page number.
+ * @return APR_SUCCESS if reclaimed, APR_NOTFOUND if no safe pages available.
+ */
+apr_status_t db_reclaim_page_from_free_db(napr_db_txn_t *txn, pgno_t *reclaimed_pgno_out);
 
 #endif /* NAPR_DB_INTERNAL_H */

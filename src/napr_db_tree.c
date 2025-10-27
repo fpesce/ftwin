@@ -157,18 +157,19 @@ static inline DB_PageHeader *db_get_page(napr_db_txn_t *txn, pgno_t pgno)
 }
 
 /**
- * @brief Find the leaf page that should contain a given key.
+ * @brief Find the leaf page that should contain a given key in a specific tree.
  *
- * Traverses the B+ tree from the root down to the appropriate leaf page.
+ * Traverses a B+ tree from the specified root down to the appropriate leaf page.
  * This function performs tree traversal following child pointers in branch
  * pages until reaching a leaf.
  *
- * @param txn Transaction handle (contains root_pgno snapshot)
+ * @param txn Transaction handle (for accessing pages)
+ * @param root_pgno Root page number of the tree to search
  * @param key Key to search for
  * @param leaf_page_out Output: pointer to the leaf page in the memory map
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
+apr_status_t db_find_leaf_page_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -180,8 +181,8 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
         return APR_EINVAL;
     }
 
-    /* Start at the root page from the transaction's snapshot */
-    current_pgno = txn->root_pgno;
+    /* Start at the specified root page */
+    current_pgno = root_pgno;
 
     /* Traverse the tree */
     while (1) {
@@ -237,6 +238,24 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
 }
 
 /**
+ * @brief Find the leaf page that should contain a given key.
+ *
+ * This is a convenience wrapper that uses the main DB root from the transaction.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param leaf_page_out Output: pointer to the leaf page in the memory map
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_PageHeader **leaf_page_out)
+{
+    if (!txn) {
+        return APR_EINVAL;
+    }
+    return db_find_leaf_page_in_tree(txn, txn->root_pgno, key, leaf_page_out);
+}
+
+/**
  * @brief Allocate new pages in a write transaction.
  *
  * Allocates one or more contiguous pages by incrementing the transaction's
@@ -263,7 +282,18 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
         return APR_EINVAL;
     }
 
-    /* Allocate by incrementing last_pgno */
+    /* For single-page allocations, try to reclaim from Free DB first */
+    if (count == 1) {
+        apr_status_t status = db_reclaim_page_from_free_db(txn, &first_pgno);
+        if (status == APR_SUCCESS) {
+            /* Successfully reclaimed a page from Free DB */
+            *pgno_out = first_pgno;
+            return APR_SUCCESS;
+        }
+        /* If reclamation failed (APR_NOTFOUND or error), fall through to file extension */
+    }
+
+    /* Fall back to extending the file (original behavior) */
     first_pgno = txn->new_last_pgno + 1;
     txn->new_last_pgno += count;
 
@@ -332,6 +362,14 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_pa
 
     /* Store the dirty copy in the hash table */
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), dirty_copy);
+
+    /* Record the original page as freed (Copy-on-Write) */
+    if (txn->freed_pages) {
+        pgno_t *freed_pgno = (pgno_t *) apr_array_push(txn->freed_pages);
+        if (freed_pgno) {
+            *freed_pgno = pgno;
+        }
+    }
 
     *dirty_copy_out = dirty_copy;
     return APR_SUCCESS;
@@ -424,6 +462,74 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
     page->num_keys++;
     page->lower += sizeof(uint16_t);
     page->upper = new_offset;
+
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Delete a node from a page by index.
+ *
+ * This function removes a node from a slotted page by:
+ * 1. Removing the slot entry (shifts remaining slots)
+ * 2. Compacting the data area if needed (shifts data to reclaim space)
+ * 3. Updating page header (num_keys, upper pointer)
+ *
+ * @param page Page containing the node to delete (must be writable/dirty)
+ * @param index Index of the node to delete
+ * @return APR_SUCCESS on success, APR_EINVAL if index out of bounds
+ */
+apr_status_t db_page_delete(DB_PageHeader *page, uint16_t index)
+{
+    uint16_t *slots = NULL;
+    uint16_t delete_offset = 0;
+    uint16_t delete_size = 0;
+    uint16_t idx = 0;
+
+    if (!page || index >= page->num_keys) {
+        return APR_EINVAL;
+    }
+
+    slots = db_page_slots(page);
+    delete_offset = slots[index];
+
+    /* Calculate size of node being deleted */
+    if (page->flags & P_LEAF) {
+        DB_LeafNode *node = (DB_LeafNode *) ((char *) page + delete_offset);
+        delete_size = (uint16_t) (sizeof(DB_LeafNode) + node->key_size + node->data_size);
+    }
+    else if (page->flags & P_BRANCH) {
+        DB_BranchNode *node = (DB_BranchNode *) ((char *) page + delete_offset);
+        delete_size = (uint16_t) (sizeof(DB_BranchNode) + node->key_size);
+    }
+    else {
+        return APR_EINVAL;
+    }
+
+    /* Remove slot by shifting remaining slots left */
+    for (idx = index; idx < page->num_keys - 1; idx++) {
+        slots[idx] = slots[idx + 1];
+    }
+
+    /* Compact data area: shift all data after deleted node upward */
+    if (delete_offset > page->upper) {
+        /* Data to move is from upper to delete_offset */
+        uint16_t move_size = delete_offset - page->upper;
+        if (move_size > 0) {
+            memmove((char *) page + page->upper + delete_size, (char *) page + page->upper, move_size);
+        }
+
+        /* Update all slot offsets that pointed above the deleted node */
+        for (idx = 0; idx < page->num_keys - 1; idx++) {
+            if (slots[idx] < delete_offset) {
+                slots[idx] += delete_size;
+            }
+        }
+    }
+
+    /* Update page header */
+    page->num_keys--;
+    page->lower -= sizeof(uint16_t);
+    page->upper += delete_size;
 
     return APR_SUCCESS;
 }
@@ -715,20 +821,21 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
 }
 
 /**
- * @brief Find the leaf page for a key and record the path (for CoW).
+ * @brief Find the leaf page for a key in a specific tree and record the path (for CoW).
  *
- * This is similar to db_find_leaf_page, but it records the path from
+ * This is similar to db_find_leaf_page_in_tree, but it records the path from
  * root to leaf for later CoW propagation. This is necessary for write
  * operations to ensure the entire path is copied.
  *
  * @param txn Transaction handle
+ * @param root_pgno Root page number of the tree to search
  * @param key Key to search for
  * @param path_out Array to store page numbers along the path
  * @param path_len_out Output: length of the path
  * @param leaf_page_out Output: pointer to the leaf page
  * @return APR_SUCCESS on success, error code on failure
  */
-apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
+apr_status_t db_find_leaf_page_with_path_in_tree(napr_db_txn_t *txn, pgno_t root_pgno, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
 {
     pgno_t current_pgno = 0;
     DB_PageHeader *page = NULL;
@@ -741,8 +848,8 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
         return APR_EINVAL;
     }
 
-    /* Start at the root page from the transaction's snapshot */
-    current_pgno = txn->root_pgno;
+    /* Start at the specified root page */
+    current_pgno = root_pgno;
 
     /* Traverse the tree and record the path */
     while (1) {
@@ -752,6 +859,12 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
         }
         path_out[depth] = current_pgno;
         depth++;
+
+        /* Validate page number is within bounds before accessing */
+        pgno_t max_pgno = (txn->flags & NAPR_DB_RDONLY) ? txn->env->live_meta->last_pgno : txn->new_last_pgno;
+        if (current_pgno > max_pgno) {
+            return APR_EINVAL;  /* Page number out of bounds */
+        }
 
         /* Get page (checks dirty pages first for write txns) */
         page = db_get_page(txn, current_pgno);
@@ -788,4 +901,24 @@ apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t
     }
 
     return APR_EGENERAL;
+}
+
+/**
+ * @brief Find the leaf page for a key and record the path (for CoW).
+ *
+ * This is a convenience wrapper that uses the main DB root from the transaction.
+ *
+ * @param txn Transaction handle
+ * @param key Key to search for
+ * @param path_out Array to store page numbers along the path
+ * @param path_len_out Output: length of the path
+ * @param leaf_page_out Output: pointer to the leaf page
+ * @return APR_SUCCESS on success, error code on failure
+ */
+apr_status_t db_find_leaf_page_with_path(napr_db_txn_t *txn, const napr_db_val_t *key, pgno_t *path_out, uint16_t *path_len_out, DB_PageHeader **leaf_page_out)
+{
+    if (!txn) {
+        return APR_EINVAL;
+    }
+    return db_find_leaf_page_with_path_in_tree(txn, txn->root_pgno, key, path_out, path_len_out, leaf_page_out);
 }

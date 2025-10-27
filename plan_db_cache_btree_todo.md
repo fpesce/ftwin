@@ -141,32 +141,59 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Implement `napr_db_cursor_get` positioning operations:
         - [x] `NAPR_DB_FIRST`, `NAPR_DB_LAST`.
         - [x] `NAPR_DB_SET`, `NAPR_DB_SET_RANGE`.
-    - [ ] Implement `napr_db_cursor_get` iteration operations (Complex):
-        - [ ] `NAPR_DB_NEXT`, `NAPR_DB_PREV` (Requires ascending/descending the stack due to lack of sibling pointers).
-- [ ] **Implementation (`src/napr_db_tree.c`)**
-    - [ ] Implement `napr_db_del`.
-- [x] **Testing (`check/check_db_cursor.c` and `check_db_delete.c`)**
-    - [ ] Test forward and backward iteration across the entire dataset.
-    - [ ] Test iteration across page boundaries (verifies stack logic).
-    - [ ] Test deletion.
+    - [x] Implement `napr_db_cursor_get` iteration operations (Complex):
+        - [x] `NAPR_DB_NEXT`, `NAPR_DB_PREV` (Requires ascending/descending the stack due to lack of sibling pointers).
+- [x] **Implementation (`src/napr_db.c` and `src/napr_db_tree.c`)**
+    - [x] Implement `db_page_delete` helper (slotted page deletion with compaction).
+    - [x] Implement `napr_db_del` (simple deletion without rebalancing).
+- [x] **Testing (`check/check_db_cursor.c` and `check/check_db_delete.c`)**
+    - [x] Test forward and backward iteration across the entire dataset.
+    - [x] Test iteration across page boundaries (verifies stack logic).
+    - [x] Test basic deletion (insert A,B,C / delete B / verify A,C exist, B gone).
+    - [x] Test deleting first and last keys (boundary conditions).
+    - [x] Test deleting non-existent key (returns APR_NOTFOUND).
+    - [x] Test deletion rejects read-only transactions.
 
 ### Iteration 7: MVCC and Free Space Management
 
-- [ ] **Implementation (MVCC Components)**
-    - [ ] Implement the Reader Tracking Table (in shared memory).
-    - [ ] CRITICAL: Ensure Reader Table slots are CPU cache-line aligned (e.g., 64 bytes) to prevent false sharing (Spec 3.2).
-    - [ ] Register reader (TXNID snapshot) in `napr_db_txn_begin` (Read-only).
-    - [ ] Unregister reader in `napr_db_txn_commit/abort` (Read-only).
-- [ ] **Implementation (Free Space Management)**
-    - [ ] Implement the "Free DB" (A separate B+ Tree tracking `TXNID -> [pgno_t array]`).
-    - [ ] Update write transaction commit logic: Add newly freed pages (from CoW or deletion) to the Free DB under the current TXNID.
-    - [ ] Refine Page Allocation:
-        - [ ] Determine the oldest active reader TXNID from the Reader Table.
-        - [ ] Query Free DB to reuse pages freed by transactions older than the oldest reader.
-        - [ ] Fall back to extending the file if no reusable pages are found.
-- [ ] **Testing (`check/check_db_mvcc.c`)**
-    - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes.
-    - [ ] Test Page Reclamation: Verify pages are correctly reused only when safe.
+- [x] **Implementation (MVCC Components)**
+    - [x] Implement the Reader Tracking Table (in shared memory).
+    - [x] CRITICAL: Ensure Reader Table slots are CPU cache-line aligned (e.g., 64 bytes) to prevent false sharing (Spec 3.2).
+    - [x] Register reader (TXNID snapshot) in `napr_db_txn_begin` (Read-only).
+    - [x] Unregister reader in `napr_db_txn_commit/abort` (Read-only).
+    - [x] Implement `db_get_oldest_reader_txnid()` helper function.
+- [x] **Testing (`check/check_db_mvcc.c`)**
+    - [x] Test `DB_ReaderSlot` size and alignment with `_Static_assert`.
+    - [x] Test reader registration with concurrent read transactions.
+    - [x] Test `db_get_oldest_reader_txnid()` correctness.
+    - [x] Test that write transactions do not register in reader table.
+- [x] **Implementation (Free Space Management)** - COMPLETE
+    - [x] Add `free_db_root` field to `DB_MetaPage` structure.
+    - [x] Update `napr_db_txn_t` to track freed pages and capture Free DB root in snapshot.
+    - [x] Update CoW logic (`db_page_get_writable`) to record freed pages.
+    - [x] Implement `populate_free_db()` function (full implementation with Free DB insertion).
+    - [x] Update write transaction commit logic to call `populate_free_db()`.
+    - [x] Complete B+ Tree operations that can operate on different roots (main_db_root or free_db_root).
+    - [x] Implement actual Free DB insertion in `populate_free_db()`.
+    - [x] Fix commit sequencing to ensure Free DB pages are written to disk.
+    - [x] Implement MVCC update semantics (distinguish same-transaction duplicates from cross-transaction updates).
+    - [x] Refine Page Allocation (Spec 2.4):
+        - [x] Implemented `db_reclaim_page_from_free_db()` helper function.
+        - [x] Determine the oldest active reader TXNID from the Reader Table.
+        - [x] Query Free DB to reuse pages freed by transactions older than the oldest reader.
+        - [x] Fall back to extending the file if no reusable pages are found.
+        - [x] Updated `db_page_alloc()` to try Free DB reclamation before extending file.
+- [x] **Testing (Free Space Management)** - COMPLETE
+    - [x] Test `test_freed_pages_tracking`: Verify freed pages array is populated during CoW operations.
+    - [x] Test `test_free_db_initialization`: Verify Free DB root changes from 0 after CoW.
+    - [x] Test `test_free_db_entry_storage`: Test storing and retrieving freed pages by TXNID.
+    - [x] Test `test_free_db_multiple_entries`: Test multiple Free DB entries.
+    - [x] All 145 unit tests pass (100% success rate).
+    - [x] Test `test_page_reclamation_safety`: Comprehensive test for MVCC-safe page reclamation. Test inserts 500 keys to create multi-page tree, deletes 250 keys to populate Free DB, then verifies:
+        - W2 cannot reclaim pages while R1 is active (extends file instead)
+        - W3 can reclaim pages after R1 ends (reuses freed pages)
+        - Test properly exercises db_page_alloc() by forcing B-tree splits with sufficient insertions
+    - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes (FUTURE WORK).
 
 ## Phase 2: `napr_cache` (Filesystem Hash Cache)
 
