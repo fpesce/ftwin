@@ -397,6 +397,118 @@ apr_status_t napr_cache_mark_visited(napr_cache_t *cache, const char *path)
 
 apr_status_t napr_cache_sweep(napr_cache_t *cache)
 {
-    (void) cache;
-    return APR_ENOTIMPL;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    apr_pool_t *sweep_pool = NULL;
+    napr_db_cursor_t *cursor = NULL;
+    napr_db_val_t key;
+    napr_db_val_t data;
+    int first_iteration = 1;
+
+    if (!cache) {
+        return APR_EINVAL;
+    }
+
+    /* ====================================================================
+     * STEP 1: Create local pool for transaction/cursor resources
+     * ==================================================================== */
+    status = apr_pool_create(&sweep_pool, cache->pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    /* ====================================================================
+     * STEP 2: Begin single write transaction
+     * ==================================================================== */
+    status = napr_cache_begin_write(cache, sweep_pool);
+    if (status != APR_SUCCESS) {
+        apr_pool_destroy(sweep_pool);
+        return status;
+    }
+
+    /* ====================================================================
+     * STEP 3: Open cursor
+     * ==================================================================== */
+    status = napr_db_cursor_open(cache->active_txn, &cursor);
+    if (status != APR_SUCCESS) {
+        goto error_abort;
+    }
+
+    /* ====================================================================
+     * STEP 4: Iterate entire database using DB_FIRST then DB_NEXT
+     * ==================================================================== */
+    while (1) {
+        /* Get next entry (DB_FIRST on first iteration, DB_NEXT afterwards) */
+        if (first_iteration) {
+            status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_FIRST);
+            first_iteration = 0;
+        }
+        else {
+            status = napr_db_cursor_get(cursor, &key, &data, NAPR_DB_NEXT);
+        }
+
+        /* End of iteration */
+        if (status == APR_NOTFOUND) {
+            break;
+        }
+
+        /* Handle other errors */
+        if (status != APR_SUCCESS) {
+            goto error_close_cursor;
+        }
+
+        /* ================================================================
+         * STEP 5: Check if key exists in visited_set
+         * ================================================================ */
+        void *found = apr_hash_get(cache->visited_set, key.data, key.size);
+
+        /* ================================================================
+         * STEP 6: If NOT found, delete the entry
+         * ================================================================ */
+        if (!found) {
+            status = napr_db_del(cache->active_txn, &key, NULL);
+            if (status != APR_SUCCESS) {
+                goto error_close_cursor;
+            }
+        }
+    }
+
+    /* ====================================================================
+     * STEP 7: Close cursor
+     * ==================================================================== */
+    status = napr_db_cursor_close(cursor);
+    if (status != APR_SUCCESS) {
+        goto error_abort;
+    }
+
+    /* ====================================================================
+     * STEP 8: Commit transaction
+     * ==================================================================== */
+    status = napr_cache_commit_write(cache);
+    if (status != APR_SUCCESS) {
+        apr_pool_destroy(sweep_pool);
+        return status;
+    }
+
+    /* ====================================================================
+     * STEP 10: Clear visited_set
+     * ==================================================================== */
+    apr_hash_clear(cache->visited_set);
+
+    /* ====================================================================
+     * STEP 11: Destroy local pool
+     * ==================================================================== */
+    apr_pool_destroy(sweep_pool);
+
+    return APR_SUCCESS;
+
+  error_close_cursor:
+    /* Close cursor before aborting transaction */
+    napr_db_cursor_close(cursor);
+
+  error_abort:
+    /* STEP 9: Abort transaction on error */
+    napr_cache_abort_write(cache);
+    apr_pool_destroy(sweep_pool);
+    return status;
 }
