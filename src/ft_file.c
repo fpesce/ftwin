@@ -335,6 +335,8 @@ extern ft_file_t *ft_file_make(apr_pool_t *pool, const char *path, const char *s
     /* Initialize other fields to default values */
     file->cvec_ok = 0;
     file->prioritized = 0;
+    file->is_cache_hit = 0;
+    file->ctime = 0;
 
     return file;
 }

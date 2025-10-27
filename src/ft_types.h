@@ -63,6 +63,9 @@ typedef struct ft_file_t
     PuzzleCvec cvec;
     int cvec_ok:1;
     int prioritized:1;
+    ft_hash_t cached_hash;
+    int is_cache_hit;
+    apr_time_t ctime;
 } ft_file_t;
 
 typedef struct ft_chksum_t

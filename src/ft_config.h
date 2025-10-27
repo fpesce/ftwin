@@ -2,6 +2,7 @@
 #define FT_CONFIG_H
 
 #include "ft_types.h"
+#include "napr_cache.h"
 #include <stddef.h>
 
 /**
@@ -113,6 +114,7 @@ typedef struct ft_conf_t
     int respect_gitignore;
     unsigned short int mask;
     char sep;
+    napr_cache_t *cache;
 } ft_conf_t;
 
 

@@ -7,6 +7,7 @@
 #include "ft_traverse.h"
 #include "ft_types.h"
 #include "ft_config.h"
+#include "napr_cache.h"
 
 enum
 {
