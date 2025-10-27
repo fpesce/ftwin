@@ -229,12 +229,15 @@ typedef struct __attribute__((packed))
  * Note: The key_data is a flexible array member. In practice, entries
  * are stored in the slotted page's data area.
  */
-     typedef struct __attribute__((packed)) DB_BranchNode
-{
-    pgno_t pgno;        /**< Child page pointer (8 bytes) */
-    uint16_t key_size;  /**< Key size in bytes (2 bytes) */
-    uint8_t key_data[];  /**< Key data (variable length) */
-} DB_BranchNode;
+     typedef struct __attribute__((packed))
+     DB_BranchNode
+     {
+         pgno_t pgno;   /**< Child page pointer (8 bytes) */
+         uint16_t key_size;
+                        /**< Key size in bytes (2 bytes) */
+         uint8_t key_data[];
+                         /**< Key data (variable length) */
+     } DB_BranchNode;
 
 /**
  * @brief Leaf node entry.
@@ -251,11 +254,16 @@ typedef struct __attribute__((packed))
  * Note: kv_data is a flexible array member. In practice, entries
  * are stored in the slotted page's data area.
  */
-typedef struct __attribute__((packed)) DB_LeafNode {
-    uint16_t key_size;   /**< Key size in bytes (2 bytes) */
-    uint16_t data_size;  /**< Data size in bytes (2 bytes) */
-    uint8_t kv_data[];   /**< Key and data (variable length) */
-} DB_LeafNode;
+     typedef struct __attribute__((packed))
+     DB_LeafNode
+     {
+         uint16_t key_size;
+                         /**< Key size in bytes (2 bytes) */
+         uint16_t data_size;
+                         /**< Data size in bytes (2 bytes) */
+         uint8_t kv_data[];
+                         /**< Key and data (variable length) */
+     } DB_LeafNode;
 
 /*
  * In-memory structures
@@ -267,30 +275,33 @@ typedef struct __attribute__((packed)) DB_LeafNode {
  * Contains all state for an opened database file including
  * the memory map, file handle, and pointers to meta pages.
  */
-struct napr_db_env_t
-{
-    apr_pool_t *pool;           /**< APR pool for allocations */
-    apr_size_t mapsize;         /**< Size of memory map in bytes */
-    unsigned int flags;         /**< Environment flags */
+     struct napr_db_env_t
+     {
+         apr_pool_t *pool;      /**< APR pool for allocations */
+         apr_size_t mapsize;    /**< Size of memory map in bytes */
+         unsigned int flags;    /**< Environment flags */
 
-    /* File and mapping */
-    apr_file_t *file;           /**< Database file handle */
-    apr_mmap_t *mmap;           /**< Memory map handle */
-    void *map_addr;             /**< Base address of memory map */
+         /* File and mapping */
+         apr_file_t *file;      /**< Database file handle */
+         apr_mmap_t *mmap;      /**< Memory map handle */
+         void *map_addr;        /**< Base address of memory map */
 
-    /* Meta pages */
-    DB_MetaPage *meta0;         /**< Pointer to Meta Page 0 in mmap */
-    DB_MetaPage *meta1;         /**< Pointer to Meta Page 1 in mmap */
-    DB_MetaPage *live_meta;     /**< Pointer to current active meta page */
+         /* Meta pages */
+         DB_MetaPage *meta0;    /**< Pointer to Meta Page 0 in mmap */
+         DB_MetaPage *meta1;    /**< Pointer to Meta Page 1 in mmap */
+         DB_MetaPage *live_meta;/**< Pointer to current active meta page */
 
-    /* Synchronization - SWMR model */
-    apr_thread_mutex_t *writer_thread_mutex;  /**< Intra-process writer lock */
-    apr_proc_mutex_t *writer_proc_mutex;      /**< Inter-process writer lock */
+         /* Synchronization - SWMR model */
+         apr_thread_mutex_t *writer_thread_mutex;
+                                              /**< Intra-process writer lock */
+         apr_proc_mutex_t *writer_proc_mutex; /**< Inter-process writer lock */
 
-    /* MVCC Reader Tracking */
-    DB_ReaderSlot reader_table[MAX_READERS] __attribute__((aligned(CACHE_LINE_SIZE)));  /**< Active reader tracking table */
-    apr_thread_mutex_t *reader_table_mutex;   /**< Protects reader table access */
-};
+         /* MVCC Reader Tracking */
+         DB_ReaderSlot reader_table[MAX_READERS] __attribute__((aligned(CACHE_LINE_SIZE)));
+                                                                                        /**< Active reader tracking table */
+         apr_thread_mutex_t *reader_table_mutex;
+                                              /**< Protects reader table access */
+     };
 
 /**
  * @brief Transaction handle (concrete definition).
@@ -303,22 +314,25 @@ struct napr_db_env_t
  * Copy-on-Write (CoW) semantics: modified pages are copied to
  * private buffers before changes are made.
  */
-struct napr_db_txn_t
-{
-    napr_db_env_t *env;         /**< Environment this transaction belongs to */
-    apr_pool_t *pool;           /**< APR pool for transaction allocations */
-    txnid_t txnid;              /**< Transaction ID (snapshot version) */
-    pgno_t root_pgno;           /**< Root page number for main DB snapshot */
-    pgno_t free_db_root_pgno;   /**< Root page number for Free DB snapshot */
-    unsigned int flags;         /**< Transaction flags (RDONLY, etc.) */
+     struct napr_db_txn_t
+     {
+         napr_db_env_t *env;    /**< Environment this transaction belongs to */
+         apr_pool_t *pool;      /**< APR pool for transaction allocations */
+         txnid_t txnid;         /**< Transaction ID (snapshot version) */
+         pgno_t root_pgno;      /**< Root page number for main DB snapshot */
+         pgno_t free_db_root_pgno;
+                                /**< Root page number for Free DB snapshot */
+         unsigned int flags;    /**< Transaction flags (RDONLY, etc.) */
 
-    /* Copy-on-Write tracking for write transactions */
-    apr_hash_t *dirty_pages;    /**< Hash table: pgno_t -> DB_PageHeader* (dirty copy) */
-    pgno_t new_last_pgno;       /**< Last page number for this transaction (for allocation) */
+         /* Copy-on-Write tracking for write transactions */
+         apr_hash_t *dirty_pages;
+                                /**< Hash table: pgno_t -> DB_PageHeader* (dirty copy) */
+         pgno_t new_last_pgno;  /**< Last page number for this transaction (for allocation) */
 
-    /* Free space tracking for write transactions */
-    apr_array_header_t *freed_pages;  /**< Array of pgno_t freed during this transaction */
-};
+         /* Free space tracking for write transactions */
+         apr_array_header_t *freed_pages;
+                                      /**< Array of pgno_t freed during this transaction */
+     };
 
 /**
  * @brief Cursor handle (concrete definition).
@@ -327,21 +341,22 @@ struct napr_db_txn_t
  * for traversal of the B+ tree. The stack stores the parent pages
  * and the index of the child followed at each level.
  */
-struct napr_db_cursor_t
-{
-    napr_db_txn_t *txn;         /**< Transaction this cursor belongs to */
-    apr_pool_t *pool;           /**< APR pool for cursor allocations */
+     struct napr_db_cursor_t
+     {
+         napr_db_txn_t *txn;    /**< Transaction this cursor belongs to */
+         apr_pool_t *pool;      /**< APR pool for cursor allocations */
 
-    /* Traversal stack */
-    struct
-    {
-        DB_PageHeader *page;    /**< Page at this level */
-        uint16_t index;         /**< Index of child/key on page */
-    } stack[MAX_TREE_DEPTH];
+         /* Traversal stack */
+         struct
+         {
+             DB_PageHeader *page;
+                                /**< Page at this level */
+             uint16_t index;    /**< Index of child/key on page */
+         } stack[MAX_TREE_DEPTH];
 
-    uint16_t top;               /**< Index of the top of the stack */
-    int eof;                    /**< Flag: 1 if cursor is at End-of-File */
-};
+         uint16_t top;          /**< Index of the top of the stack */
+         int eof;               /**< Flag: 1 if cursor is at End-of-File */
+     };
 
 /*
  * Page accessor helpers for navigating slotted pages
@@ -360,7 +375,7 @@ struct napr_db_cursor_t
  * @param page Pointer to the page header
  * @return Pointer to the first slot (uint16_t offset)
  */
-static inline uint16_t *db_page_slots(DB_PageHeader *page)
+     static inline uint16_t *db_page_slots(DB_PageHeader *page)
 {
     return (uint16_t *) ((char *) page + sizeof(DB_PageHeader));
 }
@@ -410,7 +425,7 @@ static inline DB_LeafNode *db_page_leaf_node(DB_PageHeader *page, uint16_t index
  * @param node Pointer to the branch node
  * @return Pointer to the key data bytes
  */
-static inline uint8_t *db_branch_node_key(DB_BranchNode * node)
+static inline uint8_t *db_branch_node_key(DB_BranchNode *node)
 {
     return node->key_data;
 }
@@ -421,7 +436,7 @@ static inline uint8_t *db_branch_node_key(DB_BranchNode * node)
  * @param node Pointer to the leaf node
  * @return Pointer to the key data bytes
  */
-static inline uint8_t *db_leaf_node_key(DB_LeafNode * node)
+static inline uint8_t *db_leaf_node_key(DB_LeafNode *node)
 {
     return node->kv_data;
 }
@@ -434,7 +449,7 @@ static inline uint8_t *db_leaf_node_key(DB_LeafNode * node)
  * @param node Pointer to the leaf node
  * @return Pointer to the value data bytes
  */
-static inline uint8_t *db_leaf_node_value(DB_LeafNode * node)
+static inline uint8_t *db_leaf_node_value(DB_LeafNode *node)
 {
     return node->kv_data + node->key_size;
 }
@@ -586,5 +601,13 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
  * @return APR_SUCCESS on success, error code on failure
  */
 apr_status_t db_get_oldest_reader_txnid(napr_db_env_t *env, txnid_t *oldest_txnid_out);
+
+/**
+ * @brief Try to reclaim a page from the Free DB based on MVCC safety rules.
+ * @param txn The write transaction requesting allocation.
+ * @param reclaimed_pgno_out Output parameter for the reclaimed page number.
+ * @return APR_SUCCESS if reclaimed, APR_NOTFOUND if no safe pages available.
+ */
+apr_status_t db_reclaim_page_from_free_db(napr_db_txn_t *txn, pgno_t *reclaimed_pgno_out);
 
 #endif /* NAPR_DB_INTERNAL_H */

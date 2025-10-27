@@ -509,6 +509,9 @@ Suite *make_db_split_suite(void);
 Suite *db_cursor_suite(void);
 Suite *db_delete_suite(void);
 Suite *db_mvcc_suite(void);
+Suite *cache_model_suite(void);
+Suite *cache_init_suite(void);
+Suite *cache_access_suite(void);
 
 enum test_suite
 {
@@ -535,7 +538,10 @@ enum test_suite
     DB_SPLIT_SUITE,
     DB_CURSOR_SUITE,
     DB_DELETE_SUITE,
-    DB_MVCC_SUITE
+    DB_MVCC_SUITE,
+    CACHE_MODEL_SUITE,
+    CACHE_INIT_SUITE,
+    CACHE_ACCESS_SUITE
 };
 
 static void add_all_suites(SRunner * suite_runner)
@@ -566,6 +572,9 @@ static void add_all_suites(SRunner * suite_runner)
     srunner_add_suite(suite_runner, db_cursor_suite());
     srunner_add_suite(suite_runner, db_delete_suite());
     srunner_add_suite(suite_runner, db_mvcc_suite());
+    srunner_add_suite(suite_runner, cache_model_suite());
+    srunner_add_suite(suite_runner, cache_init_suite());
+    srunner_add_suite(suite_runner, cache_access_suite());
 }
 
 int main(int argc, char **argv)
@@ -681,6 +690,15 @@ int main(int argc, char **argv)
             break;
         case DB_MVCC_SUITE:
             srunner_add_suite(suite_runner, db_mvcc_suite());
+            break;
+        case CACHE_MODEL_SUITE:
+            srunner_add_suite(suite_runner, cache_model_suite());
+            break;
+        case CACHE_INIT_SUITE:
+            srunner_add_suite(suite_runner, cache_init_suite());
+            break;
+        case CACHE_ACCESS_SUITE:
+            srunner_add_suite(suite_runner, cache_access_suite());
             break;
         default:
             /* Run all tests if the number is unrecognized */

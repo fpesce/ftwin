@@ -793,9 +793,13 @@ static apr_status_t handle_root_split_in_tree(napr_db_txn_t *txn, pgno_t old_roo
  */
 static apr_status_t initialize_empty_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_root_pgno_out)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     pgno_t new_root_pgno;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     DB_PageHeader *new_root;
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     pgno_t *pgno_key;
 
     status = db_page_alloc(txn, 1, &new_root_pgno);
@@ -832,6 +836,7 @@ static apr_status_t initialize_empty_free_db(napr_db_txn_t *txn, const napr_db_v
 
 static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data, pgno_t *new_free_db_root_out)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     pgno_t path[MAX_TREE_DEPTH] = { 0 };
     uint16_t path_len = 0;
@@ -851,9 +856,9 @@ static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t 
         return APR_EEXIST;
     }
 
-    for (int i = (int) path_len - 1; i >= 0; i--) {
+    for (int i = (int)path_len - 1; i >= 0; i--) {
         pgno_t current_pgno = path[i];
-        DB_PageHeader *dirty_page;
+        DB_PageHeader *dirty_page = NULL;
         DB_PageHeader *page_to_cow = apr_hash_get(txn->dirty_pages, &current_pgno, sizeof(pgno_t));
         if (page_to_cow) {
             dirty_page = page_to_cow;
@@ -901,11 +906,9 @@ static apr_status_t insert_into_free_db(napr_db_txn_t *txn, const napr_db_val_t 
 
     right_child_pgno = right_page->pgno;
     current_key = divider_key;
-    status =
-        propagate_split_up_tree_in_tree(txn, path, path_len, &current_key,
-                                        (DB_SplitPgnos)
-                                        {
-                                        .right_child_pgno = &right_child_pgno,.new_root_out = new_free_db_root_out});
+    status = propagate_split_up_tree_in_tree(txn, path, path_len, &current_key, (DB_SplitPgnos) {
+                                             .right_child_pgno = &right_child_pgno,.new_root_out = new_free_db_root_out}
+    );
     if (status == APR_INCOMPLETE) {
         *new_free_db_root_out = path[0];
         return APR_SUCCESS;
@@ -1011,6 +1014,116 @@ apr_status_t read_from_free_db(napr_db_txn_t *txn, txnid_t txnid, pgno_t **freed
     *freed_pages_out = (pgno_t *) data.data;
 
     return APR_SUCCESS;
+}
+
+static apr_status_t find_reclaimable_entry(napr_db_txn_t *txn, txnid_t oldest_reader_txnid, napr_db_cursor_t *cursor, napr_db_val_t *key, napr_db_val_t *data)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    txnid_t entry_txnid = 0;
+
+    status = napr_db_cursor_get(cursor, key, data, NAPR_DB_FIRST);
+    while (status == APR_SUCCESS) {
+        if (key->size != sizeof(txnid_t)) {
+            status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+            continue;
+        }
+
+        memcpy(&entry_txnid, key->data, sizeof(txnid_t));
+
+        if (entry_txnid < oldest_reader_txnid) {
+            if (data->size % sizeof(pgno_t) == 0 && data->size > 0) {
+                return APR_SUCCESS;
+            }
+        }
+
+        status = napr_db_cursor_get(cursor, key, data, NAPR_DB_NEXT);
+    }
+
+    return APR_NOTFOUND;
+}
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static apr_status_t update_or_delete_reclaimed_entry(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    apr_status_t status;
+    size_t num_pages = data->size / sizeof(pgno_t);
+
+    if (num_pages == 1) {
+        return napr_db_del(txn, key, NULL);
+    }
+
+    pgno_t *freed_pages = (pgno_t *) data->data;
+    pgno_t *remaining_pages = apr_palloc(txn->pool, (num_pages - 1) * sizeof(pgno_t));
+    if (!remaining_pages) {
+        return APR_ENOMEM;
+    }
+    memcpy(remaining_pages, &freed_pages[1], (num_pages - 1) * sizeof(pgno_t));
+
+    napr_db_val_t new_data = {.data = remaining_pages,.size = (num_pages - 1) * sizeof(pgno_t) };
+
+    status = napr_db_del(txn, key, NULL);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    return napr_db_put(txn, key, &new_data);
+}
+
+/**
+ * @brief Try to reclaim a page from the Free DB based on MVCC safety rules.
+ *
+ * This function searches the Free DB for entries with TXNID older than the
+ * oldest active reader. If found, it reclaims one page from that entry.
+ *
+ * @param txn The write transaction requesting a page allocation.
+ * @param reclaimed_pgno_out Output parameter for the reclaimed page number.
+ * @return APR_SUCCESS if a page was reclaimed, APR_NOTFOUND if no safe pages available.
+ */
+apr_status_t db_reclaim_page_from_free_db(napr_db_txn_t *txn, pgno_t *reclaimed_pgno_out)
+{
+    if (!txn || !reclaimed_pgno_out) {
+        return APR_EINVAL;
+    }
+    if (txn->free_db_root_pgno == 0) {
+        return APR_NOTFOUND;
+    }
+
+    txnid_t oldest_reader_txnid = 0;
+    apr_status_t status = db_get_oldest_reader_txnid(txn->env, &oldest_reader_txnid);
+    if (status != APR_SUCCESS) {
+        return APR_NOTFOUND;
+    }
+    if (oldest_reader_txnid == 0) {
+        oldest_reader_txnid = txn->txnid;
+    }
+
+    pgno_t saved_root = txn->root_pgno;
+    txn->root_pgno = txn->free_db_root_pgno;
+
+    napr_db_cursor_t *cursor = NULL;
+    status = napr_db_cursor_open(txn, &cursor);
+    if (status != APR_SUCCESS) {
+        txn->root_pgno = saved_root;
+        return status;
+    }
+
+    napr_db_val_t key = { 0 };
+    napr_db_val_t data = { 0 };
+    status = find_reclaimable_entry(txn, oldest_reader_txnid, cursor, &key, &data);
+
+    napr_db_cursor_close(cursor);
+
+    if (status == APR_SUCCESS) {
+        pgno_t *freed_pages = (pgno_t *) data.data;
+        *reclaimed_pgno_out = freed_pages[0];
+
+        status = update_or_delete_reclaimed_entry(txn, &key, &data);
+    }
+
+    txn->root_pgno = saved_root;
+    return status;
 }
 
 /**
@@ -1135,9 +1248,9 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
         goto cleanup;
     }
 
-    status = commit_meta_page(txn, (DB_CommitPgnos)
-                              {
-                              .new_root_pgno = new_root_pgno,.new_free_db_root_pgno = new_free_db_root});
+    status = commit_meta_page(txn, (DB_CommitPgnos) {
+                              .new_root_pgno = new_root_pgno,.new_free_db_root_pgno = new_free_db_root}
+    );
     if (status != APR_SUCCESS) {
         goto cleanup;
     }
@@ -1360,12 +1473,12 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     }
 
     /* Search within the leaf page to find insertion point */
-    status = db_page_search(leaf_page, &current_key, &index);
+    apr_status_t search_status = db_page_search(leaf_page, &current_key, &index);
 
     /* If key exists, check if this is a same-transaction duplicate or an MVCC update.
      * Same-transaction duplicate: Leaf page is already dirty -> reject with APR_EEXIST
      * MVCC update: Leaf page is NOT dirty -> allow via CoW */
-    if (status == APR_SUCCESS) {
+    if (search_status == APR_SUCCESS) {
         pgno_t leaf_pgno = path[path_len - 1];
         DB_PageHeader *check_dirty = apr_hash_get(txn->dirty_pages, &leaf_pgno, sizeof(pgno_t));
         if (check_dirty) {
@@ -1402,6 +1515,14 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         }
     }
 
+    /* If key exists (MVCC update), delete the old entry before inserting new one */
+    if (search_status == APR_SUCCESS) {
+        status = db_page_delete(leaf_page, index);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+    }
+
     /* Try to insert into the dirty leaf page */
     status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
 
@@ -1420,11 +1541,12 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
 static apr_status_t handle_page_split(napr_db_txn_t *txn, DB_PageHeader *leaf_page, const pgno_t *path, uint16_t path_len, napr_db_val_t *current_key, napr_db_val_t *current_data)
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     DB_PageHeader *left_page = leaf_page;
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
-    uint16_t index;
+    uint16_t index = 0;
 
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
     if (status != APR_SUCCESS) {

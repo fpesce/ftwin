@@ -177,48 +177,53 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Implement actual Free DB insertion in `populate_free_db()`.
     - [x] Fix commit sequencing to ensure Free DB pages are written to disk.
     - [x] Implement MVCC update semantics (distinguish same-transaction duplicates from cross-transaction updates).
-    - [ ] Refine Page Allocation (FUTURE WORK):
-        - [ ] Determine the oldest active reader TXNID from the Reader Table.
-        - [ ] Query Free DB to reuse pages freed by transactions older than the oldest reader.
-        - [ ] Fall back to extending the file if no reusable pages are found.
+    - [x] Refine Page Allocation (Spec 2.4):
+        - [x] Implemented `db_reclaim_page_from_free_db()` helper function.
+        - [x] Determine the oldest active reader TXNID from the Reader Table.
+        - [x] Query Free DB to reuse pages freed by transactions older than the oldest reader.
+        - [x] Fall back to extending the file if no reusable pages are found.
+        - [x] Updated `db_page_alloc()` to try Free DB reclamation before extending file.
 - [x] **Testing (Free Space Management)** - COMPLETE
     - [x] Test `test_freed_pages_tracking`: Verify freed pages array is populated during CoW operations.
     - [x] Test `test_free_db_initialization`: Verify Free DB root changes from 0 after CoW.
     - [x] Test `test_free_db_entry_storage`: Test storing and retrieving freed pages by TXNID.
     - [x] Test `test_free_db_multiple_entries`: Test multiple Free DB entries.
-    - [x] All 144 unit tests pass (100% success rate).
+    - [x] All 145 unit tests pass (100% success rate).
+    - [x] Test `test_page_reclamation_safety`: Comprehensive test for MVCC-safe page reclamation. Test inserts 500 keys to create multi-page tree, deletes 250 keys to populate Free DB, then verifies:
+        - W2 cannot reclaim pages while R1 is active (extends file instead)
+        - W3 can reclaim pages after R1 ends (reuses freed pages)
+        - Test properly exercises db_page_alloc() by forcing B-tree splits with sufficient insertions
     - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes (FUTURE WORK).
-    - [ ] Test Page Reclamation: Verify pages are correctly reused only when safe (FUTURE WORK).
 
 ## Phase 2: `napr_cache` (Filesystem Hash Cache)
 
 ### Iteration 8: `napr_cache` Core Implementation
 
-- [ ] **API Definition (`src/napr_cache.h`)**
-    - [ ] Include headers (APR, `napr_db.h`, `xxhash.h`).
-    - [ ] Define `napr_cache_entry_t` (mtime, ctime, size, XXH128_hash_t).
-    - [ ] Add platform dependency warnings (Spec 4.3).
-    - [ ] Declare opaque handle `napr_cache_t` and the full API.
-- [ ] **Internal Definitions (`src/napr_cache.c`)**
-    - [ ] Define the concrete `struct napr_cache_t` (pool, db_env, lock_file_handle, visited_set, visited_mutex).
-- [ ] **Testing (`check/check_cache_model.c`)**
-    - [ ] CRITICAL: Verify `sizeof(napr_cache_entry_t)` is exactly 40 bytes using `_Static_assert` (Spec 4.2).
-- [ ] **Implementation (`src/napr_cache.c`)**
-    - [ ] Implement `napr_cache_open`:
-        - [ ] Process Exclusivity Lock: Create/Open lock file (e.g., append ".lock"). Acquire `apr_file_lock(..., APR_FLOCK_EXCLUSIVE | APR_FLOCK_NONBLOCK)` (Spec 3.1).
-        - [ ] Initialize `napr_db_env`.
-        - [ ] Set `napr_db` mapsize to 10 Gigabytes (Spec 7.2.1).
-        - [ ] Open `napr_db` using the `NAPR_DB_INTRAPROCESS_LOCK` flag (Spec 3.2).
-        - [ ] Initialize Mark-and-Sweep structures (mutex, hash table).
-    - [ ] Implement `napr_cache_close` (Close DB, release and close lock file).
-    - [ ] Implement Transaction Wrappers (`begin_read/write`, `end_read`, `commit/abort_write`).
-    - [ ] Implement `napr_cache_upsert_in_txn`.
-    - [ ] Implement `napr_cache_lookup_in_txn`:
-        - [ ] CRITICAL: Validate that the retrieved data size is exactly `sizeof(napr_cache_entry_t)` before returning the zero-copy pointer.
-- [ ] **Testing (`check/check_cache_init.c` and `check_cache_access.c`)**
-    - [ ] Test Open/Close Lifecycle.
-    - [ ] Test Process Exclusivity: Verify a second instance cannot open the cache if locked.
-    - [ ] Test CRUD operations (Upsert, Lookup, Verify data integrity).
+- [x] **API Definition (`src/napr_cache.h`)**
+    - [x] Include headers (APR, `napr_db.h`, `xxhash.h`).
+    - [x] Define `napr_cache_entry_t` (mtime, ctime, size, XXH128_hash_t).
+    - [x] Add platform dependency warnings (Spec 4.3).
+    - [x] Declare opaque handle `napr_cache_t` and the full API.
+- [x] **Internal Definitions (`src/napr_cache.c`)**
+    - [x] Define the concrete `struct napr_cache_t` (pool, db_env, lock_file_handle, visited_set, visited_mutex).
+- [x] **Testing (`check/check_cache_model.c`)**
+    - [x] CRITICAL: Verify `sizeof(napr_cache_entry_t)` is exactly 40 bytes using `_Static_assert` (Spec 4.2).
+- [x] **Implementation (`src/napr_cache.c`)**
+    - [x] Implement `napr_cache_open`:
+        - [x] Process Exclusivity Lock: Create/Open lock file (e.g., append ".lock"). Acquire `apr_file_lock(..., APR_FLOCK_EXCLUSIVE | APR_FLOCK_NONBLOCK)` (Spec 3.1).
+        - [x] Initialize `napr_db_env`.
+        - [x] Set `napr_db` mapsize to 10 Gigabytes (Spec 7.2.1).
+        - [x] Open `napr_db` using the `NAPR_DB_INTRAPROCESS_LOCK` flag (Spec 3.2).
+        - [x] Initialize Mark-and-Sweep structures (mutex, hash table).
+    - [x] Implement `napr_cache_close` (Close DB, release and close lock file).
+    - [x] Implement Transaction Wrappers (`begin_read/write`, `end_read`, `commit/abort_write`).
+    - [x] Implement `napr_cache_upsert_in_txn`.
+    - [x] Implement `napr_cache_lookup_in_txn`:
+        - [x] CRITICAL: Validate that the retrieved data size is exactly `sizeof(napr_cache_entry_t)` before returning the zero-copy pointer.
+- [x] **Testing (`check/check_cache_init.c` and `check_cache_access.c`)**
+    - [x] Test Open/Close Lifecycle.
+    - [x] Test Process Exclusivity: Verify a second instance cannot open the cache if locked.
+    - [x] Test CRUD operations (Upsert, Lookup, Verify data integrity).
 
 ### Iteration 9: Mark-and-Sweep Strategy
 
