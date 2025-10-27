@@ -189,7 +189,10 @@ This checklist follows the detailed project blueprint, organized by phases and i
     - [x] Test `test_free_db_entry_storage`: Test storing and retrieving freed pages by TXNID.
     - [x] Test `test_free_db_multiple_entries`: Test multiple Free DB entries.
     - [x] All 145 unit tests pass (100% success rate).
-    - [x] Test `test_page_reclamation_safety`: Basic test for page reclamation logic (NOTE: Currently limited because CoW updates don't allocate new pages. Full testing requires B-tree splits/reorganization to trigger actual page allocation. Test verifies transaction lifecycle but defers allocation assertions for future work when delete/rebalance operations are implemented).
+    - [x] Test `test_page_reclamation_safety`: Comprehensive test for MVCC-safe page reclamation. Test inserts 500 keys to create multi-page tree, deletes 250 keys to populate Free DB, then verifies:
+        - W2 cannot reclaim pages while R1 is active (extends file instead)
+        - W3 can reclaim pages after R1 ends (reuses freed pages)
+        - Test properly exercises db_page_alloc() by forcing B-tree splits with sufficient insertions
     - [ ] Test Snapshot Isolation: Verify readers maintain a consistent view despite concurrent writes (FUTURE WORK).
 
 ## Phase 2: `napr_cache` (Filesystem Hash Cache)

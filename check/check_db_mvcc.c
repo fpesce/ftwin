@@ -569,8 +569,10 @@ static void get_freed_pages(napr_db_txn_t *read_txn, txnid_t txnid, pgno_t **fre
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(*freed_pages);
 
+    /* Verify all page numbers are valid (> 0) */
+    const pgno_t *pages = *freed_pages;
     for (size_t i = 0; i < *num_pages; i++) {
-        ck_assert_int_gt((*freed_pages)[i], 0);
+        ck_assert_int_gt(pages[i], 0);
     }
 }
 
@@ -661,15 +663,16 @@ END_TEST
  * @brief Test page reclamation safety with MVCC
  *
  * Verifies that pages cannot be reused while there are active readers that need them,
- * and can be reused once those readers are done.
+ * and can be reused once those readers are done. Uses insertions that trigger splits
+ * to actually allocate new pages.
  */
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_page_reclamation_safety)
 {
     napr_db_env_t *env = NULL;
-    napr_db_txn_t *txn1 = NULL;
+    napr_db_txn_t *txn_setup = NULL;
+    napr_db_txn_t *txn_delete = NULL;
     napr_db_txn_t *txn_r1 = NULL;
-    napr_db_txn_t *txn_w1 = NULL;
     napr_db_txn_t *txn_w2 = NULL;
     napr_db_txn_t *txn_w3 = NULL;
     apr_status_t status = APR_SUCCESS;
@@ -677,9 +680,11 @@ START_TEST(test_page_reclamation_safety)
     napr_db_val_t data = { 0 };
     char key_buf[DB_TEST_MVCC_KEY_SIZE] = { 0 };
     char data_buf[DB_TEST_MVCC_DATA_SIZE] = { 0 };
-    pgno_t last_pgno_before_w2 = 0;
+    pgno_t last_pgno_after_setup = 0;
+    pgno_t last_pgno_after_delete = 0;
     pgno_t last_pgno_after_w2 = 0;
     pgno_t last_pgno_after_w3 = 0;
+    int i = 0;
 
     /* Create and open environment */
     status = napr_db_env_create(&env, test_pool);
@@ -691,97 +696,100 @@ START_TEST(test_page_reclamation_safety)
     status = napr_db_env_open(env, DB_TEST_PATH_MVCC, NAPR_DB_CREATE | NAPR_DB_INTRAPROCESS_LOCK);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Initial transaction: Insert key1 to establish state V1 */
-    status = napr_db_txn_begin(env, 0, &txn1);
+    /* Setup Phase: Insert many keys to force B-tree splits and create multiple pages */
+    status = napr_db_txn_begin(env, 0, &txn_setup);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    snprintf(key_buf, sizeof(key_buf), "key1");
-    key.data = key_buf;
-    key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value1");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
+    for (i = 0; i < 500; i++) {
+        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_setup, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
 
-    status = napr_db_put(txn1, &key, &data);
+    status = napr_db_txn_commit(txn_setup);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    last_pgno_after_setup = env->live_meta->last_pgno;
+
+    /* Verify we created a multi-page tree */
+    ck_assert_int_gt(last_pgno_after_setup, 3);
+
+    /* Delete Phase: Delete many keys to add pages to Free DB */
+    status = napr_db_txn_begin(env, 0, &txn_delete);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    status = napr_db_txn_commit(txn1);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    for (i = 250; i < 500; i++) {
+        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        status = napr_db_del(txn_delete, &key, NULL);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
 
-    /* Start Read Transaction R1 (captures snapshot of V1) */
+    /* Verify that deletions freed pages */
+    ck_assert_int_gt(txn_delete->freed_pages->nelts, 0);
+
+    status = napr_db_txn_commit(txn_delete);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    last_pgno_after_delete = env->live_meta->last_pgno;
+
+    /* Start Read Transaction R1 - captures snapshot AFTER deletions */
     status = napr_db_txn_begin(env, NAPR_DB_RDONLY, &txn_r1);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Start Write Transaction W1: Update key1 to create V2 and free a page */
-    status = napr_db_txn_begin(env, 0, &txn_w1);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    snprintf(data_buf, sizeof(data_buf), "value2");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-
-    status = napr_db_put(txn_w1, &key, &data);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Verify that W1 has freed pages */
-    ck_assert_int_gt(txn_w1->freed_pages->nelts, 0);
-
-    status = napr_db_txn_commit(txn_w1);
-    ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* Record last_pgno before W2 */
-    last_pgno_before_w2 = env->live_meta->last_pgno;
-
-    /* Start Write Transaction W2: Update key1 again to trigger CoW and page allocation */
-    /* R1 is still active with snapshot of V2, so W2 CANNOT reuse the page freed by W1 */
+    /* W2: Insert new keys while R1 is active */
+    /* R1 might need the freed pages, so W2 CANNOT reuse them */
     status = napr_db_txn_begin(env, 0, &txn_w2);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Update key1 to create V3 - this will CoW the root page and allocate a new page */
-    snprintf(key_buf, sizeof(key_buf), "key1");
-    key.data = key_buf;
-    key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value3");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-    status = napr_db_put(txn_w2, &key, &data);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    for (i = 600; i < 900; i++) {
+        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_w2, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
 
     status = napr_db_txn_commit(txn_w2);
     ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* TODO: This test needs to be redesigned to actually trigger page allocation.
-     * CoW updates reuse the same page numbers, so they don't call db_page_alloc().
-     * To properly test page reclamation, we need operations that allocate NEW pages
-     * (like B-tree splits from inserting many keys, or creating new tree levels).
-     * For now, just verify the transactions complete successfully. */
     last_pgno_after_w2 = env->live_meta->last_pgno;
-    /* SKIP: ck_assert_int_gt(last_pgno_after_w2, last_pgno_before_w2); */
 
-    /* End Read Transaction R1 - now the freed page from W1 can be reused */
+    /* W2 should have extended the file since R1 is still active */
+    ck_assert_int_gt(last_pgno_after_w2, last_pgno_after_delete);
+
+    /* End Read Transaction R1 - now freed pages can be reused */
     status = napr_db_txn_abort(txn_r1);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Start Write Transaction W3: Update key1 again - should be able to reuse freed pages */
+    /* W3: Insert more keys - should be able to reuse freed pages */
     status = napr_db_txn_begin(env, 0, &txn_w3);
     ck_assert_int_eq(status, APR_SUCCESS);
 
-    /* Update key1 to create V4 - this should reuse a freed page since R1 has ended */
-    snprintf(key_buf, sizeof(key_buf), "key1");
-    key.data = key_buf;
-    key.size = DB_TEST_MVCC_KEY_SIZE;
-    snprintf(data_buf, sizeof(data_buf), "value4");
-    data.data = data_buf;
-    data.size = DB_TEST_MVCC_DATA_SIZE;
-    status = napr_db_put(txn_w3, &key, &data);
-    ck_assert_int_eq(status, APR_SUCCESS);
+    for (i = 900; i < 999; i++) {
+        snprintf(key_buf, sizeof(key_buf), "k%03d", i);
+        key.data = key_buf;
+        key.size = DB_TEST_MVCC_KEY_SIZE;
+        snprintf(data_buf, sizeof(data_buf), "v%03d", i);
+        data.data = data_buf;
+        data.size = DB_TEST_MVCC_DATA_SIZE;
+        status = napr_db_put(txn_w3, &key, &data);
+        ck_assert_int_eq(status, APR_SUCCESS);
+    }
 
     status = napr_db_txn_commit(txn_w3);
     ck_assert_int_eq(status, APR_SUCCESS);
-
-    /* TODO: See above - skipping assertion until test is redesigned */
     last_pgno_after_w3 = env->live_meta->last_pgno;
-    /* SKIP: ck_assert_int_eq(last_pgno_after_w3, last_pgno_after_w2); */
+
+    /* W3 should have reused freed pages, so last_pgno should not increase much */
+    /* (or at least not as much as W2 did) */
+    ck_assert_int_le(last_pgno_after_w3, last_pgno_after_w2);
 
     /* Cleanup */
     status = napr_db_env_close(env);
