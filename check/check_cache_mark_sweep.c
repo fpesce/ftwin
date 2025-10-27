@@ -276,7 +276,7 @@ END_TEST
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 START_TEST(test_sweep_integration)
 {
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
     napr_cache_entry_t entry_a;
     napr_cache_entry_t entry_b;
     napr_cache_entry_t entry_c;
@@ -290,29 +290,29 @@ START_TEST(test_sweep_integration)
     const char *path_d = "/sweep/test/d.txt";
 
     /* Prepare test entries */
-    entry_a.mtime = 1000;
-    entry_a.ctime = 1001;
-    entry_a.size = 100;
-    entry_a.hash.low64 = 0xAAAAAAAAAAAAAAAAULL;
-    entry_a.hash.high64 = 0xBBBBBBBBBBBBBBBBULL;
+    entry_a.mtime = CACHE_TEST_SWEEP_A_MTIME;
+    entry_a.ctime = CACHE_TEST_SWEEP_A_CTIME;
+    entry_a.size = CACHE_TEST_SWEEP_A_SIZE;
+    entry_a.hash.low64 = CACHE_TEST_SWEEP_A_HASH_LOW;
+    entry_a.hash.high64 = CACHE_TEST_SWEEP_A_HASH_HIGH;
 
-    entry_b.mtime = 2000;
-    entry_b.ctime = 2001;
-    entry_b.size = 200;
-    entry_b.hash.low64 = 0xCCCCCCCCCCCCCCCCULL;
-    entry_b.hash.high64 = 0xDDDDDDDDDDDDDDDDULL;
+    entry_b.mtime = CACHE_TEST_SWEEP_B_MTIME;
+    entry_b.ctime = CACHE_TEST_SWEEP_B_CTIME;
+    entry_b.size = CACHE_TEST_SWEEP_B_SIZE;
+    entry_b.hash.low64 = CACHE_TEST_SWEEP_B_HASH_LOW;
+    entry_b.hash.high64 = CACHE_TEST_SWEEP_B_HASH_HIGH;
 
-    entry_c.mtime = 3000;
-    entry_c.ctime = 3001;
-    entry_c.size = 300;
-    entry_c.hash.low64 = 0xEEEEEEEEEEEEEEEEULL;
-    entry_c.hash.high64 = 0xFFFFFFFFFFFFFFFFULL;
+    entry_c.mtime = CACHE_TEST_SWEEP_C_MTIME;
+    entry_c.ctime = CACHE_TEST_SWEEP_C_CTIME;
+    entry_c.size = CACHE_TEST_SWEEP_C_SIZE;
+    entry_c.hash.low64 = CACHE_TEST_SWEEP_C_HASH_LOW;
+    entry_c.hash.high64 = CACHE_TEST_SWEEP_C_HASH_HIGH;
 
-    entry_d.mtime = 4000;
-    entry_d.ctime = 4001;
-    entry_d.size = 400;
-    entry_d.hash.low64 = 0x1111111111111111ULL;
-    entry_d.hash.high64 = 0x2222222222222222ULL;
+    entry_d.mtime = CACHE_TEST_SWEEP_D_MTIME;
+    entry_d.ctime = CACHE_TEST_SWEEP_D_CTIME;
+    entry_d.size = CACHE_TEST_SWEEP_D_SIZE;
+    entry_d.hash.low64 = CACHE_TEST_SWEEP_D_HASH_LOW;
+    entry_d.hash.high64 = CACHE_TEST_SWEEP_D_HASH_HIGH;
 
     /* STEP 1: Populate cache with A, B, C, D */
     status = napr_cache_begin_write(test_cache, test_pool);
