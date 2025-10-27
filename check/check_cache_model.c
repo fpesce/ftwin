@@ -22,7 +22,8 @@ enum
     TEST_CACHE_HASH_SIZE = 16,
     TEST_CACHE_APR_TIME_SIZE = 8,
     TEST_CACHE_APR_OFF_SIZE = 8
-}
+};
+
 /* ========================================================================
  * CRITICAL: Structure Size and Layout Verification
  *
