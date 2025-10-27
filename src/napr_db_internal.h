@@ -587,4 +587,12 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
  */
 apr_status_t db_get_oldest_reader_txnid(napr_db_env_t *env, txnid_t *oldest_txnid_out);
 
+/**
+ * @brief Try to reclaim a page from the Free DB based on MVCC safety rules.
+ * @param txn The write transaction requesting allocation.
+ * @param reclaimed_pgno_out Output parameter for the reclaimed page number.
+ * @return APR_SUCCESS if reclaimed, APR_NOTFOUND if no safe pages available.
+ */
+apr_status_t db_reclaim_page_from_free_db(napr_db_txn_t *txn, pgno_t *reclaimed_pgno_out);
+
 #endif /* NAPR_DB_INTERNAL_H */

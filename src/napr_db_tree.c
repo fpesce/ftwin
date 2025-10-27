@@ -272,6 +272,7 @@ apr_status_t db_find_leaf_page(napr_db_txn_t *txn, const napr_db_val_t *key, DB_
 apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
 {
     pgno_t first_pgno = 0;
+    apr_status_t status;
 
     if (!txn || !pgno_out || count == 0) {
         return APR_EINVAL;
@@ -282,7 +283,18 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
         return APR_EINVAL;
     }
 
-    /* Allocate by incrementing last_pgno */
+    /* For single-page allocations, try to reclaim from Free DB first */
+    if (count == 1) {
+        status = db_reclaim_page_from_free_db(txn, &first_pgno);
+        if (status == APR_SUCCESS) {
+            /* Successfully reclaimed a page from Free DB */
+            *pgno_out = first_pgno;
+            return APR_SUCCESS;
+        }
+        /* If reclamation failed (APR_NOTFOUND or error), fall through to file extension */
+    }
+
+    /* Fall back to extending the file (original behavior) */
     first_pgno = txn->new_last_pgno + 1;
     txn->new_last_pgno += count;
 
