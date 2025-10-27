@@ -1043,9 +1043,10 @@ static apr_status_t find_reclaimable_entry(napr_db_txn_t *txn, txnid_t oldest_re
     return APR_NOTFOUND;
 }
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t update_or_delete_reclaimed_entry(napr_db_txn_t *txn, const napr_db_val_t *key, const napr_db_val_t *data)
 {
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters) - key/data is standard DB convention
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     size_t num_pages = data->size / sizeof(pgno_t);
 
