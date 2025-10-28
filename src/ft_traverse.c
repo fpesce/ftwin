@@ -62,63 +62,95 @@ static apr_status_t check_permissions(const apr_finfo_t *finfo, ft_conf_t *conf)
     return APR_SUCCESS;
 }
 
-static apr_status_t process_file(const char *filename, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool)
+static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool, int *is_hit, ft_hash_t *hit_hash)
 {
-    if (finfo->size >= conf->minsize && (conf->maxsize == 0 || finfo->size <= conf->maxsize)) {
-        /* Cache lookup variables */
-        const napr_cache_entry_t *cached_entry = NULL;
-        apr_status_t cache_status = APR_SUCCESS;
-        apr_pool_t *txn_pool = NULL;
-        int is_hit = 0;
-        ft_hash_t hit_hash;
-        memset(&hit_hash, 0, sizeof(hit_hash));
+    const napr_cache_entry_t *cached_entry = NULL;
+    apr_status_t cache_status;
+    apr_pool_t *txn_pool = NULL;
 
-        /* Attempt cache lookup */
-        cache_status = apr_pool_create(&txn_pool, gc_pool);
-        if (cache_status == APR_SUCCESS) {
-            cache_status = napr_cache_begin_read(conf->cache, txn_pool);
-            if (cache_status == APR_SUCCESS) {
-                cache_status = napr_cache_lookup_in_txn(conf->cache, filename, &cached_entry);
-                if (cache_status == APR_SUCCESS && cached_entry != NULL) {
-                    if (finfo->size == cached_entry->size && finfo->mtime == cached_entry->mtime && finfo->ctime == cached_entry->ctime) {
-                        is_hit = 1;
-                        hit_hash = cached_entry->hash;
-                    }
-                }
-                napr_cache_mark_visited(conf->cache, filename);
-                napr_cache_end_read(conf->cache);
-            }
-            apr_pool_destroy(txn_pool);
-        }
+    *is_hit = 0;
+    memset(hit_hash, 0, sizeof(*hit_hash));
 
-        /* Allocate and populate file structure */
-        ft_file_t *file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
-        file->path = apr_pstrdup(conf->pool, filename);
-        file->size = finfo->size;
-        file->mtime = finfo->mtime;
-        file->ctime = finfo->ctime;
-        file->prioritized = ((conf->p_path) && (strlen(filename) >= conf->p_path_len) &&
-                             ((is_option_set(conf->mask, OPTION_ICASE) && !strncasecmp(filename, conf->p_path, conf->p_path_len)) ||
-                              (!is_option_set(conf->mask, OPTION_ICASE) && !memcmp(filename, conf->p_path, conf->p_path_len))));
-        file->cvec_ok = 0;
-        file->is_cache_hit = is_hit;
-        if (is_hit) {
-            file->cached_hash = hit_hash;
-        }
-        napr_heap_insert(conf->heap, file);
-
-        apr_uint32_t hash_value = 0;
-        ft_fsize_t *fsize = napr_hash_search(conf->sizes, &finfo->size, sizeof(apr_off_t), &hash_value);
-        if (fsize == NULL) {
-            fsize = apr_palloc(conf->pool, sizeof(struct ft_fsize_t));
-            fsize->val = finfo->size;
-            fsize->chksum_array = NULL;
-            fsize->nb_checksumed = 0;
-            fsize->nb_files = 0;
-            napr_hash_set(conf->sizes, fsize, hash_value);
-        }
-        fsize->nb_files++;
+    cache_status = apr_pool_create(&txn_pool, gc_pool);
+    if (cache_status != APR_SUCCESS) {
+        return cache_status;
     }
+
+    cache_status = napr_cache_begin_read(conf->cache, txn_pool);
+    if (cache_status != APR_SUCCESS) {
+        apr_pool_destroy(txn_pool);
+        return cache_status;
+    }
+
+    cache_status = napr_cache_lookup_in_txn(conf->cache, filename, &cached_entry);
+    if (cache_status == APR_SUCCESS && cached_entry != NULL) {
+        if (finfo->size == cached_entry->size && finfo->mtime == cached_entry->mtime && finfo->ctime == cached_entry->ctime) {
+            *is_hit = 1;
+            *hit_hash = cached_entry->hash;
+        }
+    }
+
+    napr_cache_mark_visited(conf->cache, filename);
+    napr_cache_end_read(conf->cache);
+    apr_pool_destroy(txn_pool);
+
+    return APR_SUCCESS;
+}
+
+static int check_file_priority(const char *filename, ft_conf_t *conf)
+{
+    if (!conf->p_path) {
+        return 0;
+    }
+    if (strlen(filename) < conf->p_path_len) {
+        return 0;
+    }
+    if (is_option_set(conf->mask, OPTION_ICASE)) {
+        return !strncasecmp(filename, conf->p_path, conf->p_path_len);
+    }
+    return !memcmp(filename, conf->p_path, conf->p_path_len);
+}
+
+static void update_file_size_stats(ft_conf_t *conf, apr_off_t file_size)
+{
+    apr_uint32_t hash_value = 0;
+    ft_fsize_t *fsize = napr_hash_search(conf->sizes, &file_size, sizeof(apr_off_t), &hash_value);
+    if (fsize == NULL) {
+        fsize = apr_palloc(conf->pool, sizeof(struct ft_fsize_t));
+        fsize->val = file_size;
+        fsize->chksum_array = NULL;
+        fsize->nb_checksumed = 0;
+        fsize->nb_files = 0;
+        napr_hash_set(conf->sizes, fsize, hash_value);
+    }
+    fsize->nb_files++;
+}
+
+static apr_status_t create_and_enqueue_file(const char *filename, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool)
+{
+    if (finfo->size < conf->minsize || (conf->maxsize != 0 && finfo->size > conf->maxsize)) {
+        return APR_SUCCESS;
+    }
+
+    int is_hit = 0;
+    ft_hash_t hit_hash;
+    (void)handle_cache_lookup(filename, finfo, conf, gc_pool, &is_hit, &hit_hash);
+
+    ft_file_t *file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
+    file->path = apr_pstrdup(conf->pool, filename);
+    file->size = finfo->size;
+    file->mtime = finfo->mtime;
+    file->ctime = finfo->ctime;
+    file->prioritized = check_file_priority(filename, conf);
+    file->cvec_ok = 0;
+    file->is_cache_hit = is_hit;
+    if (is_hit) {
+        file->cached_hash = hit_hash;
+    }
+
+    napr_heap_insert(conf->heap, file);
+    update_file_size_stats(conf, finfo->size);
+
     return APR_SUCCESS;
 }
 
@@ -202,7 +234,7 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
         return process_directory(filename, conf, gc_pool, stats, parent_ctx);
     }
     if (finfo.filetype == APR_REG || (finfo.filetype == APR_LNK && is_option_set(conf->mask, OPTION_FSYML))) {
-        return process_file(filename, &finfo, conf, gc_pool);
+        return create_and_enqueue_file(filename, &finfo, conf, gc_pool);
     }
 
     return APR_SUCCESS;
