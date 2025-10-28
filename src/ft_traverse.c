@@ -67,7 +67,7 @@ static apr_status_t process_file(const char *filename, const apr_finfo_t *finfo,
     if (finfo->size >= conf->minsize && (conf->maxsize == 0 || finfo->size <= conf->maxsize)) {
         /* Cache lookup variables */
         const napr_cache_entry_t *cached_entry = NULL;
-        apr_status_t cache_status;
+        apr_status_t cache_status = APR_SUCCESS;
         apr_pool_t *txn_pool = NULL;
         int is_hit = 0;
         ft_hash_t hit_hash;
