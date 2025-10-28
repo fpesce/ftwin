@@ -98,8 +98,9 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 
 /* Forward declarations for helper functions */
 static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_size_t *total_hash_tasks);
-static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks);
+static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks, hashing_context_t *h_ctx);
 static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_pool_t *gc_pool);
+static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t *h_ctx);
 
 apr_status_t ft_process_files(ft_conf_t *conf)
 {
@@ -107,6 +108,10 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     apr_pool_t *gc_pool = NULL;
     apr_status_t status = APR_SUCCESS;
     apr_size_t total_hash_tasks = 0;
+    hashing_context_t h_ctx;
+    char errbuf[ERR_BUF_SIZE];
+
+    memset(&h_ctx, 0, sizeof(h_ctx));
 
     if (is_option_set(conf->mask, OPTION_VERBO)) {
         (void) fprintf(stderr, "Referencing files and sizes:\n");
@@ -114,7 +119,6 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 
     status = apr_pool_create(&gc_pool, conf->pool);
     if (APR_SUCCESS != status) {
-        char errbuf[ERR_BUF_SIZE];
         DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
@@ -128,10 +132,43 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     }
 
     if (total_hash_tasks > 0) {
-        status = dispatch_hashing_tasks(conf, gc_pool, total_hash_tasks);
-        if (status != APR_SUCCESS) {
+        /* Initialize hashing context */
+        h_ctx.conf = conf;
+        h_ctx.pool = gc_pool;
+        h_ctx.files_processed = 0;
+        h_ctx.total_files = total_hash_tasks;
+
+        status = apr_thread_mutex_create(&h_ctx.stats_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             apr_pool_destroy(gc_pool);
             return status;
+        }
+
+        h_ctx.results = apr_array_make(gc_pool, (int) total_hash_tasks, sizeof(hashing_result_t *));
+        status = apr_thread_mutex_create(&h_ctx.results_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_mutex_create for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            apr_thread_mutex_destroy(h_ctx.stats_mutex);
+            apr_pool_destroy(gc_pool);
+            return status;
+        }
+
+        status = dispatch_hashing_tasks(conf, gc_pool, total_hash_tasks, &h_ctx);
+        if (status != APR_SUCCESS) {
+            apr_thread_mutex_destroy(h_ctx.results_mutex);
+            apr_thread_mutex_destroy(h_ctx.stats_mutex);
+            apr_pool_destroy(gc_pool);
+            return status;
+        }
+
+        if (h_ctx.results && h_ctx.results->nelts > 0) {
+            status = update_cache_with_results(conf, &h_ctx);
+        }
+
+        status = apr_thread_mutex_destroy(h_ctx.results_mutex);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("error calling apr_thread_mutex_destroy for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         }
 
         status = collect_hashing_results(conf, tmp_heap, gc_pool);
@@ -145,6 +182,49 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     conf->heap = tmp_heap;
 
     return APR_SUCCESS;
+}
+
+static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t *h_ctx)
+{
+    char errbuf[ERR_BUF_SIZE];
+    apr_pool_t *update_pool = NULL;
+    apr_status_t status = apr_pool_create(&update_pool, conf->pool);
+
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error creating update pool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
+    }
+
+    status = napr_cache_begin_write(conf->cache, update_pool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("Failed to begin cache update transaction: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        apr_pool_destroy(update_pool);
+        return status;
+    }
+
+    for (int i = 0; i < h_ctx->results->nelts; i++) {
+        hashing_result_t *result = APR_ARRAY_IDX(h_ctx->results, i, hashing_result_t *);
+        napr_cache_entry_t entry;
+        entry.mtime = result->mtime;
+        entry.ctime = result->ctime;
+        entry.size = result->size;
+        entry.hash = result->hash;
+        status = napr_cache_upsert_in_txn(conf->cache, result->filename, &entry);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("Failed to update cache for %s", result->filename);
+            napr_cache_abort_write(conf->cache);
+            apr_pool_destroy(update_pool);
+            return status;
+        }
+    }
+
+    status = napr_cache_commit_write(conf->cache);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("Failed to commit cache updates: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
+
+    apr_pool_destroy(update_pool);
+    return status;
 }
 
 static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_size_t *total_hash_tasks)
@@ -194,38 +274,16 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
     return APR_SUCCESS;
 }
 
-static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks)
+static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks, hashing_context_t *h_ctx)
 {
     char errbuf[ERR_BUF_SIZE];
     ft_fsize_t *fsize = NULL;
     napr_threadpool_t *threadpool = NULL;
-    hashing_context_t h_ctx;
     apr_status_t status = 0;
 
-    h_ctx.conf = conf;
-    h_ctx.pool = gc_pool;
-    h_ctx.files_processed = 0;
-    h_ctx.total_files = total_hash_tasks;
-
-    status = apr_thread_mutex_create(&h_ctx.stats_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
-    if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        return status;
-    }
-
-    h_ctx.results = apr_array_make(gc_pool, (int) total_hash_tasks, sizeof(hashing_result_t *));
-    status = apr_thread_mutex_create(&h_ctx.results_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
-    if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_create for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        apr_thread_mutex_destroy(h_ctx.stats_mutex);
-        return status;
-    }
-
-    status = napr_threadpool_init(&threadpool, &h_ctx, conf->num_threads, hashing_worker_callback, gc_pool);
+    status = napr_threadpool_init(&threadpool, h_ctx, conf->num_threads, hashing_worker_callback, gc_pool);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        apr_thread_mutex_destroy(h_ctx.results_mutex);
-        apr_thread_mutex_destroy(h_ctx.stats_mutex);
         return status;
     }
 
@@ -248,8 +306,6 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
                     if (APR_SUCCESS != status) {
                         DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
                         napr_threadpool_wait(threadpool);
-                        apr_thread_mutex_destroy(h_ctx.results_mutex);
-                        apr_thread_mutex_destroy(h_ctx.stats_mutex);
                         return status;
                     }
                 }
@@ -259,12 +315,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
 
     napr_threadpool_wait(threadpool);
 
-    status = apr_thread_mutex_destroy(h_ctx.results_mutex);
-    if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_thread_mutex_destroy for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-    }
-
-    status = apr_thread_mutex_destroy(h_ctx.stats_mutex);
+    status = apr_thread_mutex_destroy(h_ctx->stats_mutex);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error calling apr_thread_mutex_destroy: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
