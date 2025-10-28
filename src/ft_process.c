@@ -64,13 +64,27 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
             hashing_result_t *result = apr_palloc(h_ctx->pool, sizeof(hashing_result_t));
             if (result != NULL) {
                 result->filename = apr_pstrdup(h_ctx->pool, file->path);
-                result->mtime = file->mtime;
-                result->ctime = file->ctime;
-                result->size = file->size;
-                result->hash = fsize->chksum_array[task->index].hash_value;
-                APR_ARRAY_PUSH(h_ctx->results, hashing_result_t *) = result;
+                if (result->filename != NULL) {
+                    result->mtime = file->mtime;
+                    result->ctime = file->ctime;
+                    result->size = file->size;
+                    result->hash = fsize->chksum_array[task->index].hash_value;
+                    APR_ARRAY_PUSH(h_ctx->results, hashing_result_t *) = result;
+                }
+                else {
+                    DEBUG_ERR("error duplicating filename for cache result");
+                }
             }
-            apr_thread_mutex_unlock(h_ctx->results_mutex);
+            else {
+                DEBUG_ERR("error allocating cache result structure");
+            }
+            lock_status = apr_thread_mutex_unlock(h_ctx->results_mutex);
+            if (APR_SUCCESS != lock_status) {
+                DEBUG_ERR("error unlocking results mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+            }
+        }
+        else {
+            DEBUG_ERR("error locking results mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
         }
 
         lock_status = apr_thread_mutex_lock(h_ctx->stats_mutex);
@@ -82,7 +96,13 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
                                h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
             }
 
-            apr_thread_mutex_unlock(h_ctx->stats_mutex);
+            lock_status = apr_thread_mutex_unlock(h_ctx->stats_mutex);
+            if (APR_SUCCESS != lock_status) {
+                DEBUG_ERR("error unlocking stats mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+            }
+        }
+        else {
+            DEBUG_ERR("error locking stats mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
         }
     }
     else {
