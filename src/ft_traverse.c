@@ -65,7 +65,7 @@ static apr_status_t check_permissions(const apr_finfo_t *finfo, ft_conf_t *conf)
 static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool, int *is_hit, ft_hash_t *hit_hash)
 {
     const napr_cache_entry_t *cached_entry = NULL;
-    apr_status_t cache_status;
+    apr_status_t cache_status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
 
     *is_hit = 0;
@@ -134,7 +134,7 @@ static apr_status_t create_and_enqueue_file(const char *filename, const apr_finf
 
     int is_hit = 0;
     ft_hash_t hit_hash;
-    (void)handle_cache_lookup(filename, finfo, conf, gc_pool, &is_hit, &hit_hash);
+    (void) handle_cache_lookup(filename, finfo, conf, gc_pool, &is_hit, &hit_hash);
 
     ft_file_t *file = apr_palloc(conf->pool, sizeof(struct ft_file_t));
     file->path = apr_pstrdup(conf->pool, filename);
