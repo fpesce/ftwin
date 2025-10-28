@@ -161,7 +161,7 @@ static apr_status_t setup_cache(ft_conf_t *conf, apr_pool_t *pool)
     char *home_dir = NULL;
     const char *cache_dir_path = NULL;
     const char *cache_db_path = NULL;
-    apr_status_t status;
+    apr_status_t status = APR_SUCCESS;
 
     status = apr_env_get(&home_dir, "HOME", pool);
     if (status != APR_SUCCESS) {
@@ -196,11 +196,11 @@ static apr_status_t setup_cache(ft_conf_t *conf, apr_pool_t *pool)
 
 static void cleanup_resources(ft_conf_t *conf)
 {
-    char errbuf[ERR_BUF_SIZE];
-
     if (conf && conf->cache) {
         apr_status_t close_status = napr_cache_close(conf->cache);
         if (close_status != APR_SUCCESS) {
+            char errbuf[ERR_BUF_SIZE];
+
             DEBUG_ERR("error closing cache: %s", apr_strerror(close_status, errbuf, ERR_BUF_SIZE));
         }
     }
@@ -212,7 +212,6 @@ static void cleanup_resources(ft_conf_t *conf)
 
 static apr_status_t process_args_and_run(ft_conf_t *conf, int argc, const char **argv)
 {
-    char errbuf[ERR_BUF_SIZE];
     int first_arg_index = 0;
     apr_status_t status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
 
@@ -222,6 +221,7 @@ static apr_status_t process_args_and_run(ft_conf_t *conf, int argc, const char *
 
     status = run_ftwin_processing(conf, argc, argv, first_arg_index);
     if (status != APR_SUCCESS) {
+        char errbuf[ERR_BUF_SIZE];
         DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
     return status;
