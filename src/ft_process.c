@@ -18,6 +18,13 @@ int ft_file_cmp(const void *param1, const void *param2);
 #include <archive.h>
 #include "ft_archive.h"
 
+/* Forward declarations for hashing_worker_callback helpers */
+static char *prepare_filepath(hashing_context_t *h_ctx, ft_file_t *file, apr_pool_t *subpool);
+static apr_status_t collect_hashing_result(hashing_context_t *h_ctx, ft_file_t *file, ft_hash_t hash_value);
+static apr_status_t update_hashing_stats(hashing_context_t *h_ctx);
+static void handle_hashing_success(hashing_context_t *h_ctx, ft_file_t *file, ft_hash_t hash_value);
+static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_status_t status);
+
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
@@ -27,73 +34,127 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
     ft_fsize_t *fsize = task->fsize;
     ft_file_t *file = fsize->chksum_array[task->index].file;
     apr_pool_t *subpool = NULL;
-    apr_status_t status = APR_SUCCESS;
-    char *filepath = NULL;
+    apr_status_t status = apr_pool_create(&subpool, h_ctx->pool);
 
-    memset(errbuf, 0, sizeof(errbuf));
-    status = apr_pool_create(&subpool, h_ctx->pool);
     if (APR_SUCCESS != status) {
-        DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        DEBUG_ERR("error creating subpool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
-    if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
-        filepath = ft_archive_untar_file(file, subpool);
-        if (NULL == filepath) {
-            DEBUG_ERR("error calling ft_archive_untar_file");
-            apr_pool_destroy(subpool);
-            return APR_EGENERAL;
-        }
-    }
-    else {
-        filepath = file->path;
+    char *filepath = prepare_filepath(h_ctx, file, subpool);
+    if (filepath == NULL) {
+        apr_pool_destroy(subpool);
+        return APR_EGENERAL;
     }
 
-    status = checksum_file(filepath, file->size, h_ctx->conf->excess_size, &fsize->chksum_array[task->index].hash_value, subpool);
+    ft_hash_t hash_value;
+    status = checksum_file(filepath, file->size, h_ctx->conf->excess_size, &hash_value, subpool);
 
     if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
         (void) apr_file_remove(filepath, subpool);
     }
 
     if (APR_SUCCESS == status) {
-        apr_status_t lock_status = APR_SUCCESS;
-
-        /* Collect result for cache update */
-        lock_status = apr_thread_mutex_lock(h_ctx->results_mutex);
-        if (APR_SUCCESS == lock_status) {
-            hashing_result_t *result = apr_palloc(h_ctx->pool, sizeof(hashing_result_t));
-            if (result != NULL) {
-                result->filename = apr_pstrdup(h_ctx->pool, file->path);
-                result->mtime = file->mtime;
-                result->ctime = file->ctime;
-                result->size = file->size;
-                result->hash = fsize->chksum_array[task->index].hash_value;
-                APR_ARRAY_PUSH(h_ctx->results, hashing_result_t *) = result;
-            }
-            apr_thread_mutex_unlock(h_ctx->results_mutex);
-        }
-
-        lock_status = apr_thread_mutex_lock(h_ctx->stats_mutex);
-        if (APR_SUCCESS == lock_status) {
-            h_ctx->files_processed++;
-
-            if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-                (void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-                               h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
-            }
-
-            apr_thread_mutex_unlock(h_ctx->stats_mutex);
-        }
+        fsize->chksum_array[task->index].hash_value = hash_value;
+        handle_hashing_success(h_ctx, file, hash_value);
     }
     else {
-        if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
-            (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        }
+        handle_hashing_error(h_ctx, file, status);
     }
 
     apr_pool_destroy(subpool);
-
     return status;
+}
+
+static char *prepare_filepath(hashing_context_t *h_ctx, ft_file_t *file, apr_pool_t *subpool)
+{
+    if (is_option_set(h_ctx->conf->mask, OPTION_UNTAR) && (NULL != file->subpath)) {
+        char *filepath = ft_archive_untar_file(file, subpool);
+        if (NULL == filepath) {
+            DEBUG_ERR("error calling ft_archive_untar_file");
+        }
+        return filepath;
+    }
+    return file->path;
+}
+
+static apr_status_t collect_hashing_result(hashing_context_t *h_ctx, ft_file_t *file, ft_hash_t hash_value)
+{
+    char errbuf[ERR_BUF_SIZE];
+    apr_status_t lock_status = apr_thread_mutex_lock(h_ctx->results_mutex);
+
+    if (APR_SUCCESS != lock_status) {
+        DEBUG_ERR("error locking results mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+        return lock_status;
+    }
+
+    hashing_result_t *result = apr_palloc(h_ctx->pool, sizeof(hashing_result_t));
+    if (result == NULL) {
+        DEBUG_ERR("error allocating cache result structure");
+        (void) apr_thread_mutex_unlock(h_ctx->results_mutex);
+        return APR_ENOMEM;
+    }
+
+    result->filename = apr_pstrdup(h_ctx->pool, file->path);
+    if (result->filename == NULL) {
+        DEBUG_ERR("error duplicating filename for cache result");
+        (void) apr_thread_mutex_unlock(h_ctx->results_mutex);
+        return APR_ENOMEM;
+    }
+
+    result->mtime = file->mtime;
+    result->ctime = file->ctime;
+    result->size = file->size;
+    result->hash = hash_value;
+    APR_ARRAY_PUSH(h_ctx->results, hashing_result_t *) = result;
+
+    lock_status = apr_thread_mutex_unlock(h_ctx->results_mutex);
+    if (APR_SUCCESS != lock_status) {
+        DEBUG_ERR("error unlocking results mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+    }
+
+    return lock_status;
+}
+
+static apr_status_t update_hashing_stats(hashing_context_t *h_ctx)
+{
+    char errbuf[ERR_BUF_SIZE];
+    apr_status_t lock_status = apr_thread_mutex_lock(h_ctx->stats_mutex);
+
+    if (APR_SUCCESS != lock_status) {
+        DEBUG_ERR("error locking stats mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+        return lock_status;
+    }
+
+    h_ctx->files_processed++;
+
+    if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+        (void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
+                       h_ctx->files_processed, h_ctx->total_files,
+                       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
+    }
+
+    lock_status = apr_thread_mutex_unlock(h_ctx->stats_mutex);
+    if (APR_SUCCESS != lock_status) {
+        DEBUG_ERR("error unlocking stats mutex: %s", apr_strerror(lock_status, errbuf, ERR_BUF_SIZE));
+    }
+
+    return lock_status;
+}
+
+static void handle_hashing_success(hashing_context_t *h_ctx, ft_file_t *file, ft_hash_t hash_value)
+{
+    (void) collect_hashing_result(h_ctx, file, hash_value);
+    (void) update_hashing_stats(h_ctx);
+}
+
+static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_status_t status)
+{
+    char errbuf[ERR_BUF_SIZE];
+
+    if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+        (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
 }
 
 /* Forward declarations for helper functions */

@@ -64,6 +64,7 @@ static apr_status_t check_permissions(const apr_finfo_t *finfo, ft_conf_t *conf)
 
 static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *gc_pool, int *is_hit, ft_hash_t *hit_hash)
 {
+    char errbuf[ERR_BUF_SIZE];
     const napr_cache_entry_t *cached_entry = NULL;
     apr_status_t cache_status = APR_SUCCESS;
     apr_pool_t *txn_pool = NULL;
@@ -73,11 +74,13 @@ static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t 
 
     cache_status = apr_pool_create(&txn_pool, gc_pool);
     if (cache_status != APR_SUCCESS) {
+        DEBUG_ERR("error creating cache transaction pool: %s", apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
         return cache_status;
     }
 
     cache_status = napr_cache_begin_read(conf->cache, txn_pool);
     if (cache_status != APR_SUCCESS) {
+        DEBUG_ERR("error beginning cache read transaction: %s", apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
         apr_pool_destroy(txn_pool);
         return cache_status;
     }
@@ -89,9 +92,20 @@ static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t 
             *hit_hash = cached_entry->hash;
         }
     }
+    else if (cache_status != APR_SUCCESS && !APR_STATUS_IS_ENOENT(cache_status)) {
+        DEBUG_ERR("error looking up cache entry for %s: %s", filename, apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
+    }
 
-    napr_cache_mark_visited(conf->cache, filename);
-    napr_cache_end_read(conf->cache);
+    cache_status = napr_cache_mark_visited(conf->cache, filename);
+    if (cache_status != APR_SUCCESS) {
+        DEBUG_ERR("error marking cache entry as visited for %s: %s", filename, apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
+    }
+
+    cache_status = napr_cache_end_read(conf->cache);
+    if (cache_status != APR_SUCCESS) {
+        DEBUG_ERR("error ending cache read transaction: %s", apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
+    }
+
     apr_pool_destroy(txn_pool);
 
     return APR_SUCCESS;
