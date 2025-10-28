@@ -150,14 +150,23 @@ static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr
 
                 fsize->chksum_array[fsize->nb_checksumed].file = file;
 
-                if (((2 == fsize->nb_files) || (0 == fsize->val)) && !is_option_set(conf->mask, OPTION_JSON)) {
-                    memset(&fsize->chksum_array[fsize->nb_checksumed].hash_value, 0, sizeof(ft_hash_t));
+                if (file->is_cache_hit) {
+                    /* Cache hit: use cached hash and insert into result heap */
+                    fsize->chksum_array[fsize->nb_checksumed].hash_value = file->cached_hash;
                     fsize->nb_checksumed++;
                     napr_heap_insert(tmp_heap, file);
                 }
                 else {
-                    (*total_hash_tasks)++;
-                    fsize->nb_checksumed++;
+                    /* Cache miss: proceed with existing logic */
+                    if (((2 == fsize->nb_files) || (0 == fsize->val)) && !is_option_set(conf->mask, OPTION_JSON)) {
+                        memset(&fsize->chksum_array[fsize->nb_checksumed].hash_value, 0, sizeof(ft_hash_t));
+                        fsize->nb_checksumed++;
+                        napr_heap_insert(tmp_heap, file);
+                    }
+                    else {
+                        (*total_hash_tasks)++;
+                        fsize->nb_checksumed++;
+                    }
                 }
             }
         }
