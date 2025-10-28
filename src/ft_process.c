@@ -100,6 +100,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_size_t *total_hash_tasks);
 static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool, apr_size_t total_hash_tasks, hashing_context_t *h_ctx);
 static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_pool_t *gc_pool);
+static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t *h_ctx);
 
 apr_status_t ft_process_files(ft_conf_t *conf)
 {
@@ -161,42 +162,8 @@ apr_status_t ft_process_files(ft_conf_t *conf)
             return status;
         }
 
-        /* Update cache with hashing results */
         if (h_ctx.results && h_ctx.results->nelts > 0) {
-            apr_pool_t *update_pool = NULL;
-            status = apr_pool_create(&update_pool, conf->pool);
-            if (APR_SUCCESS != status) {
-                DEBUG_ERR("error creating update pool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-            }
-            else {
-                status = napr_cache_begin_write(conf->cache, update_pool);
-                if (APR_SUCCESS == status) {
-                    for (int i = 0; i < h_ctx.results->nelts; i++) {
-                        hashing_result_t *result = APR_ARRAY_IDX(h_ctx.results, i, hashing_result_t *);
-                        napr_cache_entry_t entry;
-                        entry.mtime = result->mtime;
-                        entry.ctime = result->ctime;
-                        entry.size = result->size;
-                        entry.hash = result->hash;
-                        status = napr_cache_upsert_in_txn(conf->cache, result->filename, &entry);
-                        if (APR_SUCCESS != status) {
-                            DEBUG_ERR("Failed to update cache for %s", result->filename);
-                            napr_cache_abort_write(conf->cache);
-                            break;
-                        }
-                    }
-                    if (APR_SUCCESS == status) {
-                        status = napr_cache_commit_write(conf->cache);
-                        if (APR_SUCCESS != status) {
-                            DEBUG_ERR("Failed to commit cache updates: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-                        }
-                    }
-                }
-                else {
-                    DEBUG_ERR("Failed to begin cache update transaction: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-                }
-                apr_pool_destroy(update_pool);
-            }
+            status = update_cache_with_results(conf, &h_ctx);
         }
 
         status = apr_thread_mutex_destroy(h_ctx.results_mutex);
@@ -215,6 +182,49 @@ apr_status_t ft_process_files(ft_conf_t *conf)
     conf->heap = tmp_heap;
 
     return APR_SUCCESS;
+}
+
+static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t *h_ctx)
+{
+    char errbuf[ERR_BUF_SIZE];
+    apr_pool_t *update_pool = NULL;
+    apr_status_t status = apr_pool_create(&update_pool, conf->pool);
+
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error creating update pool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
+    }
+
+    status = napr_cache_begin_write(conf->cache, update_pool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("Failed to begin cache update transaction: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        apr_pool_destroy(update_pool);
+        return status;
+    }
+
+    for (int i = 0; i < h_ctx->results->nelts; i++) {
+        hashing_result_t *result = APR_ARRAY_IDX(h_ctx->results, i, hashing_result_t *);
+        napr_cache_entry_t entry;
+        entry.mtime = result->mtime;
+        entry.ctime = result->ctime;
+        entry.size = result->size;
+        entry.hash = result->hash;
+        status = napr_cache_upsert_in_txn(conf->cache, result->filename, &entry);
+        if (APR_SUCCESS != status) {
+            DEBUG_ERR("Failed to update cache for %s", result->filename);
+            napr_cache_abort_write(conf->cache);
+            apr_pool_destroy(update_pool);
+            return status;
+        }
+    }
+
+    status = napr_cache_commit_write(conf->cache);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("Failed to commit cache updates: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
+
+    apr_pool_destroy(update_pool);
+    return status;
 }
 
 static apr_status_t categorize_files(ft_conf_t *conf, napr_heap_t *tmp_heap, apr_size_t *total_hash_tasks)
