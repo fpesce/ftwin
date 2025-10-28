@@ -111,6 +111,18 @@ typedef struct hashing_task_t
 } hashing_task_t;
 
 /**
+ * Result structure for storing computed hashes for cache updates.
+ */
+typedef struct hashing_result_t
+{
+    char *filename;
+    apr_time_t mtime;
+    apr_time_t ctime;
+    apr_off_t size;
+    ft_hash_t hash;
+} hashing_result_t;
+
+/**
  * Shared context for parallel hashing operations.
  * Protected by mutexes where necessary for thread safety.
  */
@@ -123,6 +135,10 @@ typedef struct hashing_context_t
     /* Statistics (protected by stats_mutex) */
     apr_size_t files_processed;
     apr_size_t total_files;
+
+    /* Results collection for cache updates (protected by results_mutex) */
+    apr_array_header_t *results;
+    apr_thread_mutex_t *results_mutex;
 } hashing_context_t;
 
 #endif /* FT_TYPES_H */
