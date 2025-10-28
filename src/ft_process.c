@@ -164,6 +164,9 @@ apr_status_t ft_process_files(ft_conf_t *conf)
 
         if (h_ctx.results && h_ctx.results->nelts > 0) {
             status = update_cache_with_results(conf, &h_ctx);
+            if (APR_SUCCESS != status) {
+                DEBUG_ERR("error calling update_cache_with_results: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            }
         }
 
         status = apr_thread_mutex_destroy(h_ctx.results_mutex);

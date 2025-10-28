@@ -103,6 +103,14 @@ static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char *
         }
     }
 
+    if (conf->cache) {
+        status = napr_cache_sweep(conf->cache);
+        if (status != APR_SUCCESS) {
+            DEBUG_ERR("Error during cache sweep: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            status = APR_SUCCESS;
+        }
+    }
+
     if (napr_heap_size(conf->heap) > 0) {
         if (is_option_set(conf->mask, OPTION_PUZZL)) {
             status = ft_image_twin_report(conf);
