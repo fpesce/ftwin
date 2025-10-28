@@ -18,7 +18,7 @@ static apr_status_t traverse_recursive(ft_conf_t *conf, const char *filename, ap
 
 static apr_status_t get_file_info(const char *filename, apr_finfo_t *finfo, ft_conf_t *conf, apr_pool_t *pool)
 {
-    apr_int32_t statmask = APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
+    apr_int32_t statmask = APR_FINFO_SIZE | APR_FINFO_MTIME | APR_FINFO_CTIME | APR_FINFO_TYPE | APR_FINFO_USER | APR_FINFO_GROUP | APR_FINFO_UPROT | APR_FINFO_GPROT;
     if (!is_option_set(conf->mask, OPTION_FSYML)) {
         statmask |= APR_FINFO_LINK;
     }
@@ -69,6 +69,7 @@ static apr_status_t process_file(const char *filename, const apr_finfo_t *finfo,
         file->path = apr_pstrdup(conf->pool, filename);
         file->size = finfo->size;
         file->mtime = finfo->mtime;
+        file->ctime = finfo->ctime;
         file->prioritized = ((conf->p_path) && (strlen(filename) >= conf->p_path_len) &&
                              ((is_option_set(conf->mask, OPTION_ICASE) && !strncasecmp(filename, conf->p_path, conf->p_path_len)) ||
                               (!is_option_set(conf->mask, OPTION_ICASE) && !memcmp(filename, conf->p_path, conf->p_path_len))));
