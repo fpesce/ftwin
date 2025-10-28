@@ -1,4 +1,5 @@
 #include <apr_thread_mutex.h>
+#include <apr_strings.h>
 
 #include "debug.h"
 #include "ft_config.h"
@@ -56,6 +57,21 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 
     if (APR_SUCCESS == status) {
         apr_status_t lock_status = APR_SUCCESS;
+
+        /* Collect result for cache update */
+        lock_status = apr_thread_mutex_lock(h_ctx->results_mutex);
+        if (APR_SUCCESS == lock_status) {
+            hashing_result_t *result = apr_palloc(h_ctx->pool, sizeof(hashing_result_t));
+            if (result != NULL) {
+                result->filename = apr_pstrdup(h_ctx->pool, file->path);
+                result->mtime = file->mtime;
+                result->ctime = file->ctime;
+                result->size = file->size;
+                result->hash = fsize->chksum_array[task->index].hash_value;
+                APR_ARRAY_PUSH(h_ctx->results, hashing_result_t *) = result;
+            }
+            apr_thread_mutex_unlock(h_ctx->results_mutex);
+        }
 
         lock_status = apr_thread_mutex_lock(h_ctx->stats_mutex);
         if (APR_SUCCESS == lock_status) {
@@ -197,9 +213,18 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
         return status;
     }
 
+    h_ctx.results = apr_array_make(gc_pool, (int) total_hash_tasks, sizeof(hashing_result_t *));
+    status = apr_thread_mutex_create(&h_ctx.results_mutex, APR_THREAD_MUTEX_DEFAULT, gc_pool);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_create for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        apr_thread_mutex_destroy(h_ctx.stats_mutex);
+        return status;
+    }
+
     status = napr_threadpool_init(&threadpool, &h_ctx, conf->num_threads, hashing_worker_callback, gc_pool);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("error calling napr_threadpool_init: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        apr_thread_mutex_destroy(h_ctx.results_mutex);
         apr_thread_mutex_destroy(h_ctx.stats_mutex);
         return status;
     }
@@ -223,6 +248,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
                     if (APR_SUCCESS != status) {
                         DEBUG_ERR("error calling napr_threadpool_add: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
                         napr_threadpool_wait(threadpool);
+                        apr_thread_mutex_destroy(h_ctx.results_mutex);
                         apr_thread_mutex_destroy(h_ctx.stats_mutex);
                         return status;
                     }
@@ -232,6 +258,11 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
     }
 
     napr_threadpool_wait(threadpool);
+
+    status = apr_thread_mutex_destroy(h_ctx.results_mutex);
+    if (APR_SUCCESS != status) {
+        DEBUG_ERR("error calling apr_thread_mutex_destroy for results_mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
 
     status = apr_thread_mutex_destroy(h_ctx.stats_mutex);
     if (APR_SUCCESS != status) {
@@ -257,14 +288,10 @@ static apr_status_t collect_hashing_results(ft_conf_t *conf, napr_heap_t *tmp_he
     for (napr_hash_index_t *hash_index = napr_hash_first(gc_pool, conf->sizes); hash_index; hash_index = napr_hash_next(hash_index)) {
         napr_hash_this(hash_index, NULL, NULL, (void **) &fsize);
 
-        int should_insert = (fsize->nb_files > 2) && (0 != fsize->val);
-        if (is_option_set(conf->mask, OPTION_JSON)) {
-            should_insert = (fsize->nb_files >= 2);
-        }
-
-        if (should_insert) {
-            for (apr_uint32_t idx = 0; idx < fsize->nb_files; idx++) {
-                if (NULL != fsize->chksum_array[idx].file) {
+        if (fsize->chksum_array != NULL) {
+            for (apr_uint32_t idx = 0; idx < fsize->nb_checksumed; idx++) {
+                /* Only insert files that were cache misses (cache hits were already inserted in categorize_files) */
+                if (fsize->chksum_array[idx].file != NULL && !fsize->chksum_array[idx].file->is_cache_hit) {
                     napr_heap_insert(tmp_heap, fsize->chksum_array[idx].file);
                 }
             }
