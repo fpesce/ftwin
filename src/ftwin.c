@@ -28,6 +28,7 @@
 #include <apr_file_io.h>
 #include <apr_strings.h>
 #include <apr_user.h>
+#include <apr_env.h>
 
 #include "config.h"
 
@@ -131,52 +132,126 @@ static apr_status_t run_ftwin_processing(ft_conf_t *conf, int argc, const char *
     return status;
 }
 
-int ftwin_main(int argc, const char **argv)
+static apr_status_t initialize_resources(apr_pool_t **pool)
 {
     char errbuf[ERR_BUF_SIZE];
-    ft_conf_t *conf = NULL;
-    apr_pool_t *pool = NULL;
-    int first_arg_index = 0;
     apr_status_t status = APR_SUCCESS;
 
     if (should_manage_apr) {
         status = apr_initialize();
-        if (APR_SUCCESS != status) {
+        if (status != APR_SUCCESS) {
             DEBUG_ERR("error calling apr_initialize: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-            return -1;
+            return status;
         }
     }
 
-    status = apr_pool_create(&pool, NULL);
-    if (APR_SUCCESS != status) {
+    status = apr_pool_create(pool, NULL);
+    if (status != APR_SUCCESS) {
         DEBUG_ERR("error calling apr_pool_create: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         if (should_manage_apr) {
             apr_terminate();
         }
-        return -1;
+    }
+    return status;
+}
+
+static apr_status_t setup_cache(ft_conf_t *conf, apr_pool_t *pool)
+{
+    char errbuf[ERR_BUF_SIZE];
+    char *home_dir = NULL;
+    const char *cache_dir_path = NULL;
+    const char *cache_db_path = NULL;
+    apr_status_t status = APR_SUCCESS;
+
+    status = apr_env_get(&home_dir, "HOME", pool);
+    if (status != APR_SUCCESS) {
+        DEBUG_ERR("error getting HOME environment variable: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
     }
 
-    conf = ft_config_create(pool);
-    status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
-    if (APR_SUCCESS != status) {
-        if (should_manage_apr) {
-            apr_terminate();
-        }
-        return -1;
+    cache_dir_path = apr_pstrcat(pool, home_dir, "/.cache/ftwin", NULL);
+    if (cache_dir_path == NULL) {
+        DEBUG_ERR("error constructing cache directory path");
+        return APR_EGENERAL;
     }
 
-    status = run_ftwin_processing(conf, argc, argv, first_arg_index);
-    if (APR_SUCCESS != status) {
-        DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
-        if (should_manage_apr) {
-            apr_terminate();
+    status = apr_dir_make_recursive(cache_dir_path, APR_OS_DEFAULT, pool);
+    if (status != APR_SUCCESS && !APR_STATUS_IS_EEXIST(status)) {
+        DEBUG_ERR("error creating cache directory %s: %s", cache_dir_path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        return status;
+    }
+
+    cache_db_path = apr_pstrcat(pool, cache_dir_path, "/file_cache.db", NULL);
+    if (cache_db_path == NULL) {
+        DEBUG_ERR("error constructing cache database path");
+        return APR_EGENERAL;
+    }
+
+    status = napr_cache_open(&conf->cache, cache_db_path, pool);
+    if (status != APR_SUCCESS) {
+        DEBUG_ERR("error opening cache at %s: %s", cache_db_path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
+    return status;
+}
+
+static void cleanup_resources(ft_conf_t *conf)
+{
+    if (conf && conf->cache) {
+        apr_status_t close_status = napr_cache_close(conf->cache);
+        if (close_status != APR_SUCCESS) {
+            char errbuf[ERR_BUF_SIZE];
+
+            DEBUG_ERR("error closing cache: %s", apr_strerror(close_status, errbuf, ERR_BUF_SIZE));
         }
-        return -1;
     }
 
     if (should_manage_apr) {
         apr_terminate();
     }
+}
+
+static apr_status_t process_args_and_run(ft_conf_t *conf, int argc, const char **argv)
+{
+    int first_arg_index = 0;
+    apr_status_t status = ft_config_parse_args(conf, argc, argv, &first_arg_index);
+
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    status = run_ftwin_processing(conf, argc, argv, first_arg_index);
+    if (status != APR_SUCCESS) {
+        char errbuf[ERR_BUF_SIZE];
+        DEBUG_ERR("error during ftwin processing: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
+    return status;
+}
+
+int ftwin_main(int argc, const char **argv)
+{
+    ft_conf_t *conf = NULL;
+    apr_pool_t *pool = NULL;
+    apr_status_t status = initialize_resources(&pool);
+
+    if (status != APR_SUCCESS) {
+        return -1;
+    }
+
+    conf = ft_config_create(pool);
+
+    status = setup_cache(conf, pool);
+    if (status != APR_SUCCESS) {
+        cleanup_resources(NULL);
+        return -1;
+    }
+
+    status = process_args_and_run(conf, argc, argv);
+    if (status != APR_SUCCESS) {
+        cleanup_resources(conf);
+        return -1;
+    }
+
+    cleanup_resources(conf);
     return 0;
 }
 
