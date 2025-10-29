@@ -130,8 +130,7 @@ static apr_status_t update_hashing_stats(hashing_context_t *h_ctx)
 
     if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
         (void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-                       h_ctx->files_processed, h_ctx->total_files,
-                       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
+                       h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
     }
 
     lock_status = apr_thread_mutex_unlock(h_ctx->stats_mutex);
@@ -362,7 +361,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
         if (should_hash) {
             for (apr_uint32_t idx = 0; idx < fsize->nb_files; idx++) {
                 if (NULL != fsize->chksum_array[idx].file) {
-                    hashing_task_t *task = apr_palloc(gc_pool, sizeof(hashing_task_t));
+                    hashing_task_t *task = apr_palloc(conf->pool, sizeof(hashing_task_t));
                     task->fsize = fsize;
                     task->index = idx;
 
