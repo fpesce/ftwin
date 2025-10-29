@@ -235,6 +235,9 @@ static apr_status_t db_mmap_file(napr_db_env_t *env)
         apr_mmap_delete(env->mmap);
         env->mmap = NULL;
     }
+    else {
+        env->current_map_len = env->mapsize;
+    }
 
     return status;
 }
