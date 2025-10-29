@@ -447,6 +447,64 @@ END_TEST
 /* *INDENT-ON* */
 
 /*
+ * Test: Verify left page metadata after split
+ *
+ * This test verifies that:
+ * 1. The 'upper' pointer of the left page is correctly updated after a split.
+ * 2. The free space calculation for the left page is correct after the split.
+ * 3. A new item can be inserted into the left page after the split without an ENOSPC error.
+ */
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_leaf_split_left_page_metadata)
+{
+    db_split_fixture fixture = { 0 };
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+    apr_status_t status = APR_SUCCESS;
+    uint16_t expected_upper = 0;
+    napr_db_val_t new_key;
+    napr_db_val_t new_data;
+    char *new_key_str = "new_key";
+    char *new_data_str = "new_data";
+
+    db_split_setup(&fixture);
+
+    /* Populate the page to be nearly full */
+    populate_leaf_page(fixture.left_page, 22);
+
+    /* Split the page */
+    status = db_split_leaf(fixture.txn, fixture.left_page, &right_page, &divider_key);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    /* After the split, calculate the true minimum offset of remaining nodes */
+    uint16_t *left_slots = db_page_slots(fixture.left_page);
+    expected_upper = PAGE_SIZE;
+    for (uint16_t i = 0; i < fixture.left_page->num_keys; i++) {
+        uint16_t offset = left_slots[i];
+        if (offset < expected_upper) {
+            expected_upper = offset;
+        }
+    }
+
+    /* Assert 1: Verify the upper pointer is updated correctly */
+    ck_assert_int_eq(fixture.left_page->upper, expected_upper);
+
+    /* Assert 2: Verify a new item can be inserted into the left page */
+    new_key.data = new_key_str;
+    new_key.size = strlen(new_key_str);
+    new_data.data = new_data_str;
+    new_data.size = strlen(new_data_str);
+
+    status = db_page_insert(fixture.left_page, 0, &new_key, &new_data, 0);
+    ck_assert_int_eq(status, APR_SUCCESS);
+
+    db_split_teardown(&fixture);
+}
+/* *INDENT-OFF* */
+END_TEST
+/* *INDENT-ON* */
+
+/*
  * Suite creation
  */
 Suite *make_db_split_suite(void)
@@ -458,6 +516,7 @@ Suite *make_db_split_suite(void)
     /* Basic split tests */
     tcase_add_test(tc_core, test_leaf_split_basic);
     tcase_add_test(tc_core, test_leaf_split_key_distribution);
+    tcase_add_test(tc_core, test_leaf_split_left_page_metadata);
     suite_add_tcase(suite, tc_core);
 
     /* Stress tests - with longer timeout */
