@@ -10,6 +10,8 @@
  */
 
 #include "napr_db_internal.h"
+#include "debug.h"
+#include "ft_constants.h"
 #include <apr_file_io.h>
 #include <apr_mmap.h>
 #include <apr_thread_mutex.h>
@@ -236,7 +238,15 @@ static apr_status_t db_mmap_file(napr_db_env_t *env)
         env->mmap = NULL;
     }
     else {
-        env->current_map_len = env->mapsize;
+        /* Track actual file size, not mmap size */
+        apr_finfo_t finfo;
+        apr_status_t fstat = apr_file_info_get(&finfo, APR_FINFO_SIZE, env->file);
+        if (fstat == APR_SUCCESS) {
+            env->current_map_len = finfo.size;
+        }
+        else {
+            env->current_map_len = env->mapsize;        /* Fallback to mapsize if stat fails */
+        }
     }
 
     return status;
@@ -708,15 +718,22 @@ static void update_dirty_page_pointers(napr_db_txn_t *txn, apr_hash_t *pgno_map,
 static apr_status_t extend_database_file(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
+    char errbuf[ERR_BUF_SIZE];
 
     if (txn->new_last_pgno > txn->env->live_meta->last_pgno) {
         apr_off_t new_file_size = (apr_off_t) (txn->new_last_pgno + 1) * PAGE_SIZE;
         apr_off_t current_pos = 0;
 
+        DEBUG_DBG("[EXTEND] Extending file: new_last_pgno=%lu, old_last_pgno=%lu, new_file_size=%lld",
+                  (unsigned long) txn->new_last_pgno, (unsigned long) txn->env->live_meta->last_pgno, (long long) new_file_size);
+
         status = apr_file_seek(txn->env->file, APR_END, &current_pos);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to seek to end of file: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
+
+        DEBUG_DBG("[EXTEND] Current file pos: %lld, needed: %lld", (long long) current_pos, (long long) new_file_size);
 
         if (current_pos < new_file_size) {
             apr_off_t seek_pos = new_file_size - 1;
@@ -725,16 +742,29 @@ static apr_status_t extend_database_file(napr_db_txn_t *txn)
 
             status = apr_file_seek(txn->env->file, APR_SET, &seek_pos);
             if (status != APR_SUCCESS) {
+                DEBUG_ERR("Failed to seek to position %lld: %s", (long long) seek_pos, apr_strerror(status, errbuf, ERR_BUF_SIZE));
                 return status;
             }
 
             status = apr_file_write(txn->env->file, &zero_byte, &bytes_written);
             if (status != APR_SUCCESS) {
+                DEBUG_ERR("Failed to write zero byte at position %lld: %s", (long long) seek_pos, apr_strerror(status, errbuf, ERR_BUF_SIZE));
                 return status;
             }
 
+            DEBUG_DBG("[EXTEND] Extended file to %lld bytes", (long long) new_file_size);
+
             status = apr_file_sync(txn->env->file);
+            if (status != APR_SUCCESS) {
+                DEBUG_ERR("Failed to sync file after extension: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            }
         }
+        else {
+            DEBUG_DBG("[EXTEND] File already large enough (current: %lld >= needed: %lld)", (long long) current_pos, (long long) new_file_size);
+        }
+    }
+    else {
+        DEBUG_DBG("[EXTEND] No extension needed (new_last_pgno %lu <= old_last_pgno %lu)", (unsigned long) txn->new_last_pgno, (unsigned long) txn->env->live_meta->last_pgno);
     }
 
     return status;
@@ -750,6 +780,11 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
     apr_hash_index_t *h_index = NULL;
+    int page_count = 0;
+    char errbuf[ERR_BUF_SIZE];
+
+    int total_dirty = apr_hash_count(txn->dirty_pages);
+    DEBUG_DBG("[WRITE] Writing %d dirty pages to disk", total_dirty);
 
     for (h_index = apr_hash_first(txn->pool, txn->dirty_pages); h_index; h_index = apr_hash_next(h_index)) {
         void *val = NULL;
@@ -764,18 +799,28 @@ static apr_status_t write_dirty_pages_to_disk(napr_db_txn_t *txn)
 
         offset = (apr_off_t) new_pgno *PAGE_SIZE;
 
+        DEBUG_DBG("[WRITE] Page %d/%d: pgno=%lu, offset=%lld", ++page_count, total_dirty, (unsigned long) new_pgno, (long long) offset);
+
         status = apr_file_seek(txn->env->file, APR_SET, &offset);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to seek to offset %lld for pgno %lu: %s", (long long) offset, (unsigned long) new_pgno, apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
 
         status = apr_file_write_full(txn->env->file, dirty_page, bytes_to_write, NULL);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to write page %lu at offset %lld: %s", (unsigned long) new_pgno, (long long) offset, apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
     }
 
-    return apr_file_sync(txn->env->file);
+    DEBUG_DBG("[WRITE] All dirty pages written, syncing to disk");
+    status = apr_file_sync(txn->env->file);
+    if (status != APR_SUCCESS) {
+        DEBUG_ERR("Failed to sync file to disk: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
+
+    return status;
 }
 
 /* Forward declarations for Free DB helper functions */
@@ -1195,16 +1240,27 @@ static apr_status_t remap_database_file_if_needed(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
     apr_finfo_t finfo;
+    char errbuf[ERR_BUF_SIZE];
 
     status = apr_file_info_get(&finfo, APR_FINFO_SIZE, txn->env->file);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("Failed to get file info during remap check: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
+    DEBUG_DBG("[REMAP] File size: %lld, Current map len: %zu, Mapsize: %zu", (long long) finfo.size, txn->env->current_map_len, txn->env->mapsize);
+
     if (finfo.size > txn->env->current_map_len) {
+        void *old_map_addr = txn->env->map_addr;
+        void *old_meta0 = txn->env->meta0;
+        void *old_meta1 = txn->env->meta1;
+
+        DEBUG_DBG("[REMAP] Remapping needed! Old map_addr=%p, meta0=%p, meta1=%p", old_map_addr, old_meta0, old_meta1);
+
         /* Unmap the old region */
         status = apr_mmap_delete(txn->env->mmap);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to delete old mmap during remap: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
         txn->env->mmap = NULL;
@@ -1213,20 +1269,35 @@ static apr_status_t remap_database_file_if_needed(napr_db_txn_t *txn)
         /* Remap the file with the new size */
         status = apr_mmap_create(&txn->env->mmap, txn->env->file, 0, txn->env->mapsize, APR_MMAP_READ | APR_MMAP_WRITE, txn->env->pool);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to create new mmap during remap: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
-        txn->env->current_map_len = txn->env->mapsize;
+        /* Update to actual file size, not mmap size */
+        txn->env->current_map_len = finfo.size;
 
         /* Update the base address */
         status = apr_mmap_offset(&txn->env->map_addr, txn->env->mmap, 0);
         if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to get mmap offset during remap: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
             return status;
         }
 
         /* Update metadata pointers */
         txn->env->meta0 = (DB_MetaPage *) txn->env->map_addr;
         txn->env->meta1 = (DB_MetaPage *) ((char *) txn->env->map_addr + PAGE_SIZE);
+
+        DEBUG_DBG("[REMAP] Success! New map_addr=%p, meta0=%p, meta1=%p, current_map_len=%zu", txn->env->map_addr, txn->env->meta0, txn->env->meta1, txn->env->current_map_len);
+
         status = select_live_meta(txn->env);
+        if (status != APR_SUCCESS) {
+            DEBUG_ERR("Failed to select live meta after remap: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            return status;
+        }
+
+        DEBUG_DBG("[REMAP] Live meta selected: txnid=%llu", (unsigned long long) txn->env->live_meta->txnid);
+    }
+    else {
+        DEBUG_DBG("[REMAP] No remapping needed (file size <= current map len)");
     }
 
     return status;
