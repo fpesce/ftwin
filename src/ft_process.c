@@ -28,7 +28,6 @@ static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
-    char errbuf[ERR_BUF_SIZE];
     hashing_context_t *h_ctx = (hashing_context_t *) hashing_ctx;
     hashing_task_t *task = (hashing_task_t *) task_data;
     ft_fsize_t *fsize = task->fsize;
@@ -37,6 +36,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
     apr_status_t status = apr_pool_create(&subpool, h_ctx->pool);
 
     if (APR_SUCCESS != status) {
+        char errbuf[ERR_BUF_SIZE];
         DEBUG_ERR("error creating subpool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
@@ -130,8 +130,7 @@ static apr_status_t update_hashing_stats(hashing_context_t *h_ctx)
 
     if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
         (void) fprintf(stderr, "\rProgress [%" APR_SIZE_T_FMT "/%" APR_SIZE_T_FMT "] %d%% ",
-                       h_ctx->files_processed, h_ctx->total_files,
-                       (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
+                       h_ctx->files_processed, h_ctx->total_files, (int) ((float) h_ctx->files_processed / (float) h_ctx->total_files * 100.0F));
     }
 
     lock_status = apr_thread_mutex_unlock(h_ctx->stats_mutex);
@@ -150,9 +149,9 @@ static void handle_hashing_success(hashing_context_t *h_ctx, ft_file_t *file, ft
 
 static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_status_t status)
 {
-    char errbuf[ERR_BUF_SIZE];
-
     if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+        char errbuf[ERR_BUF_SIZE];
+
         (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
 }
@@ -362,7 +361,7 @@ static apr_status_t dispatch_hashing_tasks(ft_conf_t *conf, apr_pool_t *gc_pool,
         if (should_hash) {
             for (apr_uint32_t idx = 0; idx < fsize->nb_files; idx++) {
                 if (NULL != fsize->chksum_array[idx].file) {
-                    hashing_task_t *task = apr_palloc(gc_pool, sizeof(hashing_task_t));
+                    hashing_task_t *task = apr_palloc(conf->pool, sizeof(hashing_task_t));
                     task->fsize = fsize;
                     task->index = idx;
 

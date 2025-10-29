@@ -16,6 +16,7 @@
 #include <apr_proc_mutex.h>
 #include <apr_global_mutex.h>
 #include <apr_portable.h>
+#include <apr_strings.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -234,6 +235,9 @@ static apr_status_t db_mmap_file(napr_db_env_t *env)
         apr_mmap_delete(env->mmap);
         env->mmap = NULL;
     }
+    else {
+        env->current_map_len = env->mapsize;
+    }
 
     return status;
 }
@@ -307,6 +311,7 @@ apr_status_t napr_db_env_open(napr_db_env_t *env, const char *path, unsigned int
     }
 
     env->flags = flags;
+    env->db_path = apr_pstrdup(env->pool, path);
 
     status = db_file_open(env, path, &is_new_file);
     if (status != APR_SUCCESS) {
@@ -1181,6 +1186,52 @@ static apr_status_t commit_meta_page(napr_db_txn_t *txn, DB_CommitPgnos pgnos)
     return APR_SUCCESS;
 }
 
+/**
+ * @brief Remap the database file if its size has changed.
+ * @param txn The transaction.
+ * @return APR_SUCCESS or an error code.
+ */
+static apr_status_t remap_database_file_if_needed(napr_db_txn_t *txn)
+{
+    apr_status_t status = APR_SUCCESS;
+    apr_finfo_t finfo;
+
+    status = apr_file_info_get(&finfo, APR_FINFO_SIZE, txn->env->file);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
+
+    if (finfo.size > txn->env->current_map_len) {
+        /* Unmap the old region */
+        status = apr_mmap_delete(txn->env->mmap);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+        txn->env->mmap = NULL;
+        txn->env->map_addr = NULL;
+
+        /* Remap the file with the new size */
+        status = apr_mmap_create(&txn->env->mmap, txn->env->file, 0, txn->env->mapsize, APR_MMAP_READ | APR_MMAP_WRITE, txn->env->pool);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+        txn->env->current_map_len = txn->env->mapsize;
+
+        /* Update the base address */
+        status = apr_mmap_offset(&txn->env->map_addr, txn->env->mmap, 0);
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+        /* Update metadata pointers */
+        txn->env->meta0 = (DB_MetaPage *) txn->env->map_addr;
+        txn->env->meta1 = (DB_MetaPage *) ((char *) txn->env->map_addr + PAGE_SIZE);
+        status = select_live_meta(txn->env);
+    }
+
+    return status;
+}
+
 apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
@@ -1239,6 +1290,11 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
     update_dirty_page_pointers(txn, pgno_map, &new_root_pgno);
 
     status = extend_database_file(txn);
+    if (status != APR_SUCCESS) {
+        goto cleanup;
+    }
+
+    status = remap_database_file_if_needed(txn);
     if (status != APR_SUCCESS) {
         goto cleanup;
     }
