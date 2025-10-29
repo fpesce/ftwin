@@ -93,7 +93,10 @@ static apr_status_t handle_cache_lookup(const char *filename, const apr_finfo_t 
         }
     }
     else if (cache_status != APR_SUCCESS && !APR_STATUS_IS_ENOENT(cache_status)) {
-        DEBUG_ERR("error looking up cache entry for %s: %s", filename, apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
+        /* This can be a harmless APR_ENOENT if the entry is not in the cache, so we don't log it unless verbosity is enabled. */
+        if (is_option_set(conf->mask, OPTION_VERBO)) {
+            DEBUG_ERR("error looking up cache entry for %s: %s", filename, apr_strerror(cache_status, errbuf, ERR_BUF_SIZE));
+        }
     }
 
     cache_status = napr_cache_mark_visited(conf->cache, filename);
