@@ -24,7 +24,7 @@
  * @param key2_size Size of second key
  * @return <0 if key1 < key2, 0 if equal, >0 if key1 > key2
  */
-static int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const uint8_t *key2_data, uint16_t key2_size)
+int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const uint8_t *key2_data, uint16_t key2_size)
 {
     /* Compare the common length */
     size_t min_size = (key1_size < key2_size) ? key1_size : key2_size;
@@ -659,7 +659,8 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Page
     {
         uint16_t *left_slots = db_page_slots(left_page);
         uint16_t min_offset = PAGE_SIZE;
-        for (uint16_t i = 0; i < split_point; i++) {
+        uint16_t i;
+        for (i = 0; i < split_point; i++) {
             uint16_t offset = left_slots[i];
             if (offset < min_offset) {
                 min_offset = offset;

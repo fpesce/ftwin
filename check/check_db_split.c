@@ -446,6 +446,78 @@ START_TEST(test_root_split)
 END_TEST
 /* *INDENT-ON* */
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+START_TEST(test_leaf_split_left_page_metadata)
+{
+    db_split_fixture fixture = { 0 };
+    DB_PageHeader *right_page = NULL;
+    napr_db_val_t divider_key = { 0 };
+    apr_status_t status = APR_SUCCESS;
+    uint16_t expected_upper = 0;
+
+    // Define the key/data that will trigger the split
+    napr_db_val_t trigger_key;
+    napr_db_val_t trigger_data;
+    // Use sizes similar to what caused failure in logs
+    char trigger_key_str[103] = "trigger_key_long_enough_to_cause_split_";
+    char trigger_data_str[41] = "trigger_data_content_";
+    trigger_key.data = trigger_key_str;
+    trigger_key.size = sizeof(trigger_key_str) - 1;     // Example size
+    trigger_data.data = trigger_data_str;
+    trigger_data.size = sizeof(trigger_data_str) - 1;   // Example size
+
+
+    db_split_setup(&fixture);
+
+    // --- Step 1: Fill the page aggressively ---
+    // Increase this number significantly, maybe 30, 35, or calculate precisely
+    const int NUM_INITIAL_ENTRIES = 30; // Needs tuning
+    populate_leaf_page(fixture.left_page, NUM_INITIAL_ENTRIES);
+
+    // --- Step 2 & 3: Perform Split ---
+    status = db_split_leaf(fixture.txn, fixture.left_page, &right_page, &divider_key);
+    ck_assert_int_eq(status, APR_SUCCESS);
+    ck_assert_ptr_nonnull(right_page);
+
+    // --- Step 4: Calculate expected upper for verification ---
+    uint16_t *left_slots = db_page_slots(fixture.left_page);
+    expected_upper = PAGE_SIZE;
+    for (uint16_t i = 0; i < fixture.left_page->num_keys; i++) {
+        uint16_t offset = left_slots[i];
+        if (offset < expected_upper) {
+            expected_upper = offset;
+        }
+    }
+
+    /* Assert 1: Verify the upper pointer is updated correctly */
+    // This assertion should FAIL before the fix
+    ck_assert_msg(fixture.left_page->upper == expected_upper, "left_page->upper mismatch after split. Expected: %u, Got: %u", expected_upper, fixture.left_page->upper);
+
+    // --- Step 5: Attempt Re-insertion (The critical step) ---
+    DB_PageHeader *target_page = NULL;
+    uint16_t target_index = 0;
+
+    // Determine target page and index for the trigger_key after split
+    if (db_key_compare(trigger_key.data, trigger_key.size, divider_key.data, divider_key.size) < 0) {
+        target_page = fixture.left_page;
+        status = db_page_search(target_page, &trigger_key, &target_index);
+        ck_assert_int_eq(status, APR_NOTFOUND); // Should not exist yet
+    }
+    else {
+        target_page = right_page;
+        status = db_page_search(target_page, &trigger_key, &target_index);
+        ck_assert_int_eq(status, APR_NOTFOUND); // Should not exist yet
+    }
+
+    // This insert should FAIL before the fix if trigger_key goes to left_page
+    // It should PASS after the fix.
+    status = db_page_insert(target_page, target_index, &trigger_key, &trigger_data, 0);
+    ck_assert_msg(status == APR_SUCCESS, "db_page_insert failed after split (Expected SUCCESS). Status: %d. Target Page: %lu, Index: %u", status, (unsigned long) target_page->pgno, target_index);
+
+    db_split_teardown(&fixture);
+}
+
+END_TEST
 /*
  * Suite creation
  */
@@ -458,6 +530,7 @@ Suite *make_db_split_suite(void)
     /* Basic split tests */
     tcase_add_test(tc_core, test_leaf_split_basic);
     tcase_add_test(tc_core, test_leaf_split_key_distribution);
+    tcase_add_test(tc_core, test_leaf_split_left_page_metadata);
     suite_add_tcase(suite, tc_core);
 
     /* Stress tests - with longer timeout */
