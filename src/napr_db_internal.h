@@ -461,6 +461,19 @@ static inline uint8_t *db_leaf_node_value(DB_LeafNode *node)
  */
 
 /**
+ * @brief Compare two keys.
+ *
+ * Performs lexicographic byte comparison of two keys.
+ *
+ * @param key1_data Pointer to first key data
+ * @param key1_size Size of first key
+ * @param key2_data Pointer to second key data
+ * @param key2_size Size of second key
+ * @return <0 if key1 < key2, 0 if equal, >0 if key1 > key2
+ */
+int db_key_compare(const uint8_t *key1_data, uint16_t key1_size, const uint8_t *key2_data, uint16_t key2_size);
+
+/**
  * @brief Search for a key within a page using binary search.
  *
  * @param page Pointer to the page header (Branch or Leaf)
