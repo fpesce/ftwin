@@ -718,11 +718,11 @@ static void update_dirty_page_pointers(napr_db_txn_t *txn, apr_hash_t *pgno_map,
 static apr_status_t extend_database_file(napr_db_txn_t *txn)
 {
     apr_status_t status = APR_SUCCESS;
-    char errbuf[ERR_BUF_SIZE];
 
     if (txn->new_last_pgno > txn->env->live_meta->last_pgno) {
         apr_off_t new_file_size = (apr_off_t) (txn->new_last_pgno + 1) * PAGE_SIZE;
         apr_off_t current_pos = 0;
+        char errbuf[ERR_BUF_SIZE];
 
         DEBUG_DBG("[EXTEND] Extending file: new_last_pgno=%lu, old_last_pgno=%lu, new_file_size=%lld",
                   (unsigned long) txn->new_last_pgno, (unsigned long) txn->env->live_meta->last_pgno, (long long) new_file_size);
@@ -1309,12 +1309,19 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
     int is_write = 0;
     apr_hash_t *pgno_map = NULL;
     pgno_t new_root_pgno = 0;
+    char errbuf[ERR_BUF_SIZE];
+    (void) errbuf;              /* May be used in error logging */
+
+    DEBUG_DBG("[COMMIT] Entry");
 
     if (!txn) {
+        DEBUG_ERR("[COMMIT] NULL transaction");
         return APR_EINVAL;
     }
 
     is_write = !(txn->flags & NAPR_DB_RDONLY);
+
+    DEBUG_DBG("[COMMIT] is_write=%d, dirty_pages=%p, dirty_count=%d", is_write, (void *) txn->dirty_pages, txn->dirty_pages ? apr_hash_count(txn->dirty_pages) : 0);
 
     /* Unregister read-only transaction from reader table */
     if (!is_write) {
@@ -1338,12 +1345,15 @@ apr_status_t napr_db_txn_commit(napr_db_txn_t *txn)
     }
 
     if (!is_write || !txn->dirty_pages || apr_hash_count(txn->dirty_pages) == 0) {
+        DEBUG_DBG("[COMMIT] Early return: no dirty pages to commit");
         if (is_write) {
             db_writer_unlock(txn->env);
         }
         apr_pool_destroy(txn->pool);
         return APR_SUCCESS;
     }
+
+    DEBUG_DBG("[COMMIT] Proceeding with commit of %d dirty pages", apr_hash_count(txn->dirty_pages));
 
     /* Populate the Free DB with freed pages from this transaction FIRST
      * so that Free DB pages are added to dirty_pages before we update pointers */
@@ -1516,16 +1526,22 @@ static apr_status_t handle_empty_tree_put(napr_db_txn_t *txn, const napr_db_val_
     pgno_t new_root_pgno = 0;
     DB_PageHeader *new_root = NULL;
     apr_status_t status = APR_SUCCESS;
+    char errbuf[ERR_BUF_SIZE];
+
+    DEBUG_DBG("[EMPTY_TREE] Entry: key.size=%zu, data.size=%zu", key ? key->size : 0, data ? data->size : 0);
 
     /* Allocate the first leaf page */
     status = db_page_alloc(txn, 1, &new_root_pgno);
+    DEBUG_DBG("[EMPTY_TREE] db_page_alloc result: %s, pgno=%lu", status == APR_SUCCESS ? "SUCCESS" : "FAILED", status == APR_SUCCESS ? (unsigned long) new_root_pgno : 0UL);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[EMPTY_TREE] db_page_alloc failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
     /* Allocate dirty page in memory */
     new_root = apr_pcalloc(txn->pool, PAGE_SIZE);
     if (!new_root) {
+        DEBUG_ERR("[EMPTY_TREE] apr_pcalloc failed (ENOMEM)");
         return APR_ENOMEM;
     }
 
@@ -1536,9 +1552,13 @@ static apr_status_t handle_empty_tree_put(napr_db_txn_t *txn, const napr_db_val_
     new_root->lower = sizeof(DB_PageHeader);
     new_root->upper = PAGE_SIZE;
 
+    DEBUG_DBG("[EMPTY_TREE] Initialized page: lower=%u, upper=%u", new_root->lower, new_root->upper);
+
     /* Insert the first key */
     status = db_page_insert(new_root, 0, key, data, 0);
+    DEBUG_DBG("[EMPTY_TREE] db_page_insert result: %s", status == APR_SUCCESS ? "SUCCESS" : status == APR_ENOSPC ? "ENOSPC" : "ERROR");
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[EMPTY_TREE] db_page_insert failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -1549,6 +1569,7 @@ static apr_status_t handle_empty_tree_put(napr_db_txn_t *txn, const napr_db_val_
     }
     *pgno_key = new_root_pgno;
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), new_root);
+    DEBUG_DBG("[EMPTY_TREE] Added page %lu to dirty_pages, count now=%d", (unsigned long) new_root_pgno, apr_hash_count(txn->dirty_pages));
 
     /* Update transaction's root pointer */
     txn->root_pgno = new_root_pgno;
@@ -1569,13 +1590,17 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
     uint16_t index = 0;
     apr_status_t status = APR_SUCCESS;
     int idx = 0;
+    char errbuf[ERR_BUF_SIZE];
 
     napr_db_val_t current_key;
     napr_db_val_t current_data;
     pgno_t right_child_pgno = 0;
 
+    DEBUG_DBG("[PUT] Entry: key.size=%zu, data.size=%zu, root_pgno=%lu", key ? key->size : 0, data ? data->size : 0, (unsigned long) (txn ? txn->root_pgno : 0));
+
     /* Validate inputs */
     if (!txn || !key || !data) {
+        DEBUG_ERR("[PUT] Invalid inputs: txn=%p, key=%p, data=%p", (void *) txn, (void *) key, (void *) data);
         return APR_EINVAL;
     }
 
@@ -1585,22 +1610,32 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
     /* Ensure this is a write transaction */
     if (txn->flags & NAPR_DB_RDONLY) {
+        DEBUG_ERR("[PUT] Read-only transaction");
         return APR_EACCES;
     }
 
     /* Special case: Empty tree (no root yet) */
     if (txn->root_pgno == 0) {
-        return handle_empty_tree_put(txn, &current_key, &current_data);
+        DEBUG_DBG("[PUT] Empty tree, calling handle_empty_tree_put");
+        status = handle_empty_tree_put(txn, &current_key, &current_data);
+        if (status != APR_SUCCESS) {
+            DEBUG_ERR("[PUT] handle_empty_tree_put failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+        }
+        return status;
     }
 
     /* Normal case: Tree exists, find the leaf page and record path */
     status = db_find_leaf_page_with_path(txn, &current_key, path, &path_len, &leaf_page);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[PUT] db_find_leaf_page_with_path failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
+    DEBUG_DBG("[PUT] Found leaf page, path_len=%u", path_len);
+
     /* Search within the leaf page to find insertion point */
     apr_status_t search_status = db_page_search(leaf_page, &current_key, &index);
+    DEBUG_DBG("[PUT] db_page_search result: %s, index=%u", (search_status == APR_SUCCESS) ? "FOUND" : "NOT_FOUND", index);
 
     /* If key exists, check if this is a same-transaction duplicate or an MVCC update.
      * Same-transaction duplicate: Leaf page is already dirty -> reject with APR_EEXIST
@@ -1652,6 +1687,10 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
 
     /* Try to insert into the dirty leaf page */
     status = db_page_insert(leaf_page, index, &current_key, &current_data, right_child_pgno);
+    DEBUG_DBG("[PUT] db_page_insert result: %s", status == APR_SUCCESS ? "SUCCESS" : status == APR_ENOSPC ? "ENOSPC (need split)" : "ERROR");
+    if (status != APR_SUCCESS && status != APR_ENOSPC) {
+        DEBUG_ERR("[PUT] db_page_insert failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+    }
 
     /* If insertion succeeded, we're done */
     if (status == APR_SUCCESS) {
@@ -1663,6 +1702,7 @@ apr_status_t napr_db_put(napr_db_txn_t *txn, const napr_db_val_t *key, napr_db_v
         return status;          /* Other error */
     }
 
+    DEBUG_DBG("[PUT] Calling handle_page_split");
     return handle_page_split(txn, leaf_page, path, path_len, &current_key, &current_data);
 }
 
@@ -1674,9 +1714,14 @@ static apr_status_t handle_page_split(napr_db_txn_t *txn, DB_PageHeader *leaf_pa
     DB_PageHeader *right_page = NULL;
     napr_db_val_t divider_key = { 0 };
     uint16_t index = 0;
+    char errbuf[ERR_BUF_SIZE];
+
+    DEBUG_DBG("[SPLIT] Entry: leaf_page pgno=%lu, num_keys=%u, path_len=%u", (unsigned long) leaf_page->pgno, leaf_page->num_keys, path_len);
 
     status = db_split_leaf(txn, left_page, &right_page, &divider_key);
+    DEBUG_DBG("[SPLIT] db_split_leaf result: %s", status == APR_SUCCESS ? "SUCCESS" : "FAILED");
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[SPLIT] db_split_leaf failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 

@@ -262,6 +262,9 @@ static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t
 {
     char errbuf[ERR_BUF_SIZE];
     apr_pool_t *update_pool = NULL;
+
+    DEBUG_DBG("[FT_PROCESS] update_cache_with_results: Entry, results->nelts=%d", h_ctx->results ? h_ctx->results->nelts : 0);
+
     apr_status_t status = apr_pool_create(&update_pool, conf->pool);
 
     if (APR_SUCCESS != status) {
@@ -292,10 +295,12 @@ static apr_status_t update_cache_with_results(ft_conf_t *conf, hashing_context_t
         }
     }
 
+    DEBUG_DBG("[FT_PROCESS] About to commit cache updates, results->nelts=%d", h_ctx->results->nelts);
     status = napr_cache_commit_write(conf->cache);
     if (APR_SUCCESS != status) {
         DEBUG_ERR("Failed to commit cache updates: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
+    DEBUG_DBG("[FT_PROCESS] Cache commit completed");
 
     apr_pool_destroy(update_pool);
     return status;

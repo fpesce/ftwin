@@ -4,6 +4,7 @@
  */
 
 #include "napr_cache.h"
+#include "debug.h"
 
 #include <apr_file_io.h>
 #include <apr_file_info.h>
@@ -211,6 +212,8 @@ apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool)
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
 
+    DEBUG_DBG("[CACHE] Begin write transaction");
+
     if (!cache || !pool) {
         return APR_EINVAL;
     }
@@ -218,9 +221,11 @@ apr_status_t napr_cache_begin_write(napr_cache_t *cache, apr_pool_t *pool)
     /* Begin write transaction on underlying DB */
     status = napr_db_txn_begin(cache->db_env, 0, &cache->active_txn);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[CACHE] Failed to begin write transaction");
         return status;
     }
 
+    DEBUG_DBG("[CACHE] Write transaction started, txn=%p", (void *) cache->active_txn);
     return APR_SUCCESS;
 }
 
@@ -249,18 +254,24 @@ apr_status_t napr_cache_commit_write(napr_cache_t *cache)
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     apr_status_t status;
 
+    DEBUG_DBG("[CACHE] Committing write transaction");
+
     if (!cache) {
         return APR_EINVAL;
     }
 
     if (!cache->active_txn) {
+        DEBUG_ERR("[CACHE] No active transaction to commit");
         return APR_EINVAL;      /* No active transaction */
     }
+
+    DEBUG_DBG("[CACHE] Calling napr_db_txn_commit, txn=%p", (void *) cache->active_txn);
 
     /* Commit write transaction */
     status = napr_db_txn_commit(cache->active_txn);
     cache->active_txn = NULL;
 
+    DEBUG_DBG("[CACHE] Commit result: %s", status == APR_SUCCESS ? "SUCCESS" : "FAILED");
     return status;
 }
 
@@ -338,8 +349,11 @@ apr_status_t napr_cache_upsert_in_txn(napr_cache_t *cache, const char *path, con
     }
 
     if (!cache->active_txn) {
+        DEBUG_ERR("[CACHE_UPSERT] No active transaction!");
         return APR_EINVAL;      /* No active transaction */
     }
+
+    DEBUG_DBG("[CACHE_UPSERT] path=%s, txn=%p", path, (void *) cache->active_txn);
 
     /* Prepare key (file path) */
     key.data = (void *) path;

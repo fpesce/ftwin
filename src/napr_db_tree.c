@@ -7,6 +7,8 @@
  */
 
 #include "napr_db_internal.h"
+#include "debug.h"
+#include "ft_constants.h"
 #include <string.h>
 #include <stdlib.h>
 #include <apr_hash.h>
@@ -282,20 +284,26 @@ apr_status_t db_page_alloc(napr_db_txn_t *txn, uint32_t count, pgno_t *pgno_out)
         return APR_EINVAL;
     }
 
+    DEBUG_DBG("[ALLOC] Entry: count=%u, current new_last_pgno=%lu", count, (unsigned long) txn->new_last_pgno);
+
     /* For single-page allocations, try to reclaim from Free DB first */
     if (count == 1) {
         apr_status_t status = db_reclaim_page_from_free_db(txn, &first_pgno);
         if (status == APR_SUCCESS) {
             /* Successfully reclaimed a page from Free DB */
+            DEBUG_DBG("[ALLOC] Reclaimed from Free DB: pgno=%lu", (unsigned long) first_pgno);
             *pgno_out = first_pgno;
             return APR_SUCCESS;
         }
+        DEBUG_DBG("[ALLOC] No pages in Free DB, extending file");
         /* If reclamation failed (APR_NOTFOUND or error), fall through to file extension */
     }
 
     /* Fall back to extending the file (original behavior) */
     first_pgno = txn->new_last_pgno + 1;
     txn->new_last_pgno += count;
+
+    DEBUG_DBG("[ALLOC] Allocated: first_pgno=%lu, new new_last_pgno=%lu", (unsigned long) first_pgno, (unsigned long) txn->new_last_pgno);
 
     *pgno_out = first_pgno;
     return APR_SUCCESS;
@@ -340,9 +348,12 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_pa
 
     if (dirty_copy) {
         /* Already have a dirty copy - return it */
+        DEBUG_DBG("[COW] Page %lu already dirty", (unsigned long) pgno);
         *dirty_copy_out = dirty_copy;
         return APR_SUCCESS;
     }
+
+    DEBUG_DBG("[COW] Creating dirty copy of page %lu", (unsigned long) pgno);
 
     /* Need to create a new dirty copy */
     dirty_copy = apr_palloc(txn->pool, PAGE_SIZE);
@@ -362,6 +373,7 @@ apr_status_t db_page_get_writable(napr_db_txn_t *txn, DB_PageHeader *original_pa
 
     /* Store the dirty copy in the hash table */
     apr_hash_set(txn->dirty_pages, pgno_key, sizeof(pgno_t), dirty_copy);
+    DEBUG_DBG("[COW] Added page %lu to dirty_pages, count now=%d", (unsigned long) pgno, apr_hash_count(txn->dirty_pages));
 
     /* Record the original page as freed (Copy-on-Write) */
     if (txn->freed_pages) {
@@ -425,7 +437,12 @@ apr_status_t db_page_insert(DB_PageHeader *page, uint16_t index, const napr_db_v
 
     /* Check if there's enough free space */
     free_space = page->upper - page->lower;
+
+    DEBUG_DBG("[INSERT] pgno=%lu, index=%u, node_size=%u, lower=%u, upper=%u, free_space=%u, required=%u",
+              (unsigned long) page->pgno, index, node_size, page->lower, page->upper, free_space, (unsigned int) (node_size + sizeof(uint16_t)));
+
     if (free_space < (node_size + sizeof(uint16_t))) {
+        DEBUG_DBG("[INSERT] ENOSPC: free_space=%u < required=%u", free_space, (unsigned int) (node_size + sizeof(uint16_t)));
         return APR_ENOSPC;
     }
 
@@ -560,6 +577,9 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Page
     uint16_t idx = 0;
     uint16_t *right_slots = NULL;
     DB_LeafNode *first_right_node = NULL;
+    char errbuf[ERR_BUF_SIZE];
+
+    DEBUG_DBG("[SPLIT_LEAF] Entry: left_pgno=%lu, num_keys=%u", (unsigned long) left_page->pgno, left_page->num_keys);
 
     if (!txn || !left_page || !right_page_out || !divider_key_out) {
         return APR_EINVAL;
@@ -577,7 +597,9 @@ apr_status_t db_split_leaf(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Page
 
     /* Allocate a new page for the right sibling */
     status = db_page_alloc(txn, 1, &right_pgno);
+    DEBUG_DBG("[SPLIT_LEAF] db_page_alloc result: %s, right_pgno=%lu", status == APR_SUCCESS ? "SUCCESS" : "FAILED", status == APR_SUCCESS ? (unsigned long) right_pgno : 0UL);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[SPLIT_LEAF] db_page_alloc failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
@@ -691,6 +713,9 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
     uint16_t idx = 0;
     uint16_t *right_slots = NULL;
     DB_BranchNode *divider_node = NULL;
+    char errbuf[ERR_BUF_SIZE];
+
+    DEBUG_DBG("[SPLIT_BRANCH] Entry: left_pgno=%lu, num_keys=%u", (unsigned long) left_page->pgno, left_page->num_keys);
 
     if (!txn || !left_page || !right_page_out || !divider_key_out) {
         return APR_EINVAL;
@@ -708,7 +733,9 @@ apr_status_t db_split_branch(napr_db_txn_t *txn, DB_PageHeader *left_page, DB_Pa
 
     /* Allocate a new page for the right sibling */
     status = db_page_alloc(txn, 1, &right_pgno);
+    DEBUG_DBG("[SPLIT_BRANCH] db_page_alloc result: %s, right_pgno=%lu", status == APR_SUCCESS ? "SUCCESS" : "FAILED", status == APR_SUCCESS ? (unsigned long) right_pgno : 0UL);
     if (status != APR_SUCCESS) {
+        DEBUG_ERR("[SPLIT_BRANCH] db_page_alloc failed: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
 
