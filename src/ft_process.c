@@ -28,7 +28,6 @@ static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
 {
-    char errbuf[ERR_BUF_SIZE];
     hashing_context_t *h_ctx = (hashing_context_t *) hashing_ctx;
     hashing_task_t *task = (hashing_task_t *) task_data;
     ft_fsize_t *fsize = task->fsize;
@@ -37,6 +36,7 @@ static apr_status_t hashing_worker_callback(void *hashing_ctx, void *task_data)
     apr_status_t status = apr_pool_create(&subpool, h_ctx->pool);
 
     if (APR_SUCCESS != status) {
+        char errbuf[ERR_BUF_SIZE];
         DEBUG_ERR("error creating subpool: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
         return status;
     }
@@ -149,9 +149,9 @@ static void handle_hashing_success(hashing_context_t *h_ctx, ft_file_t *file, ft
 
 static void handle_hashing_error(hashing_context_t *h_ctx, ft_file_t *file, apr_status_t status)
 {
-    char errbuf[ERR_BUF_SIZE];
-
     if (is_option_set(h_ctx->conf->mask, OPTION_VERBO)) {
+        char errbuf[ERR_BUF_SIZE];
+
         (void) fprintf(stderr, "\nskipping %s because: %s\n", file->path, apr_strerror(status, errbuf, ERR_BUF_SIZE));
     }
 }
@@ -223,9 +223,20 @@ apr_status_t ft_process_files(ft_conf_t *conf)
         }
 
         if (h_ctx.results && h_ctx.results->nelts > 0) {
-            status = update_cache_with_results(conf, &h_ctx);
-            if (APR_SUCCESS != status) {
-                DEBUG_ERR("error calling update_cache_with_results: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            status = apr_thread_mutex_lock(h_ctx.results_mutex);
+            if (status != APR_SUCCESS) {
+                DEBUG_ERR("Error locking results mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+            }
+            else {
+                apr_status_t update_status = update_cache_with_results(conf, &h_ctx);
+                if (update_status != APR_SUCCESS) {
+                    DEBUG_ERR("error calling update_cache_with_results: %s", apr_strerror(update_status, errbuf, ERR_BUF_SIZE));
+                }
+
+                status = apr_thread_mutex_unlock(h_ctx.results_mutex);
+                if (status != APR_SUCCESS) {
+                    DEBUG_ERR("Error unlocking results mutex: %s", apr_strerror(status, errbuf, ERR_BUF_SIZE));
+                }
             }
         }
 

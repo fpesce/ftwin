@@ -282,9 +282,11 @@ typedef struct __attribute__((packed))
          unsigned int flags;    /**< Environment flags */
 
          /* File and mapping */
+         const char *db_path;   /**< Path to database file */
          apr_file_t *file;      /**< Database file handle */
          apr_mmap_t *mmap;      /**< Memory map handle */
          void *map_addr;        /**< Base address of memory map */
+         apr_size_t current_map_len; /**< Currently mapped length */
 
          /* Meta pages */
          DB_MetaPage *meta0;    /**< Pointer to Meta Page 0 in mmap */
