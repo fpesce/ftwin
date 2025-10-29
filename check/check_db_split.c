@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "../src/napr_db_internal.h"
+#include "../src/debug.h"
 #include "check_db_constants.h"
 
 /* Test fixture for db split tests */
@@ -454,65 +455,69 @@ START_TEST(test_leaf_split_left_page_metadata)
     napr_db_val_t divider_key = { 0 };
     apr_status_t status = APR_SUCCESS;
     uint16_t expected_upper = 0;
+    uint16_t free_space_before_split = 0;
 
-    // Define the key/data that will trigger the split
+    // Define the key/data that will be inserted AFTER the split
     napr_db_val_t trigger_key;
     napr_db_val_t trigger_data;
-    // Use sizes similar to what caused failure in logs
-    char trigger_key_str[103] = "trigger_key_long_enough_to_cause_split_";
-    char trigger_data_str[41] = "trigger_data_content_";
-    trigger_key.data = trigger_key_str;
-    trigger_key.size = sizeof(trigger_key_str) - 1;     // Example size
-    trigger_data.data = trigger_data_str;
-    trigger_data.size = sizeof(trigger_data_str) - 1;   // Example size
-
+    const char *trigger_key_str = "key_005_prime"; // Lexicographically SMALLER than divider
+    const char *trigger_data_str = "trigger_data_content";
+    trigger_key.data = (void *) trigger_key_str;
+    trigger_key.size = strlen(trigger_key_str);
+    trigger_data.data = (void *) trigger_data_str;
+    trigger_data.size = strlen(trigger_data_str);
 
     db_split_setup(&fixture);
 
     // --- Step 1: Fill the page aggressively ---
-    // Increase this number significantly, maybe 30, 35, or calculate precisely
-    const int NUM_INITIAL_ENTRIES = 30; // Needs tuning
+    const int NUM_INITIAL_ENTRIES = 35;
     populate_leaf_page(fixture.left_page, NUM_INITIAL_ENTRIES);
+    free_space_before_split = fixture.left_page->upper - fixture.left_page->lower;
+    DEBUG_DBG("Page %lu state BEFORE split: num_keys=%u, free_space=%u", (unsigned long) fixture.left_page->pgno, fixture.left_page->num_keys, free_space_before_split);
 
     // --- Step 2 & 3: Perform Split ---
     status = db_split_leaf(fixture.txn, fixture.left_page, &right_page, &divider_key);
     ck_assert_int_eq(status, APR_SUCCESS);
     ck_assert_ptr_nonnull(right_page);
+    DEBUG_DBG("Split complete. Left pgno=%lu, keys=%u. Right pgno=%lu, keys=%u. Divider='%.*s'",
+              (unsigned long) fixture.left_page->pgno, fixture.left_page->num_keys, (unsigned long) right_page->pgno, right_page->num_keys, (int) divider_key.size, (char *) divider_key.data);
 
     // --- Step 4: Calculate expected upper for verification ---
     uint16_t *left_slots = db_page_slots(fixture.left_page);
     expected_upper = PAGE_SIZE;
-    for (uint16_t i = 0; i < fixture.left_page->num_keys; i++) {
-        uint16_t offset = left_slots[i];
-        if (offset < expected_upper) {
-            expected_upper = offset;
+    if (fixture.left_page->num_keys > 0) {
+        for (uint16_t i = 0; i < fixture.left_page->num_keys; i++) {
+            uint16_t offset = left_slots[i];
+            if (offset < expected_upper) {
+                expected_upper = offset;
+            }
         }
     }
+    else {
+        expected_upper = sizeof(DB_PageHeader);
+    }
+
 
     /* Assert 1: Verify the upper pointer is updated correctly */
     // This assertion should FAIL before the fix
-    ck_assert_msg(fixture.left_page->upper == expected_upper, "left_page->upper mismatch after split. Expected: %u, Got: %u", expected_upper, fixture.left_page->upper);
+    ck_assert_msg(fixture.left_page->upper == expected_upper, "[Assert 1] left_page->upper mismatch after split. Expected: %u, Got: %u", expected_upper, fixture.left_page->upper);
 
     // --- Step 5: Attempt Re-insertion (The critical step) ---
     DB_PageHeader *target_page = NULL;
     uint16_t target_index = 0;
 
     // Determine target page and index for the trigger_key after split
-    if (db_key_compare(trigger_key.data, trigger_key.size, divider_key.data, divider_key.size) < 0) {
-        target_page = fixture.left_page;
-        status = db_page_search(target_page, &trigger_key, &target_index);
-        ck_assert_int_eq(status, APR_NOTFOUND); // Should not exist yet
-    }
-    else {
-        target_page = right_page;
-        status = db_page_search(target_page, &trigger_key, &target_index);
-        ck_assert_int_eq(status, APR_NOTFOUND); // Should not exist yet
-    }
+    ck_assert_msg(db_key_compare(trigger_key.data, trigger_key.size, divider_key.data, divider_key.size) < 0, "Trigger key must be smaller than divider key to target the left page");
 
-    // This insert should FAIL before the fix if trigger_key goes to left_page
+    target_page = fixture.left_page;
+    status = db_page_search(target_page, &trigger_key, &target_index);
+    ck_assert_int_eq(status, APR_NOTFOUND);     // Should not exist yet
+
+    // This insert should FAIL with APR_ENOSPC before the fix because 'upper' is wrong
     // It should PASS after the fix.
     status = db_page_insert(target_page, target_index, &trigger_key, &trigger_data, 0);
-    ck_assert_msg(status == APR_SUCCESS, "db_page_insert failed after split (Expected SUCCESS). Status: %d. Target Page: %lu, Index: %u", status, (unsigned long) target_page->pgno, target_index);
+    ck_assert_msg(status == APR_SUCCESS, "[Assert 2] db_page_insert failed after split (Expected SUCCESS). Status: %d. Target Page: %lu, Index: %u", status,
+                  (unsigned long) target_page->pgno, target_index);
 
     db_split_teardown(&fixture);
 }
