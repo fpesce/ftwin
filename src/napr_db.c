@@ -1201,27 +1201,21 @@ static apr_status_t remap_database_file_if_needed(napr_db_txn_t *txn)
         return status;
     }
 
-    if ((apr_size_t)finfo.size > txn->env->mmap->size) {
-        /* Unmap the old region - this also closes the file handle */
+    if (finfo.size > txn->env->current_map_len) {
+        /* Unmap the old region */
         status = apr_mmap_delete(txn->env->mmap);
         if (status != APR_SUCCESS) {
             return status;
         }
         txn->env->mmap = NULL;
         txn->env->map_addr = NULL;
-        txn->env->file = NULL;
 
-        /* Re-open the file */
-        status = apr_file_open(&txn->env->file, txn->env->db_path, APR_READ | APR_WRITE | APR_BINARY, APR_OS_DEFAULT, txn->env->pool);
-        if (status != APR_SUCCESS) {
-            return status;
-        }
-
-        /* Remap the file */
+        /* Remap the file with the new size */
         status = apr_mmap_create(&txn->env->mmap, txn->env->file, 0, txn->env->mapsize, APR_MMAP_READ | APR_MMAP_WRITE, txn->env->pool);
         if (status != APR_SUCCESS) {
             return status;
         }
+        txn->env->current_map_len = txn->env->mapsize;
 
         /* Update the base address */
         status = apr_mmap_offset(&txn->env->map_addr, txn->env->mmap, 0);
